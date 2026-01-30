@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Inquiry Pooler CRM
 
 A full-stack CRM system built with Next.js that aggregates customer inquiries from WhatsApp, emails, and web sources via n8n, with role-based access control, inquiry assignment, and kanban pipeline management.
@@ -208,3 +209,6 @@ CMD ["npm", "start"]
 ## License
 
 MIT
+=======
+# zervtek-crm
+>>>>>>> 0404a7c37e3502d4ef67c3da1e81bcef6ad24d90
