@@ -469,7 +469,9 @@ export function SharedInvoiceForm({
                 </SelectContent>
               </Select>
               {errors.vendorId && (
-                <p className="text-sm text-red-500">{errors.vendorId.message}</p>
+                <p className="text-sm text-red-500">
+                  {errors.vendorId.message}
+                </p>
               )}
             </div>
 
@@ -575,7 +577,7 @@ export function SharedInvoiceForm({
                   size="sm"
                   onClick={() => {
                     setHasModifiedCostItems(true);
-                    append({ description: "", amount: "", vendorId: "" });
+                    append({ description: "", amount: "" });
                   }}
                   className="w-full"
                 >
