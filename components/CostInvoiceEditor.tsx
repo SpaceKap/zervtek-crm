@@ -21,6 +21,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { format } from "date-fns";
+import { DatePicker } from "@/components/ui/date-picker";
 import { VendorForm } from "@/components/VendorForm";
 
 interface CostInvoiceEditorProps {

@@ -9,7 +9,7 @@ export default function NotFound() {
           Invoice Not Found
         </h1>
         <p className="text-gray-600 dark:text-gray-400 mb-8">
-          The invoice you're looking for doesn't exist or is no longer
+          The invoice you&apos;re looking for doesn&apos;t exist or is no longer
           available.
         </p>
         <Link href="/">
