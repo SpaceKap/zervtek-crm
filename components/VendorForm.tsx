@@ -78,8 +78,14 @@ export function VendorForm({ vendor, onClose }: VendorFormProps) {
     }
   };
 
+  const handleOpenChange = (open: boolean) => {
+    if (!open) {
+      onClose();
+    }
+  };
+
   return (
-    <Dialog open={true} onOpenChange={onClose}>
+    <Dialog open={true} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>{vendor ? "Edit Vendor" : "Add Vendor"}</DialogTitle>
