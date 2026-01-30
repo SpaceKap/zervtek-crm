@@ -45,12 +45,18 @@ $DOCKER_COMPOSE up -d
 echo -e "${YELLOW}⏳ Waiting for container to start...${NC}"
 sleep 10
 
+# Run data migration if needed (before schema changes)
+echo -e "${YELLOW}🔄 Running data migrations...${NC}"
+$DOCKER_COMPOSE exec -T inquiry-pooler sh -c "cd /app && npx tsx scripts/migrate-proposal-sent.ts" || {
+    echo -e "${YELLOW}⚠️  Data migration script not found or failed, continuing...${NC}"
+}
+
 # Run Prisma migrations
-echo -e "${YELLOW}🗄️  Running database migrations...${NC}"
+echo -e "${YELLOW}🗄️  Running database schema migrations...${NC}"
 # Use npm run which should work if package.json and prisma are installed
-$DOCKER_COMPOSE exec -T inquiry-pooler sh -c "cd /app && npm run db:push -- --skip-generate" || {
+$DOCKER_COMPOSE exec -T inquiry-pooler sh -c "cd /app && npm run db:push -- --skip-generate --accept-data-loss" || {
     echo -e "${YELLOW}⚠️  Migration failed, trying direct prisma command...${NC}"
-    $DOCKER_COMPOSE exec -T inquiry-pooler sh -c "cd /app && ./node_modules/.bin/prisma db push --skip-generate || node_modules/prisma/build/index.js db push --skip-generate"
+    $DOCKER_COMPOSE exec -T inquiry-pooler sh -c "cd /app && ./node_modules/.bin/prisma db push --skip-generate --accept-data-loss || node_modules/prisma/build/index.js db push --skip-generate --accept-data-loss"
 }
 
 # Check if containers are running
