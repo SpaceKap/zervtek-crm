@@ -1,0 +1,78 @@
+@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+    --primary: 222.2 47.4% 11.2%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 222.2 84% 4.9%;
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    /* Material Design 3 Dark Theme - HSL format */
+    --background: 0 0% 7%; /* #121212 - Primary background */
+    --foreground: 0 0% 100%; /* #FFFFFF - On background */
+    --card: 0 0% 12%; /* #1E1E1E - Surface */
+    --card-foreground: 0 0% 100%; /* #FFFFFF - On surface */
+    --popover: 0 0% 12%; /* #1E1E1E - Surface */
+    --popover-foreground: 0 0% 100%; /* #FFFFFF - On surface */
+    --primary: 43 96% 56%; /* #D4AF37 - Primary color (Gold) */
+    --primary-foreground: 0 0% 0%; /* #000000 - On primary */
+    --secondary: 280 8% 29%; /* #49454F - Secondary container */
+    --secondary-foreground: 0 0% 100%; /* #FFFFFF - On secondary */
+    --muted: 0 0% 17%; /* #2C2C2C - Surface variant */
+    --muted-foreground: 0 0% 63%; /* #A1A1A1 - On surface variant */
+    --accent: 280 8% 29%; /* #49454F - Tertiary container */
+    --accent-foreground: 0 0% 100%; /* #FFFFFF - On tertiary */
+    --destructive: 0 76% 42%; /* #BA1A1A - Error container */
+    --destructive-foreground: 0 0% 100%; /* #FFFFFF - On error */
+    --border: 0 0% 17%; /* #2C2C2C - Outline */
+    --input: 0 0% 17%; /* #2C2C2C - Input field */
+    --ring: 43 96% 56%; /* #D4AF37 - Focus ring (Gold) */
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  
+  .material-symbols-outlined {
+    font-family: 'Material Symbols Outlined';
+    font-weight: normal;
+    font-style: normal;
+    font-size: 24px;
+    line-height: 1;
+    letter-spacing: normal;
+    text-transform: none;
+    display: inline-block;
+    white-space: nowrap;
+    word-wrap: normal;
+    direction: ltr;
+    -webkit-font-feature-settings: 'liga';
+    -webkit-font-smoothing: antialiased;
+  }
+}
