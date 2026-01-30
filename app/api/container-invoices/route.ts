@@ -86,6 +86,15 @@ async function copyContainerCostsToVehicleCostInvoices(containerInvoiceId: strin
       })
 
       if (!existingCost) {
+        // Get vendorId from shared invoice metadata
+        const metadata = containerInvoice.sharedInvoice.metadata as any
+        const vendorId = metadata?.vendorId
+
+        if (!vendorId) {
+          console.error(`Shared invoice ${containerInvoice.sharedInvoice.id} is missing vendorId in metadata`)
+          continue // Skip this vehicle if vendorId is missing
+        }
+
         // Add container cost to cost invoice
         await prisma.costItem.create({
           data: {
@@ -93,6 +102,7 @@ async function copyContainerCostsToVehicleCostInvoices(containerInvoiceId: strin
             description: `Container Freight (${containerInvoice.sharedInvoice.invoiceNumber})`,
             amount: sharedVehicle.allocatedAmount, // Use the cost amount from shared invoice
             category: "Freight",
+            vendorId: vendorId,
             paymentDate: containerInvoice.sharedInvoice.date,
           },
         })
