@@ -38,10 +38,8 @@ async function generateSharedInvoiceNumber(
 export async function GET(request: NextRequest) {
   try {
     const user = await requireAuth()
-
-    if (!canViewAllInquiries(user.role)) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
-    }
+    // Sales staff and managers can view shared invoices (they can create them too)
+    // No restriction needed here
 
     const { searchParams } = new URL(request.url)
     const type = searchParams.get("type")
@@ -85,10 +83,8 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const user = await requireAuth()
-
-    if (!canViewAllInquiries(user.role)) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
-    }
+    // Sales staff and managers can create shared invoices
+    // No restriction needed - all authenticated users can create
 
     const body = await request.json()
     const { type, totalAmount, date, vehicleIds, vendorId, costItems } = body
@@ -232,10 +228,8 @@ export async function POST(request: NextRequest) {
 export async function PATCH(request: NextRequest) {
   try {
     const user = await requireAuth()
-
-    if (!canViewAllInquiries(user.role)) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
-    }
+    // Sales staff and managers can edit shared invoices
+    // No restriction needed - all authenticated users can edit
 
     const body = await request.json()
     const { id, type, totalAmount, date, vehicleIds, costItems, vendorId } = body

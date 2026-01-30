@@ -24,7 +24,7 @@ export async function PATCH(
       )
     }
 
-    if (!canEditInvoice(invoice.status, user.role)) {
+    if (!canEditInvoice(invoice.status, user.role, invoice.isLocked)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
@@ -75,7 +75,7 @@ export async function DELETE(
       )
     }
 
-    if (!canEditInvoice(invoice.status, user.role)) {
+    if (!canEditInvoice(invoice.status, user.role, invoice.isLocked)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 

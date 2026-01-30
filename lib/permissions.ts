@@ -64,19 +64,15 @@ export function canEditInvoice(
   userRole: UserRole,
   isLocked: boolean = false,
 ): boolean {
-  // Cannot edit locked invoices
-  if (isLocked) {
+  // Cannot edit locked invoices (sales/managers cannot edit when locked by admin)
+  if (isLocked && userRole !== UserRole.ADMIN) {
     return false
   }
   // Cannot edit finalized invoices (even if unlocked)
   if (invoiceStatus === "FINALIZED") {
     return false
   }
-  // Only admin can edit approved invoices
-  if (invoiceStatus === "APPROVED" && userRole !== UserRole.ADMIN) {
-    return false
-  }
-  // Sales and managers can edit drafts and pending approval
+  // Sales, managers, and admins can edit all non-finalized invoices when not locked
   return (
     userRole === UserRole.SALES ||
     userRole === UserRole.MANAGER ||

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useImperativeHandle, forwardRef } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -30,9 +30,14 @@ interface SharedInvoicesListProps {
   isAdmin?: boolean;
 }
 
-export function SharedInvoicesList({
-  isAdmin = false,
-}: SharedInvoicesListProps) {
+export interface SharedInvoicesListRef {
+  openNewForm: () => void;
+}
+
+export const SharedInvoicesList = forwardRef<
+  SharedInvoicesListRef,
+  SharedInvoicesListProps
+>(({ isAdmin = false }, ref) => {
   const router = useRouter();
   const [sharedInvoices, setSharedInvoices] = useState<SharedInvoice[]>([]);
   const [loading, setLoading] = useState(true);
@@ -50,6 +55,13 @@ export function SharedInvoicesList({
   useEffect(() => {
     fetchSharedInvoices();
   }, []);
+
+  useImperativeHandle(ref, () => ({
+    openNewForm: () => {
+      setEditingInvoice(null);
+      setShowForm(true);
+    },
+  }));
 
   const fetchSharedInvoices = async () => {
     try {
@@ -108,18 +120,6 @@ export function SharedInvoicesList({
 
   return (
     <>
-      <div className="flex items-center justify-between mb-4">
-        <div></div>
-        <Button
-          onClick={() => {
-            setEditingInvoice(null);
-            setShowForm(true);
-          }}
-        >
-          <span className="material-symbols-outlined text-lg mr-2">add</span>
-          New Shared Invoice
-        </Button>
-      </div>
       <Card>
         <CardContent className="p-4">
           {sharedInvoices.length === 0 ? (
@@ -262,4 +262,6 @@ export function SharedInvoicesList({
       )}
     </>
   );
-}
+});
+
+SharedInvoicesList.displayName = "SharedInvoicesList";

@@ -46,10 +46,16 @@ echo -e "${YELLOW}⏳ Waiting for container to start...${NC}"
 sleep 10
 
 # Run data migration if needed (before schema changes)
-echo -e "${YELLOW}🔄 Running data migrations...${NC}"
-$DOCKER_COMPOSE exec -T inquiry-pooler sh -c "cd /app && npx tsx scripts/migrate-proposal-sent.ts" || {
-    echo -e "${YELLOW}⚠️  Data migration script not found or failed, continuing...${NC}"
-}
+# Migrate PROPOSAL_SENT status to DEPOSIT using SQL file
+echo -e "${YELLOW}🔄 Running data migrations (PROPOSAL_SENT -> DEPOSIT)...${NC}"
+if [ -f "scripts/migrate-proposal-sent.sql" ]; then
+    $DOCKER_COMPOSE exec -T inquiry-pooler sh -c "cd /app && cat scripts/migrate-proposal-sent.sql | npx prisma db execute --stdin" || {
+        echo -e "${YELLOW}⚠️  Data migration failed or no records to migrate${NC}"
+    }
+else
+    echo -e "${YELLOW}⚠️  Migration SQL file not found, skipping data migration${NC}"
+fi
+echo -e "${GREEN}✅ Data migration step completed${NC}"
 
 # Run Prisma migrations
 echo -e "${YELLOW}🗄️  Running database schema migrations...${NC}"

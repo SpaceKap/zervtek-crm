@@ -36,16 +36,16 @@ export async function GET(
       )
     }
 
-    // Check permissions
+    // Check permissions - sales/managers can view invoices they created, admins can view all
     const canViewAll = canViewAllInquiries(user.role)
     if (!canViewAll && invoice.createdById !== user.id) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
-    // Require approval before PDF can be shared
-    if (invoice.status !== InvoiceStatus.APPROVED && invoice.status !== InvoiceStatus.FINALIZED) {
+    // Require approval before PDF can be downloaded (sales/managers need approval, admins can download any)
+    if (user.role !== "ADMIN" && invoice.status !== InvoiceStatus.APPROVED && invoice.status !== InvoiceStatus.FINALIZED) {
       return NextResponse.json(
-        { error: "Invoice must be approved before PDF can be generated" },
+        { error: "Invoice must be approved before PDF can be downloaded" },
         { status: 403 }
       )
     }
@@ -67,8 +67,9 @@ export async function GET(
 
     const buffer = await renderToBuffer(pdfDoc)
 
-    // Only allow download for approved/finalized invoices
+    // Only allow download for approved/finalized invoices (or admins can download any)
     const canDownload =
+      user.role === "ADMIN" ||
       invoice.status === InvoiceStatus.APPROVED ||
       invoice.status === InvoiceStatus.FINALIZED;
 

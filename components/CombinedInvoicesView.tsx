@@ -1,10 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { InvoicesList } from "./InvoicesList";
-import { SharedInvoicesList } from "./SharedInvoicesList";
+import {
+  SharedInvoicesList,
+  SharedInvoicesListRef,
+} from "./SharedInvoicesList";
 import { UserRole } from "@prisma/client";
 
 interface CombinedInvoicesViewProps {
@@ -18,8 +21,12 @@ export function CombinedInvoicesView({
   currentUser,
 }: CombinedInvoicesViewProps) {
   const [activeTab, setActiveTab] = useState<"invoices" | "shared">("invoices");
+  const sharedInvoicesListRef = useRef<SharedInvoicesListRef>(null);
+  // Sales staff, managers, and admins can all view and create shared invoices
   const canViewShared =
-    currentUser.role === "MANAGER" || currentUser.role === "ADMIN";
+    currentUser.role === UserRole.SALES ||
+    currentUser.role === UserRole.MANAGER ||
+    currentUser.role === UserRole.ADMIN;
 
   return (
     <div className="space-y-6">
@@ -42,6 +49,16 @@ export function CombinedInvoicesView({
               New Invoice
             </Button>
           </Link>
+        )}
+        {activeTab === "shared" && canViewShared && (
+          <Button
+            onClick={() => {
+              sharedInvoicesListRef.current?.openNewForm();
+            }}
+          >
+            <span className="material-symbols-outlined text-lg mr-2">add</span>
+            New Shared Invoice
+          </Button>
         )}
       </div>
 
@@ -72,7 +89,10 @@ export function CombinedInvoicesView({
 
       {activeTab === "invoices" && <InvoicesList />}
       {activeTab === "shared" && (
-        <SharedInvoicesList isAdmin={currentUser.role === UserRole.ADMIN} />
+        <SharedInvoicesList
+          ref={sharedInvoicesListRef}
+          isAdmin={currentUser.role === UserRole.ADMIN}
+        />
       )}
     </div>
   );
