@@ -90,10 +90,11 @@ export function DashboardControls({
           <option value="NEW">New</option>
           <option value="CONTACTED">Contacted</option>
           <option value="QUALIFIED">Qualified</option>
-          <option value="PROPOSAL_SENT">Proposal Sent</option>
+          <option value="DEPOSIT">Deposit</option>
           <option value="NEGOTIATION">Negotiation</option>
           <option value="CLOSED_WON">Closed Won</option>
           <option value="CLOSED_LOST">Closed Lost</option>
+          <option value="RECURRING">Recurring</option>
         </select>
         <Button
           onClick={onRefresh}

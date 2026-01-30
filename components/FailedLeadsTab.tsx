@@ -73,10 +73,11 @@ export function FailedLeadsTab() {
       NEW: "New",
       CONTACTED: "Contacted",
       QUALIFIED: "Qualified",
-      PROPOSAL_SENT: "Proposal Sent",
+      DEPOSIT: "Deposit",
       NEGOTIATION: "Negotiation",
       CLOSED_WON: "Closed Won",
       CLOSED_LOST: "Closed Lost",
+      RECURRING: "Recurring",
     };
     return statusLabels[status] || status;
   };

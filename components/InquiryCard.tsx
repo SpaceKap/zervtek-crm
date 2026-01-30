@@ -43,20 +43,22 @@ const statusColors: Record<InquiryStatus, string> = {
   NEW: "bg-blue-100 text-blue-700 border-blue-200",
   CONTACTED: "bg-yellow-100 text-yellow-700 border-yellow-200",
   QUALIFIED: "bg-green-100 text-green-700 border-green-200",
-  PROPOSAL_SENT: "bg-purple-100 text-purple-700 border-purple-200",
+  DEPOSIT: "bg-purple-100 text-purple-700 border-purple-200",
   NEGOTIATION: "bg-orange-100 text-orange-700 border-orange-200",
   CLOSED_WON: "bg-green-100 text-green-700 border-green-200",
   CLOSED_LOST: "bg-gray-100 text-gray-700 border-gray-200",
+  RECURRING: "bg-cyan-100 text-cyan-700 border-cyan-200",
 };
 
 const statusLabels: Record<InquiryStatus, string> = {
   NEW: "New",
   CONTACTED: "Contacted",
   QUALIFIED: "Qualified",
-  PROPOSAL_SENT: "Proposal Sent",
+  DEPOSIT: "Deposit",
   NEGOTIATION: "Negotiation",
   CLOSED_WON: "Closed Won",
   CLOSED_LOST: "Closed Lost",
+  RECURRING: "Recurring",
 };
 
 const sourceColors: Record<InquirySource, string> = {
@@ -66,6 +68,8 @@ const sourceColors: Record<InquirySource, string> = {
   CHATBOT:
     "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200",
   JCT_STOCK_INQUIRY:
+    "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200",
+  STOCK_INQUIRY:
     "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200",
   ONBOARDING_FORM:
     "bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-200",
@@ -81,6 +85,7 @@ const sourceLabels: Record<InquirySource, string> = {
   WEB: "Web",
   CHATBOT: "Chatbot",
   JCT_STOCK_INQUIRY: "JCT Stock Inquiry",
+  STOCK_INQUIRY: "Stock Inquiry",
   ONBOARDING_FORM: "Onboarding Form",
   CONTACT_US_INQUIRY_FORM: "Contact Us Inquiry Form",
   HERO_INQUIRY: "Hero Section Inquiry",

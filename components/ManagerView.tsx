@@ -69,7 +69,7 @@ export function ManagerView({
 
           <Tabs defaultValue="kanban" className="w-full">
             <TabsList>
-              <TabsTrigger value="kanban">Kanban Board</TabsTrigger>
+              <TabsTrigger value="kanban">Pipeline</TabsTrigger>
               <TabsTrigger value="inquiries">Inquiries</TabsTrigger>
             </TabsList>
             <TabsContent value="kanban" className="mt-4">

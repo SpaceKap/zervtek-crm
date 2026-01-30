@@ -47,7 +47,7 @@ export default async function DashboardLayout({
                   <span className="material-symbols-outlined text-lg">
                     view_kanban
                   </span>
-                  Kanban Board
+                  Pipeline
                 </Link>
                 <Link
                   href="/dashboard/invoices"

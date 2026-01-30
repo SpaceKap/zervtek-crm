@@ -31,6 +31,7 @@ const inquirySchema = z.object({
     "WEB",
     "CHATBOT",
     "JCT_STOCK_INQUIRY",
+    "STOCK_INQUIRY",
     "ONBOARDING_FORM",
     "CONTACT_US_INQUIRY_FORM",
   ]),

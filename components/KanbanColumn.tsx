@@ -65,10 +65,11 @@ export function KanbanColumn({
       NEW: "bg-yellow-400",
       CONTACTED: "bg-blue-400",
       QUALIFIED: "bg-green-400",
-      PROPOSAL_SENT: "bg-purple-400",
+      DEPOSIT: "bg-purple-400",
       NEGOTIATION: "bg-orange-400",
       CLOSED_WON: "bg-green-500",
       CLOSED_LOST: "bg-gray-400",
+      RECURRING: "bg-cyan-400",
     };
     return (
       statusColors[title.toUpperCase().replace(/\s+/g, "_")] || "bg-gray-400"
