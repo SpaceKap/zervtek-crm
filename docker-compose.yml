@@ -17,35 +17,11 @@ services:
       - N8N_WEBHOOK_SECRET=${N8N_WEBHOOK_SECRET:-}
     networks:
       - caddy_proxy
-    depends_on:
-      crm-db:
-        condition: service_healthy
     volumes:
       # Mount data directory for CSV files (if needed for updates)
       - ./data:/app/data:ro
       - ./public/data:/app/public/data:ro
 
-  crm-db:
-    image: postgres:15-alpine
-    container_name: crm-db
-    restart: unless-stopped
-    environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-      - POSTGRES_DB=inquiry_pooler
-    networks:
-      - caddy_proxy
-    volumes:
-      - crm-db-data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
 networks:
   caddy_proxy:
     external: true
-
-volumes:
-  crm-db-data:
