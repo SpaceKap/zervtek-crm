@@ -10,9 +10,9 @@ export interface DatePickerProps extends Omit<
 
 const DatePicker = React.forwardRef<HTMLInputElement, DatePickerProps>(
   ({ className, id, ...props }, ref) => {
-    const inputRef = React.useRef<HTMLInputElement>(null);
+    const inputRef = React.useRef<HTMLInputElement | null>(null);
     const combinedRef = React.useCallback(
-      (node: HTMLInputElement) => {
+      (node: HTMLInputElement | null) => {
         if (ref) {
           if (typeof ref === "function") {
             ref(node);

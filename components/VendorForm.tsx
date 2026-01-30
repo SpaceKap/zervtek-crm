@@ -122,7 +122,7 @@ export function VendorForm({ vendor, onClose }: VendorFormProps) {
             <Button
               type="button"
               variant="outline"
-              onClick={onClose}
+              onClick={() => onClose()}
               disabled={saving}
             >
               Cancel
