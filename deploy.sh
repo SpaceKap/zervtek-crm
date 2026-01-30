@@ -47,10 +47,10 @@ sleep 10
 
 # Run Prisma migrations
 echo -e "${YELLOW}🗄️  Running database migrations...${NC}"
-$DOCKER_COMPOSE exec -T inquiry-pooler npx prisma db push || {
-    echo -e "${YELLOW}⚠️  Migration failed, trying to generate Prisma client first...${NC}"
-    $DOCKER_COMPOSE exec -T inquiry-pooler npx prisma generate
-    $DOCKER_COMPOSE exec -T inquiry-pooler npx prisma db push
+# Use --skip-generate since Prisma Client is already generated during build
+$DOCKER_COMPOSE exec -T inquiry-pooler npx prisma db push --skip-generate || {
+    echo -e "${YELLOW}⚠️  Migration failed, trying without skip-generate...${NC}"
+    $DOCKER_COMPOSE exec -T inquiry-pooler npx prisma db push --accept-data-loss
 }
 
 # Check if containers are running

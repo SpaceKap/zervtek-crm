@@ -45,12 +45,10 @@ COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules/@prisma ./node_modules/@prisma
 
-# Install Prisma CLI locally for migrations (needed for db:push)
-# Install as root, then switch back to nextjs user
+# Copy Prisma CLI from builder (already installed there, avoids permission issues)
 USER root
 RUN apk add --no-cache openssl
-COPY --from=builder --chown=root:root /app/package.json ./package.json
-RUN npm install --no-save prisma@5.19.0
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules/prisma ./node_modules/prisma
 USER nextjs
 
 # Copy data files (CSV files for vehicle catalog)
