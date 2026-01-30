@@ -51,12 +51,9 @@ export async function GET(request: NextRequest) {
     })
 
     // Fetch all cost items with payment dates (payments)
+    // Note: paymentDate is required, so no need to filter for null
     const costItemPayments = await prisma.costItem.findMany({
-      where: {
-        paymentDate: {
-          not: null,
-        },
-      },
+      where: {},
       include: {
         costInvoice: {
           include: {
