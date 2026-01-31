@@ -61,6 +61,7 @@ interface SharedInvoiceFormProps {
     type: string;
     totalAmount: number;
     date: string;
+    paymentDeadline?: string;
     vehicles: Array<{
       vehicleId: string;
     }>;
@@ -183,8 +184,16 @@ export function SharedInvoiceForm({
               vehicles.map((v: Vehicle) => v.id),
             );
             setValue("type", data.type);
-            setValue("date", data.date ? new Date(data.date).toISOString().split("T")[0] : "");
-            setValue("paymentDeadline", data.paymentDeadline ? new Date(data.paymentDeadline).toISOString().split("T")[0] : new Date().toISOString().split("T")[0]);
+            setValue(
+              "date",
+              data.date ? new Date(data.date).toISOString().split("T")[0] : "",
+            );
+            setValue(
+              "paymentDeadline",
+              data.paymentDeadline
+                ? new Date(data.paymentDeadline).toISOString().split("T")[0]
+                : new Date().toISOString().split("T")[0],
+            );
             // Restore vendor from metadata if available
             if (data.metadata?.vendorId) {
               setValue("vendorId", data.metadata.vendorId);
@@ -485,9 +494,14 @@ export function SharedInvoiceForm({
             <div className="grid grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="paymentDeadline">Payment Deadline *</Label>
-                <DatePicker id="paymentDeadline" {...register("paymentDeadline")} />
+                <DatePicker
+                  id="paymentDeadline"
+                  {...register("paymentDeadline")}
+                />
                 {errors.paymentDeadline && (
-                  <p className="text-sm text-red-500">{errors.paymentDeadline.message}</p>
+                  <p className="text-sm text-red-500">
+                    {errors.paymentDeadline.message}
+                  </p>
                 )}
               </div>
               <div className="space-y-2">
