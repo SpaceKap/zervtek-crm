@@ -67,7 +67,7 @@ export async function GET(
     }
 
     // Convert logo data URL to Buffer for react-pdf (react-pdf doesn't support data URIs)
-    let processedCompanyInfo = { ...companyInfo }
+    let processedCompanyInfo: typeof companyInfo & { logo?: string | Buffer } = { ...companyInfo }
     if (companyInfo.logo) {
       if (companyInfo.logo.startsWith("data:")) {
         // Extract base64 from data URL
