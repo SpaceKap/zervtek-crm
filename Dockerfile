@@ -21,7 +21,10 @@ COPY . .
 RUN npx prisma generate
 
 # Build Next.js application
+# Set a placeholder DATABASE_URL for build time (Prisma Client needs it during build)
+# The actual DATABASE_URL will be provided at runtime via docker-compose
 ENV NEXT_TELEMETRY_DISABLED 1
+ENV DATABASE_URL="postgresql://placeholder:placeholder@localhost:5432/placeholder"
 RUN npm run build
 
 # Stage 3: Runner
