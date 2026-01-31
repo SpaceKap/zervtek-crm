@@ -873,91 +873,105 @@ export function InvoiceForm({ invoice }: InvoiceFormProps = {}) {
                               </Select>
                               {watch(`charges.${index}.chargeType`) ===
                               "VEHICLE" ? (
-                                <Select
-                                  value={watch("vehicleId") || ""}
-                                  onValueChange={(value) => {
-                                    setValue("vehicleId", value, {
-                                      shouldValidate: true,
-                                    });
-                                    const selectedVehicle = vehicles.find(
-                                      (v) => v.id === value,
-                                    );
-                                    if (selectedVehicle) {
-                                      const vehicleDescription =
-                                        selectedVehicle.make &&
-                                        selectedVehicle.model
-                                          ? `${selectedVehicle.year || ""} ${selectedVehicle.make} ${selectedVehicle.model} - ${selectedVehicle.vin}`.trim()
-                                          : selectedVehicle.vin;
-                                      const formattedPrice =
-                                        selectedVehicle.price
-                                          ? selectedVehicle.price.toLocaleString(
-                                              "en-US",
-                                            )
-                                          : "";
-                                      setValue(
-                                        `charges.${index}.description`,
-                                        vehicleDescription,
+                                <div className="flex gap-2 items-start flex-1">
+                                  <Select
+                                    value={watch("vehicleId") || ""}
+                                    onValueChange={(value) => {
+                                      setValue("vehicleId", value, {
+                                        shouldValidate: true,
+                                      });
+                                      const selectedVehicle = vehicles.find(
+                                        (v) => v.id === value,
                                       );
-                                      setValue(
-                                        `charges.${index}.amount`,
-                                        formattedPrice,
-                                      );
-
-                                      // Fetch dimensions for all SHIPPING charges
-                                      if (
-                                        selectedVehicle.make &&
-                                        selectedVehicle.model &&
-                                        selectedVehicle.year
-                                      ) {
-                                        const charges = watch("charges");
-                                        charges.forEach(
-                                          (charge: any, idx: number) => {
-                                            if (
-                                              charge.chargeType === "SHIPPING"
-                                            ) {
-                                              fetchVehicleDimensions(
-                                                selectedVehicle.make!,
-                                                selectedVehicle.model!,
-                                                selectedVehicle.year!,
-                                                idx,
-                                              );
-                                            }
-                                          },
+                                      if (selectedVehicle) {
+                                        const vehicleDescription =
+                                          selectedVehicle.make &&
+                                          selectedVehicle.model
+                                            ? `${selectedVehicle.year || ""} ${selectedVehicle.make} ${selectedVehicle.model} - ${selectedVehicle.vin}`.trim()
+                                            : selectedVehicle.vin;
+                                        const formattedPrice =
+                                          selectedVehicle.price
+                                            ? selectedVehicle.price.toLocaleString(
+                                                "en-US",
+                                              )
+                                            : "";
+                                        setValue(
+                                          `charges.${index}.description`,
+                                          vehicleDescription,
                                         );
+                                        setValue(
+                                          `charges.${index}.amount`,
+                                          formattedPrice,
+                                        );
+
+                                        // Fetch dimensions for all SHIPPING charges
+                                        if (
+                                          selectedVehicle.make &&
+                                          selectedVehicle.model &&
+                                          selectedVehicle.year
+                                        ) {
+                                          const charges = watch("charges");
+                                          charges.forEach(
+                                            (charge: any, idx: number) => {
+                                              if (
+                                                charge.chargeType === "SHIPPING"
+                                              ) {
+                                                fetchVehicleDimensions(
+                                                  selectedVehicle.make!,
+                                                  selectedVehicle.model!,
+                                                  selectedVehicle.year!,
+                                                  idx,
+                                                );
+                                              }
+                                            },
+                                          );
+                                        }
                                       }
-                                    }
-                                  }}
-                                >
-                                  <SelectTrigger className="h-9 w-64 max-w-[280px] border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400">
-                                    <SelectValue placeholder="Select vehicle" />
-                                  </SelectTrigger>
-                                  <SelectContent className="max-h-[300px]">
-                                    {vehicles.map((vehicle) => {
-                                      // Short display for trigger (year, make, model only - no VIN)
-                                      const shortDisplay =
-                                        vehicle.make && vehicle.model
-                                          ? `${vehicle.year || ""} ${vehicle.make} ${vehicle.model}`.trim()
-                                          : vehicle.vin;
-                                      return (
-                                        <SelectItem
-                                          key={vehicle.id}
-                                          value={vehicle.id}
-                                        >
-                                          <div className="flex flex-col">
-                                            <span className="font-medium">
-                                              {shortDisplay}
-                                            </span>
-                                            {vehicle.make && vehicle.model && (
-                                              <span className="text-xs text-muted-foreground mt-0.5">
-                                                VIN: {vehicle.vin}
+                                    }}
+                                  >
+                                    <SelectTrigger className="h-9 flex-1 border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400">
+                                      <SelectValue placeholder="Select vehicle" />
+                                    </SelectTrigger>
+                                    <SelectContent className="max-h-[300px]">
+                                      {vehicles.map((vehicle) => {
+                                        // Short display for trigger (year, make, model only - no VIN)
+                                        const shortDisplay =
+                                          vehicle.make && vehicle.model
+                                            ? `${vehicle.year || ""} ${vehicle.make} ${vehicle.model}`.trim()
+                                            : vehicle.vin;
+                                        return (
+                                          <SelectItem
+                                            key={vehicle.id}
+                                            value={vehicle.id}
+                                          >
+                                            <div className="flex flex-col">
+                                              <span className="font-medium">
+                                                {shortDisplay}
                                               </span>
-                                            )}
-                                          </div>
-                                        </SelectItem>
-                                      );
-                                    })}
-                                  </SelectContent>
-                                </Select>
+                                              {vehicle.make &&
+                                                vehicle.model && (
+                                                  <span className="text-xs text-muted-foreground mt-0.5">
+                                                    VIN: {vehicle.vin}
+                                                  </span>
+                                                )}
+                                            </div>
+                                          </SelectItem>
+                                        );
+                                      })}
+                                    </SelectContent>
+                                  </Select>
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={() => setShowVehicleForm(true)}
+                                    className="h-9 px-3 flex-shrink-0"
+                                    title="Add new vehicle"
+                                  >
+                                    <span className="material-symbols-outlined text-lg">
+                                      add
+                                    </span>
+                                  </Button>
+                                </div>
                               ) : watch(`charges.${index}.chargeType`) ===
                                 "SHIPPING" ? (
                                 <div className="flex-1 space-y-2">
