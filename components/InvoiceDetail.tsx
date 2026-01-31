@@ -1614,10 +1614,14 @@ export function InvoiceDetail({
       {showVendorForm && (
         <VendorForm
           vendor={null}
-          onClose={async () => {
-            setShowVendorForm(false);
-            // Refresh vendors list
+          onClose={async (createdVendorId?: string) => {
+            // Refresh vendors list first
             await fetchVendors();
+            // If a vendor was created and we're editing an item, set it
+            if (createdVendorId && editingItem) {
+              setVendorId(createdVendorId);
+            }
+            setShowVendorForm(false);
           }}
         />
       )}
@@ -1886,6 +1890,7 @@ function CostItemForm({
             <div>
               <Label>Vendor *</Label>
               <Select
+                key={`vendor-select-${vendors.length}-${vendorId}`}
                 value={vendorId || "__none__"}
                 onValueChange={(value) => {
                   if (value === "__create__") {

@@ -103,7 +103,7 @@ export function KanbanBoard({
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        distance: 8,
+        distance: 5,
       },
     }),
   );
@@ -154,11 +154,39 @@ export function KanbanBoard({
     if (!over) return;
 
     const inquiryId = active.id as string;
-    const targetStageId = over.id as string;
+    let targetStageId = over.id as string;
 
-    // Find the target stage
-    const targetStage = stages.find((stage) => stage.id === targetStageId);
-    if (!targetStage) return;
+    // If dropping on another inquiry card, find which stage that card belongs to
+    // Otherwise, assume we're dropping directly on a column
+    let targetStage = stages.find((stage) => stage.id === targetStageId);
+    
+    // If not found, it might be another inquiry card - find which stage it belongs to
+    if (!targetStage) {
+      for (const stage of stages) {
+        const foundInquiry = stage.inquiries.find((inq) => inq.id === targetStageId);
+        if (foundInquiry) {
+          targetStage = stage;
+          targetStageId = stage.id;
+          break;
+        }
+      }
+    }
+
+    // Still not found? Try to find by droppable data attribute
+    if (!targetStage && over.data.current) {
+      const droppableId = over.data.current.droppableId;
+      if (droppableId) {
+        targetStage = stages.find((stage) => stage.id === droppableId);
+        if (targetStage) {
+          targetStageId = targetStage.id;
+        }
+      }
+    }
+
+    if (!targetStage) {
+      console.warn("Could not find target stage for drag operation");
+      return;
+    }
 
     // Find the source stage and inquiry
     let sourceStage: Stage | undefined;

@@ -458,6 +458,7 @@ export function SharedInvoiceForm({
             <div className="space-y-2">
               <Label>Vendor *</Label>
               <Select
+                key={`vendor-select-${vendors.length}-${watch("vendorId")}`}
                 value={watch("vendorId") || "__none__"}
                 onValueChange={(value) => {
                   if (value === "__create__") {
@@ -709,15 +710,15 @@ export function SharedInvoiceForm({
         <VendorForm
           vendor={null}
           onClose={async (createdVendorId?: string) => {
-            setShowVendorForm(false);
-            // If a vendor was created, set it as the form vendor first
+            // Refresh vendors list first
+            await fetchVendors();
+            // If a vendor was created, set it as the form vendor after refresh
             if (createdVendorId) {
               setValue("vendorId", createdVendorId, {
                 shouldValidate: true,
               });
             }
-            // Refresh vendors list after setting the value
-            await fetchVendors();
+            setShowVendorForm(false);
           }}
         />
       )}

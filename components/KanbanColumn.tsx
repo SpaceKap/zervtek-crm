@@ -55,8 +55,12 @@ export function KanbanColumn({
   isManager = false,
   isAdmin = false,
 }: KanbanColumnProps) {
-  const { setNodeRef } = useDroppable({
+  const { setNodeRef, isOver } = useDroppable({
     id,
+    data: {
+      droppableId: id,
+      type: "column",
+    },
   });
 
   // Get color dot based on status

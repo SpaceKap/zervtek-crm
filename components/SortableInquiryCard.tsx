@@ -49,7 +49,13 @@ export function SortableInquiryCard({
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: inquiry.id });
+  } = useSortable({ 
+    id: inquiry.id,
+    data: {
+      inquiryId: inquiry.id,
+      status: inquiry.status,
+    },
+  });
 
   const style = {
     transform: CSS.Transform.toString(transform),
