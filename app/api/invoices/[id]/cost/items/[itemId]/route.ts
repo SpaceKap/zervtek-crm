@@ -61,7 +61,7 @@ export async function PATCH(
     }
 
     const body = await request.json()
-    const { description, amount, vendorId, paymentDate, category } = body
+    const { description, amount, vendorId, paymentDate, paymentDeadline, category } = body
 
     const costItem = await prisma.costItem.findUnique({
       where: { id: params.itemId },
@@ -79,7 +79,8 @@ export async function PATCH(
 
     // Validate required fields
     const finalVendorId = vendorId !== undefined ? vendorId : costItem.vendorId
-    const finalPaymentDate = paymentDate !== undefined ? paymentDate : costItem.paymentDate
+    const finalPaymentDate = paymentDate !== undefined ? (paymentDate ? new Date(paymentDate) : null) : costItem.paymentDate
+    const finalPaymentDeadline = paymentDeadline !== undefined ? new Date(paymentDeadline) : costItem.paymentDeadline
 
     if (!finalVendorId) {
       return NextResponse.json(
@@ -88,9 +89,9 @@ export async function PATCH(
       )
     }
 
-    if (!finalPaymentDate) {
+    if (!finalPaymentDeadline) {
       return NextResponse.json(
-        { error: "Payment date is required" },
+        { error: "Payment deadline is required" },
         { status: 400 }
       )
     }
@@ -101,7 +102,8 @@ export async function PATCH(
         ...(description !== undefined && { description }),
         ...(amount !== undefined && { amount: parseFloat(amount) }),
         vendorId: finalVendorId,
-        paymentDate: finalPaymentDate instanceof Date ? finalPaymentDate : new Date(finalPaymentDate),
+        paymentDate: finalPaymentDate,
+        paymentDeadline: finalPaymentDeadline instanceof Date ? finalPaymentDeadline : new Date(finalPaymentDeadline),
         ...(category !== undefined && { category: category || null }),
       },
       include: {

@@ -19,18 +19,23 @@ export const authOptions: NextAuthOptions = {
             if (!user.email) return false
 
             try {
-                // Ensure user exists in database
-                await prisma.user.upsert({
+                // Check if user exists in database - only allow existing users
+                const dbUser = await prisma.user.findUnique({
                     where: { email: user.email },
-                    update: {
+                })
+
+                if (!dbUser) {
+                    // User doesn't exist in database - deny access
+                    console.log(`Access denied: User ${user.email} not found in database`)
+                    return false
+                }
+
+                // User exists - update their info and allow access
+                await prisma.user.update({
+                    where: { email: user.email },
+                    data: {
                         name: user.name,
                         image: user.image,
-                    },
-                    create: {
-                        email: user.email,
-                        name: user.name,
-                        image: user.image,
-                        role: UserRole.SALES,
                     },
                 })
                 return true

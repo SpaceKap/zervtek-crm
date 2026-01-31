@@ -70,17 +70,6 @@ export default async function DashboardLayout({
                     Stats
                   </Link>
                 )}
-                {session.user.role === "MANAGER" && (
-                  <Link
-                    href="/dashboard/manager"
-                    className="border-transparent text-gray-500 dark:text-[#A1A1A1] hover:border-gray-300 dark:hover:border-[#49454F] hover:text-gray-700 dark:hover:text-white inline-flex items-center gap-2 px-1 pt-1 border-b-2 text-sm font-medium transition-colors"
-                  >
-                    <span className="material-symbols-outlined text-lg">
-                      admin_panel_settings
-                    </span>
-                    Manager View
-                  </Link>
-                )}
                 {session.user.role === "ADMIN" && (
                   <Link
                     href="/dashboard/admin"

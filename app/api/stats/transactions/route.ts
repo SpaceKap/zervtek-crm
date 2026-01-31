@@ -86,7 +86,7 @@ export async function GET(request: NextRequest) {
           },
         },
       },
-      orderBy: { paymentDate: "desc" },
+      orderBy: { paymentDeadline: "desc" },
     })
 
     // Fetch all shared invoices (these are payments)
@@ -134,7 +134,8 @@ export async function GET(request: NextRequest) {
       return {
         id: payment.id,
         type: "payment" as const,
-        date: payment.paymentDate!,
+        date: payment.paymentDate || payment.paymentDeadline,
+        paymentDeadline: payment.paymentDeadline.toISOString(),
         invoiceNumber: payment.costInvoice.invoice.invoiceNumber,
         customer: payment.costInvoice.invoice.customer,
         vehicle: payment.costInvoice.invoice.vehicle,
@@ -155,7 +156,8 @@ export async function GET(request: NextRequest) {
       return sharedInvoice.vehicles.map((sv) => ({
         id: `shared-${sharedInvoice.id}-${sv.vehicleId}`,
         type: "payment" as const,
-        date: sharedInvoice.date,
+        date: sharedInvoice.date || sharedInvoice.paymentDeadline,
+        paymentDeadline: sharedInvoice.paymentDeadline.toISOString(),
         invoiceNumber: sharedInvoice.invoiceNumber,
         customer: null, // Shared invoices don't have a customer
         vehicle: sv.vehicle,

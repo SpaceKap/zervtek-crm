@@ -19,11 +19,8 @@ export default async function ManagerDashboardPage() {
     redirect("/login");
   }
 
-  // Allow both MANAGER and ADMIN roles
-  if (
-    session.user.role !== UserRole.MANAGER &&
-    session.user.role !== UserRole.ADMIN
-  ) {
+  // Only allow ADMIN role
+  if (session.user.role !== UserRole.ADMIN) {
     redirect("/dashboard");
   }
 

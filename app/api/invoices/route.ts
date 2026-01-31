@@ -97,20 +97,29 @@ export async function GET(request: NextRequest) {
       where.createdById = user.id
     } else if (user.role === "MANAGER") {
       // Managers see their invoices + staff invoices
-      const staffUsers = await prisma.user.findMany({
+      // Use a subquery instead of fetching all users
+      const staffIds = await prisma.user.findMany({
         where: { role: "SALES" },
         select: { id: true },
       })
-      const staffIds = staffUsers.map((u) => u.id)
       where.createdById = {
-        in: [user.id, ...staffIds],
+        in: [user.id, ...staffIds.map((u) => u.id)],
       }
     }
     // ADMIN can see all (no filter)
 
+    // Add pagination
+    const page = parseInt(searchParams.get("page") || "1")
+    const limit = parseInt(searchParams.get("limit") || "50")
+    const skip = (page - 1) * limit
+
     const invoices = await prisma.invoice.findMany({
       where,
-      include: {
+      select: {
+        id: true,
+        invoiceNumber: true,
+        status: true,
+        createdAt: true,
         customer: {
           select: {
             id: true,
@@ -140,13 +149,26 @@ export async function GET(request: NextRequest) {
             description: true,
             amount: true,
           },
+          take: 10, // Limit charges per invoice for list view
         },
       },
       orderBy: { createdAt: "desc" },
-      take: 100,
+      skip,
+      take: limit,
     })
 
-    return NextResponse.json(invoices)
+    // Get total count for pagination
+    const total = await prisma.invoice.count({ where })
+
+    return NextResponse.json({
+      invoices,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    })
   } catch (error) {
     console.error("Error fetching invoices:", error)
     return NextResponse.json(

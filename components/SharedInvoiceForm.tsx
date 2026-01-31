@@ -27,7 +27,8 @@ import { VendorForm } from "@/components/VendorForm";
 const sharedInvoiceSchema = z.object({
   type: z.string().min(1, "Type is required"),
   vendorId: z.string().min(1, "Vendor is required"),
-  date: z.string().min(1, "Payment date is required"),
+  date: z.string().optional(), // Payment date is now optional
+  paymentDeadline: z.string().min(1, "Payment deadline is required"), // New required deadline field
   vehicleIds: z.array(z.string()).min(1, "At least one vehicle is required"),
   costItems: z
     .array(
@@ -139,6 +140,9 @@ export function SharedInvoiceForm({
       vendorId: "",
       date: invoice?.date
         ? new Date(invoice.date).toISOString().split("T")[0]
+        : "",
+      paymentDeadline: invoice?.paymentDeadline
+        ? new Date(invoice.paymentDeadline).toISOString().split("T")[0]
         : new Date().toISOString().split("T")[0],
       vehicleIds: invoice?.vehicles.map((v) => v.vehicleId) || [],
       costItems: getDefaultCostItems(initialType),
@@ -179,7 +183,8 @@ export function SharedInvoiceForm({
               vehicles.map((v: Vehicle) => v.id),
             );
             setValue("type", data.type);
-            setValue("date", new Date(data.date).toISOString().split("T")[0]);
+            setValue("date", data.date ? new Date(data.date).toISOString().split("T")[0] : "");
+            setValue("paymentDeadline", data.paymentDeadline ? new Date(data.paymentDeadline).toISOString().split("T")[0] : new Date().toISOString().split("T")[0]);
             // Restore vendor from metadata if available
             if (data.metadata?.vendorId) {
               setValue("vendorId", data.metadata.vendorId);
@@ -281,7 +286,8 @@ export function SharedInvoiceForm({
             type: data.type,
             vendorId: data.vendorId || null,
             totalAmount: totalAmount,
-            date: data.date,
+            date: data.date || null,
+            paymentDeadline: data.paymentDeadline,
             vehicleIds: data.vehicleIds,
             costItems: data.costItems.map((item) => ({
               description: item.description,
@@ -292,7 +298,8 @@ export function SharedInvoiceForm({
             type: data.type,
             vendorId: data.vendorId || null,
             totalAmount: totalAmount,
-            date: data.date,
+            date: data.date || null,
+            paymentDeadline: data.paymentDeadline,
             vehicleIds: data.vehicleIds,
             costItems: data.costItems.map((item) => ({
               description: item.description,
@@ -475,13 +482,23 @@ export function SharedInvoiceForm({
               )}
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="date">Payment Date *</Label>
+                <Label htmlFor="paymentDeadline">Payment Deadline *</Label>
+                <DatePicker id="paymentDeadline" {...register("paymentDeadline")} />
+                {errors.paymentDeadline && (
+                  <p className="text-sm text-red-500">{errors.paymentDeadline.message}</p>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="date">Payment Date</Label>
                 <DatePicker id="date" {...register("date")} />
                 {errors.date && (
                   <p className="text-sm text-red-500">{errors.date.message}</p>
                 )}
+                <p className="text-xs text-muted-foreground">
+                  Optional - set when payment is made
+                </p>
               </div>
               <div className="space-y-2">
                 <Label>Total Amount</Label>
@@ -679,12 +696,14 @@ export function SharedInvoiceForm({
           vendor={null}
           onClose={async (createdVendorId?: string) => {
             setShowVendorForm(false);
-            // Refresh vendors list
-            await fetchVendors();
-            // If a vendor was created, set it as the form vendor
+            // If a vendor was created, set it as the form vendor first
             if (createdVendorId) {
-              setValue("vendorId", createdVendorId);
+              setValue("vendorId", createdVendorId, {
+                shouldValidate: true,
+              });
             }
+            // Refresh vendors list after setting the value
+            await fetchVendors();
           }}
         />
       )}

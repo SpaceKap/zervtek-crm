@@ -49,11 +49,27 @@ export async function GET(request: NextRequest) {
       where.type = type
     }
 
+    // Add pagination for shared invoices
+    const page = parseInt(request.nextUrl.searchParams.get("page") || "1")
+    const limit = parseInt(request.nextUrl.searchParams.get("limit") || "50")
+    const skip = (page - 1) * limit
+
     const sharedInvoices = await prisma.sharedInvoice.findMany({
       where,
-      include: {
+      select: {
+        id: true,
+        type: true,
+        invoiceNumber: true,
+        totalAmount: true,
+        date: true,
+        paymentDeadline: true,
+        createdAt: true,
+        updatedAt: true,
         vehicles: {
-          include: {
+          select: {
+            id: true,
+            vehicleId: true,
+            allocatedAmount: true,
             vehicle: {
               select: {
                 id: true,
@@ -66,11 +82,22 @@ export async function GET(request: NextRequest) {
           },
         },
       },
-      orderBy: { date: "desc" },
-      take: 100,
+      orderBy: { createdAt: "desc" },
+      skip,
+      take: limit,
     })
 
-    return NextResponse.json(sharedInvoices)
+    const total = await prisma.sharedInvoice.count({ where })
+
+    return NextResponse.json({
+      sharedInvoices,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    })
   } catch (error) {
     console.error("Error fetching shared invoices:", error)
     return NextResponse.json(
@@ -87,7 +114,7 @@ export async function POST(request: NextRequest) {
     // No restriction needed - all authenticated users can create
 
     const body = await request.json()
-    const { type, totalAmount, date, vehicleIds, vendorId, costItems } = body
+    const { type, totalAmount, date, paymentDeadline, vehicleIds, vendorId, costItems } = body
 
     // Validate required fields
     if (!type) {
@@ -104,9 +131,9 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    if (!date) {
+    if (!paymentDeadline) {
       return NextResponse.json(
-        { error: "Date is required" },
+        { error: "Payment deadline is required" },
         { status: 400 }
       )
     }
@@ -160,7 +187,8 @@ export async function POST(request: NextRequest) {
       type: type,
       invoiceNumber,
       totalAmount: parseFloat(totalAmount),
-      date: new Date(date),
+      date: date ? new Date(date) : null,
+      paymentDeadline: new Date(paymentDeadline),
       vehicles: {
         create: vehicleIds.map((vehicleId: string) => ({
           vehicleId,
@@ -232,7 +260,7 @@ export async function PATCH(request: NextRequest) {
     // No restriction needed - all authenticated users can edit
 
     const body = await request.json()
-    const { id, type, totalAmount, date, vehicleIds, costItems, vendorId } = body
+    const { id, type, totalAmount, date, paymentDeadline, vehicleIds, costItems, vendorId } = body
 
     if (!id) {
       return NextResponse.json(
@@ -260,7 +288,8 @@ export async function PATCH(request: NextRequest) {
     if (type !== undefined) updateData.type = type
     if (totalAmount !== undefined)
       updateData.totalAmount = parseFloat(totalAmount)
-    if (date !== undefined) updateData.date = new Date(date)
+    if (date !== undefined) updateData.date = date ? new Date(date) : null
+    if (paymentDeadline !== undefined) updateData.paymentDeadline = new Date(paymentDeadline)
     
     // Validate vendorId is required if updating
     if (vendorId !== undefined && !vendorId) {

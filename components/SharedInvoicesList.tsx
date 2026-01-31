@@ -68,7 +68,12 @@ export const SharedInvoicesList = forwardRef<
       const response = await fetch("/api/shared-invoices");
       if (response.ok) {
         const data = await response.json();
-        setSharedInvoices(data);
+        // Handle both old format (array) and new format (object with pagination)
+        if (Array.isArray(data)) {
+          setSharedInvoices(data);
+        } else {
+          setSharedInvoices(data.sharedInvoices || []);
+        }
       }
     } catch (error) {
       console.error("Error fetching shared invoices:", error);

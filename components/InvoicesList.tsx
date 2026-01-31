@@ -75,7 +75,12 @@ export function InvoicesList() {
       const response = await fetch(url);
       if (response.ok) {
         const data = await response.json();
-        setInvoices(data);
+        // Handle both old format (array) and new format (object with pagination)
+        if (Array.isArray(data)) {
+          setInvoices(data);
+        } else {
+          setInvoices(data.invoices || []);
+        }
       }
     } catch (error) {
       console.error("Error fetching invoices:", error);

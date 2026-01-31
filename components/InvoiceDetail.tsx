@@ -54,6 +54,7 @@ interface CostItem {
   vendorId: string | null;
   vendor: { id: string; name: string } | null;
   paymentDate: string | null;
+  paymentDeadline: string;
   category: string | null;
 }
 
@@ -167,7 +168,8 @@ export function InvoiceDetail({
               amount: parseFloat(siv.allocatedAmount.toString()),
               vendorId: null,
               vendor: null,
-              paymentDate: siv.sharedInvoice.date,
+              paymentDate: siv.sharedInvoice.date ? siv.sharedInvoice.date.toISOString() : null,
+              paymentDeadline: siv.sharedInvoice.paymentDeadline.toISOString(),
               category: invoiceType === "CONTAINER" ? "Shipping" : "Forwarding",
               // Store metadata for shared invoice items
               sharedInvoiceVehicleId: siv.id,
@@ -1366,18 +1368,28 @@ export function InvoiceDetail({
                               </p>
                             </td>
                             <td className="py-3 px-4">
-                              <p className="text-sm text-gray-700 dark:text-gray-300">
-                                {item.paymentDate ? (
-                                  format(
-                                    new Date(item.paymentDate),
-                                    "MMM dd, yyyy",
-                                  )
-                                ) : (
-                                  <span className="text-muted-foreground italic">
-                                    N/A
-                                  </span>
+                              <div className="text-sm text-gray-700 dark:text-gray-300">
+                                {item.paymentDeadline && (
+                                  <p>
+                                    Deadline: {format(
+                                      new Date(item.paymentDeadline),
+                                      "MMM dd, yyyy",
+                                    )}
+                                  </p>
                                 )}
-                              </p>
+                                {item.paymentDate ? (
+                                  <p className="text-xs text-muted-foreground mt-1">
+                                    Paid: {format(
+                                      new Date(item.paymentDate),
+                                      "MMM dd, yyyy",
+                                    )}
+                                  </p>
+                                ) : (
+                                  <p className="text-xs text-muted-foreground italic mt-1">
+                                    Not paid
+                                  </p>
+                                )}
+                              </div>
                             </td>
                             <td className="py-3 px-4 text-right align-top w-32">
                               <p className="font-semibold text-gray-900 dark:text-white whitespace-nowrap">
@@ -1770,6 +1782,7 @@ function CostItemForm({
     amount: number;
     vendorId?: string;
     paymentDate?: string;
+    paymentDeadline?: string;
     category?: string;
   }) => void;
   onClose: () => void;
@@ -1783,6 +1796,9 @@ function CostItemForm({
   const [vendorId, setVendorId] = useState(item?.vendorId || "");
   const [paymentDate, setPaymentDate] = useState(
     item?.paymentDate ? format(new Date(item.paymentDate), "yyyy-MM-dd") : "",
+  );
+  const [paymentDeadline, setPaymentDeadline] = useState(
+    item?.paymentDeadline ? format(new Date(item.paymentDeadline), "yyyy-MM-dd") : new Date().toISOString().split("T")[0],
   );
   const [category, setCategory] = useState(
     item?.category || item?.description || "",
@@ -1798,15 +1814,16 @@ function CostItemForm({
       alert("Vendor is required");
       return;
     }
-    if (!paymentDate) {
-      alert("Payment date is required");
+    if (!paymentDeadline) {
+      alert("Payment deadline is required");
       return;
     }
     onSave({
       description: category && category !== "__custom__" ? category : "",
       amount: parseFloat(amount.replace(/,/g, "")) || 0,
       vendorId: vendorId,
-      paymentDate: paymentDate,
+      paymentDate: paymentDate || undefined,
+      paymentDeadline: paymentDeadline,
       category: category && category !== "__custom__" ? category : undefined,
     });
   };
@@ -1894,13 +1911,25 @@ function CostItemForm({
                 </SelectContent>
               </Select>
             </div>
-            <div>
-              <Label>Payment Date *</Label>
-              <DatePicker
-                value={paymentDate}
-                onChange={(e) => setPaymentDate(e.target.value)}
-                required
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Payment Deadline *</Label>
+                <DatePicker
+                  value={paymentDeadline}
+                  onChange={(e) => setPaymentDeadline(e.target.value)}
+                  required
+                />
+              </div>
+              <div>
+                <Label>Payment Date</Label>
+                <DatePicker
+                  value={paymentDate}
+                  onChange={(e) => setPaymentDate(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Optional - set when paid
+                </p>
+              </div>
             </div>
             <div className="flex justify-end gap-2 pt-2">
               <Button type="button" variant="outline" onClick={onClose}>

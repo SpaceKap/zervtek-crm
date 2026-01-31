@@ -283,8 +283,10 @@ model Invoice {
   @@index([status])
   @@index([invoiceNumber])
   @@index([createdAt])
+  @@index([createdById]) // Added for faster filtering by creator
   @@index([shareToken])
   @@index([paymentStatus])
+  @@index([status, createdAt]) // Composite index for common query pattern
   @@schema("inquiry_pooler")
 }
 
@@ -302,6 +304,7 @@ model InvoiceCharge {
 
   @@index([invoiceId])
   @@index([chargeTypeId])
+  @@index([invoiceId, createdAt]) // Composite index for ordered charge queries
   @@schema("inquiry_pooler")
 }
 
@@ -324,15 +327,16 @@ model CostInvoice {
 }
 
 model CostItem {
-  id           String    @id @default(cuid())
-  costInvoiceId String
-  description  String
-  amount       Decimal   @db.Decimal(12, 2)
-  vendorId     String    // Required
-  paymentDate  DateTime  // Required
-  category     String?   // "Auction Fees", "Vehicle Purchase", "Inland Transport", "Forwarding", "Freight", etc.
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  id             String    @id @default(cuid())
+  costInvoiceId  String
+  description    String
+  amount         Decimal   @db.Decimal(12, 2)
+  vendorId       String    // Required
+  paymentDate    DateTime? // Optional - set when payment is made
+  paymentDeadline DateTime // Required - deadline for payment
+  category       String?   // "Auction Fees", "Vehicle Purchase", "Inland Transport", "Forwarding", "Freight", etc.
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   costInvoice CostInvoice @relation(fields: [costInvoiceId], references: [id], onDelete: Cascade)
   vendor      Vendor      @relation(fields: [vendorId], references: [id], onDelete: Restrict)
@@ -340,6 +344,8 @@ model CostItem {
   @@index([costInvoiceId])
   @@index([vendorId])
   @@index([category])
+  @@index([paymentDeadline])
+  @@index([paymentDate])
   @@schema("inquiry_pooler")
 }
 
@@ -369,14 +375,15 @@ model Vendor {
 }
 
 model SharedInvoice {
-  id            String   @id @default(cuid())
-  type          String
-  invoiceNumber String   @unique
-  totalAmount   Decimal           @db.Decimal(12, 2)
-  date          DateTime
-  metadata      Json?             // Store cost items with vendor information
-  createdAt     DateTime          @default(now())
-  updatedAt     DateTime          @updatedAt
+  id             String   @id @default(cuid())
+  type           String
+  invoiceNumber  String   @unique
+  totalAmount    Decimal  @db.Decimal(12, 2)
+  date           DateTime? // Optional - payment date when payment is made
+  paymentDeadline DateTime // Required - deadline for payment
+  metadata       Json?    // Store cost items with vendor information
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   vehicles SharedInvoiceVehicle[]
   containerInvoices ContainerInvoice[]
@@ -384,6 +391,7 @@ model SharedInvoice {
   @@index([type])
   @@index([invoiceNumber])
   @@index([date])
+  @@index([paymentDeadline])
   @@schema("inquiry_pooler")
 }
 

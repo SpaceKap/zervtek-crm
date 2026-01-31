@@ -110,10 +110,55 @@ export function InvoiceForm({ invoice }: InvoiceFormProps = {}) {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [showCustomerForm, setShowCustomerForm] = useState(false);
   const [showVehicleForm, setShowVehicleForm] = useState(false);
-  // Store shipping rates and exchange rates per charge index
+  // Store shipping rates and dimensions per charge index
   const [shippingRates, setShippingRates] = useState<
-    Record<number, { ratePerM3: string; exchangeRate: string; volume: number }>
+    Record<
+      number,
+      {
+        ratePerM3: string;
+        exchangeRate?: string; // Only used when currency is JPY
+        length: string; // cm
+        width: string; // cm
+        height: string; // cm
+      }
+    >
   >({});
+
+  // Currency state (USD or JPY)
+  const [currency, setCurrency] = useState<"USD" | "JPY">("USD");
+
+  // Helper function to get currency symbol
+  const getCurrencySymbol = () => {
+    return currency === "USD" ? "$" : "¥";
+  };
+
+  // Recalculate shipping amounts when currency changes
+  useEffect(() => {
+    const currentCharges = watch("charges");
+    currentCharges.forEach((charge: any, index: number) => {
+      if (charge.chargeType === "SHIPPING") {
+        const shippingRate = shippingRates[index];
+        if (
+          shippingRate?.length &&
+          shippingRate?.width &&
+          shippingRate?.height &&
+          shippingRate?.ratePerM3
+        ) {
+          const amount = calculateShippingAmount(
+            shippingRate.length,
+            shippingRate.width,
+            shippingRate.height,
+            shippingRate.ratePerM3,
+            currency === "JPY" ? shippingRate.exchangeRate : undefined,
+          );
+          if (amount) {
+            setValue(`charges.${index}.amount`, amount);
+          }
+        }
+      }
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currency]);
 
   const {
     register,
@@ -291,95 +336,52 @@ export function InvoiceForm({ invoice }: InvoiceFormProps = {}) {
     }
   };
 
-  // Helper function to calculate shipping amount
-  const calculateShippingAmount = (
-    volume: number,
-    ratePerM3: string,
-    exchangeRate: string,
-  ): string | null => {
-    if (!volume || !ratePerM3 || !exchangeRate) return null;
-    const rate = parseFloat(ratePerM3);
-    const exchange = parseFloat(exchangeRate);
-    if (isNaN(rate) || isNaN(exchange) || rate <= 0 || exchange <= 0) {
+  // Helper function to calculate volume in m³ from dimensions in cm
+  const calculateVolumeM3 = (
+    length: string,
+    width: string,
+    height: string,
+  ): number | null => {
+    const l = parseFloat(length);
+    const w = parseFloat(width);
+    const h = parseFloat(height);
+    if (isNaN(l) || isNaN(w) || isNaN(h) || l <= 0 || w <= 0 || h <= 0) {
       return null;
     }
-    const amount = volume * rate * exchange;
+    // Convert cm³ to m³: divide by 1,000,000
+    return (l * w * h) / 1000000;
+  };
+
+  // Helper function to calculate shipping amount
+  // USD: m³ × rate
+  // JPY: m³ × rate × exchangeRate
+  const calculateShippingAmount = (
+    length: string,
+    width: string,
+    height: string,
+    ratePerM3: string,
+    exchangeRate?: string,
+  ): string | null => {
+    const volume = calculateVolumeM3(length, width, height);
+    if (!volume || !ratePerM3) return null;
+    const rate = parseFloat(ratePerM3);
+    if (isNaN(rate) || rate <= 0) {
+      return null;
+    }
+
+    let amount = volume * rate;
+
+    // If currency is JPY, multiply by exchange rate
+    if (currency === "JPY" && exchangeRate) {
+      const exchange = parseFloat(exchangeRate);
+      if (isNaN(exchange) || exchange <= 0) {
+        return null;
+      }
+      amount = amount * exchange;
+    }
+
     return Math.round(amount).toLocaleString("en-US");
   };
-
-  // Fetch vehicle dimensions from API
-  const fetchVehicleDimensions = async (
-    make: string,
-    model: string,
-    year: number,
-    chargeIndex: number,
-  ) => {
-    try {
-      const response = await fetch(
-        `/api/vehicles/dimensions?makeName=${encodeURIComponent(make)}&modelName=${encodeURIComponent(model)}&year=${year}`,
-      );
-      if (response.ok) {
-        const data = await response.json();
-        if (data.volume && data.volume > 0) {
-          setShippingRates((prev) => {
-            const updated = {
-              ...prev,
-              [chargeIndex]: {
-                ...prev[chargeIndex],
-                volume: data.volume,
-                ratePerM3: prev[chargeIndex]?.ratePerM3 || "",
-                exchangeRate: prev[chargeIndex]?.exchangeRate || "",
-              },
-            };
-            // Auto-calculate if rate and exchange rate are already set
-            const currentRate = updated[chargeIndex];
-            if (currentRate?.ratePerM3 && currentRate?.exchangeRate) {
-              const amount = calculateShippingAmount(
-                data.volume,
-                currentRate.ratePerM3,
-                currentRate.exchangeRate,
-              );
-              if (amount) {
-                // Use setTimeout to ensure state is updated before setValue
-                setTimeout(() => {
-                  setValue(`charges.${chargeIndex}.amount`, amount);
-                }, 0);
-              }
-            }
-            return updated;
-          });
-        }
-      }
-    } catch (error) {
-      console.error("Error fetching vehicle dimensions:", error);
-    }
-  };
-
-  // Fetch dimensions for all shipping charges when vehicle is selected
-  const vehicleId = watch("vehicleId");
-  useEffect(() => {
-    if (vehicleId && vehicles.length > 0) {
-      const selectedVehicle = vehicles.find((v) => v.id === vehicleId);
-      if (
-        selectedVehicle?.make &&
-        selectedVehicle?.model &&
-        selectedVehicle?.year
-      ) {
-        const currentCharges = watch("charges");
-        currentCharges.forEach((charge: any, index: number) => {
-          if (charge.chargeType === "SHIPPING") {
-            fetchVehicleDimensions(
-              selectedVehicle.make!,
-              selectedVehicle.model!,
-              selectedVehicle.year!,
-              index,
-            );
-          }
-        });
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [vehicleId, vehicles.length]);
 
   const onSubmit = async (data: InvoiceFormData) => {
     setSaving(true);
@@ -770,25 +772,6 @@ export function InvoiceForm({ invoice }: InvoiceFormProps = {}) {
                                         shouldDirty: true,
                                       },
                                     );
-                                    // Fetch vehicle dimensions if vehicle is selected
-                                    const vehicleId = watch("vehicleId");
-                                    if (vehicleId) {
-                                      const selectedVehicle = vehicles.find(
-                                        (v) => v.id === vehicleId,
-                                      );
-                                      if (
-                                        selectedVehicle?.make &&
-                                        selectedVehicle?.model &&
-                                        selectedVehicle?.year
-                                      ) {
-                                        fetchVehicleDimensions(
-                                          selectedVehicle.make,
-                                          selectedVehicle.model,
-                                          selectedVehicle.year,
-                                          index,
-                                        );
-                                      }
-                                    }
                                   } else if (value === "VEHICLE") {
                                     // For VEHICLE type, set a placeholder description
                                     // It will be updated when vehicle is selected
@@ -903,29 +886,6 @@ export function InvoiceForm({ invoice }: InvoiceFormProps = {}) {
                                           `charges.${index}.amount`,
                                           formattedPrice,
                                         );
-
-                                        // Fetch dimensions for all SHIPPING charges
-                                        if (
-                                          selectedVehicle.make &&
-                                          selectedVehicle.model &&
-                                          selectedVehicle.year
-                                        ) {
-                                          const charges = watch("charges");
-                                          charges.forEach(
-                                            (charge: any, idx: number) => {
-                                              if (
-                                                charge.chargeType === "SHIPPING"
-                                              ) {
-                                                fetchVehicleDimensions(
-                                                  selectedVehicle.make!,
-                                                  selectedVehicle.model!,
-                                                  selectedVehicle.year!,
-                                                  idx,
-                                                );
-                                              }
-                                            },
-                                          );
-                                        }
                                       }
                                     }}
                                   >
@@ -982,17 +942,209 @@ export function InvoiceForm({ invoice }: InvoiceFormProps = {}) {
                                     )}
                                     className="h-9 border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400"
                                   />
-                                  {watch("vehicleId") && (
-                                    <div className="grid grid-cols-3 gap-2 text-xs">
-                                      {shippingRates[index]?.volume ? (
-                                        <div className="col-span-3 text-gray-600 dark:text-gray-400">
-                                          Vehicle Size:{" "}
-                                          {shippingRates[index].volume.toFixed(
-                                            2,
-                                          )}{" "}
-                                          m³
-                                        </div>
-                                      ) : null}
+                                  <div className="space-y-2">
+                                    <div className="grid grid-cols-3 gap-2">
+                                      <div>
+                                        <Label className="text-xs">
+                                          Length (cm)
+                                        </Label>
+                                        <Input
+                                          type="text"
+                                          placeholder="0"
+                                          value={
+                                            shippingRates[index]?.length || ""
+                                          }
+                                          onChange={(e) => {
+                                            const value =
+                                              e.target.value.replace(
+                                                /[^\d.]/g,
+                                                "",
+                                              );
+                                            setShippingRates((prev) => ({
+                                              ...prev,
+                                              [index]: {
+                                                ...prev[index],
+                                                length: value,
+                                                width: prev[index]?.width || "",
+                                                height:
+                                                  prev[index]?.height || "",
+                                                ratePerM3:
+                                                  prev[index]?.ratePerM3 || "",
+                                                exchangeRate:
+                                                  prev[index]?.exchangeRate ||
+                                                  "",
+                                              },
+                                            }));
+                                            // Calculate shipping amount
+                                            if (
+                                              value &&
+                                              shippingRates[index]?.width &&
+                                              shippingRates[index]?.height &&
+                                              shippingRates[index]?.ratePerM3
+                                            ) {
+                                              const amount =
+                                                calculateShippingAmount(
+                                                  value,
+                                                  shippingRates[index].width,
+                                                  shippingRates[index].height,
+                                                  shippingRates[index]
+                                                    .ratePerM3,
+                                                  currency === "JPY"
+                                                    ? shippingRates[index]
+                                                        ?.exchangeRate
+                                                    : undefined,
+                                                );
+                                              if (amount) {
+                                                setValue(
+                                                  `charges.${index}.amount`,
+                                                  amount,
+                                                );
+                                              }
+                                            }
+                                          }}
+                                          className="h-8 text-xs"
+                                        />
+                                      </div>
+                                      <div>
+                                        <Label className="text-xs">
+                                          Width (cm)
+                                        </Label>
+                                        <Input
+                                          type="text"
+                                          placeholder="0"
+                                          value={
+                                            shippingRates[index]?.width || ""
+                                          }
+                                          onChange={(e) => {
+                                            const value =
+                                              e.target.value.replace(
+                                                /[^\d.]/g,
+                                                "",
+                                              );
+                                            setShippingRates((prev) => ({
+                                              ...prev,
+                                              [index]: {
+                                                ...prev[index],
+                                                width: value,
+                                                length:
+                                                  prev[index]?.length || "",
+                                                height:
+                                                  prev[index]?.height || "",
+                                                ratePerM3:
+                                                  prev[index]?.ratePerM3 || "",
+                                                exchangeRate:
+                                                  prev[index]?.exchangeRate ||
+                                                  "",
+                                              },
+                                            }));
+                                            // Calculate shipping amount
+                                            if (
+                                              shippingRates[index]?.length &&
+                                              value &&
+                                              shippingRates[index]?.height &&
+                                              shippingRates[index]?.ratePerM3
+                                            ) {
+                                              const amount =
+                                                calculateShippingAmount(
+                                                  shippingRates[index].length,
+                                                  value,
+                                                  shippingRates[index].height,
+                                                  shippingRates[index]
+                                                    .ratePerM3,
+                                                  currency === "JPY"
+                                                    ? shippingRates[index]
+                                                        ?.exchangeRate
+                                                    : undefined,
+                                                );
+                                              if (amount) {
+                                                setValue(
+                                                  `charges.${index}.amount`,
+                                                  amount,
+                                                );
+                                              }
+                                            }
+                                          }}
+                                          className="h-8 text-xs"
+                                        />
+                                      </div>
+                                      <div>
+                                        <Label className="text-xs">
+                                          Height (cm)
+                                        </Label>
+                                        <Input
+                                          type="text"
+                                          placeholder="0"
+                                          value={
+                                            shippingRates[index]?.height || ""
+                                          }
+                                          onChange={(e) => {
+                                            const value =
+                                              e.target.value.replace(
+                                                /[^\d.]/g,
+                                                "",
+                                              );
+                                            setShippingRates((prev) => ({
+                                              ...prev,
+                                              [index]: {
+                                                ...prev[index],
+                                                height: value,
+                                                length:
+                                                  prev[index]?.length || "",
+                                                width: prev[index]?.width || "",
+                                                ratePerM3:
+                                                  prev[index]?.ratePerM3 || "",
+                                                exchangeRate:
+                                                  prev[index]?.exchangeRate ||
+                                                  "",
+                                              },
+                                            }));
+                                            // Calculate shipping amount
+                                            if (
+                                              shippingRates[index]?.length &&
+                                              shippingRates[index]?.width &&
+                                              value &&
+                                              shippingRates[index]?.ratePerM3
+                                            ) {
+                                              const amount =
+                                                calculateShippingAmount(
+                                                  shippingRates[index].length,
+                                                  shippingRates[index].width,
+                                                  value,
+                                                  shippingRates[index]
+                                                    .ratePerM3,
+                                                  currency === "JPY"
+                                                    ? shippingRates[index]
+                                                        ?.exchangeRate
+                                                    : undefined,
+                                                );
+                                              if (amount) {
+                                                setValue(
+                                                  `charges.${index}.amount`,
+                                                  amount,
+                                                );
+                                              }
+                                            }
+                                          }}
+                                          className="h-8 text-xs"
+                                        />
+                                      </div>
+                                    </div>
+                                    {shippingRates[index]?.length &&
+                                    shippingRates[index]?.width &&
+                                    shippingRates[index]?.height ? (
+                                      <div className="text-xs text-gray-600 dark:text-gray-400">
+                                        Volume:{" "}
+                                        {calculateVolumeM3(
+                                          shippingRates[index].length,
+                                          shippingRates[index].width,
+                                          shippingRates[index].height,
+                                        )?.toFixed(4) || "0"}{" "}
+                                        m³
+                                      </div>
+                                    ) : null}
+                                    <div
+                                      className={`grid gap-2 ${currency === "JPY" ? "grid-cols-2" : "grid-cols-1"}`}
+                                    >
                                       <div>
                                         <Label className="text-xs">
                                           Rate (USD/m³)
@@ -1015,8 +1167,11 @@ export function InvoiceForm({ invoice }: InvoiceFormProps = {}) {
                                               [index]: {
                                                 ...prev[index],
                                                 ratePerM3: value,
-                                                volume:
-                                                  prev[index]?.volume || 0,
+                                                length:
+                                                  prev[index]?.length || "",
+                                                width: prev[index]?.width || "",
+                                                height:
+                                                  prev[index]?.height || "",
                                                 exchangeRate:
                                                   prev[index]?.exchangeRate ||
                                                   "",
@@ -1024,68 +1179,21 @@ export function InvoiceForm({ invoice }: InvoiceFormProps = {}) {
                                             }));
                                             // Calculate shipping amount
                                             if (
-                                              shippingRates[index]?.volume &&
-                                              value &&
-                                              shippingRates[index]?.exchangeRate
-                                            ) {
-                                              const amount =
-                                                calculateShippingAmount(
-                                                  shippingRates[index].volume,
-                                                  value,
-                                                  shippingRates[index]
-                                                    .exchangeRate,
-                                                );
-                                              if (amount) {
-                                                setValue(
-                                                  `charges.${index}.amount`,
-                                                  amount,
-                                                );
-                                              }
-                                            }
-                                          }}
-                                          className="h-8 text-xs"
-                                        />
-                                      </div>
-                                      <div>
-                                        <Label className="text-xs">
-                                          Exchange Rate (USD→JPY)
-                                        </Label>
-                                        <Input
-                                          type="text"
-                                          placeholder="0"
-                                          value={
-                                            shippingRates[index]
-                                              ?.exchangeRate || ""
-                                          }
-                                          onChange={(e) => {
-                                            const value =
-                                              e.target.value.replace(
-                                                /[^\d.]/g,
-                                                "",
-                                              );
-                                            setShippingRates((prev) => ({
-                                              ...prev,
-                                              [index]: {
-                                                ...prev[index],
-                                                exchangeRate: value,
-                                                volume:
-                                                  prev[index]?.volume || 0,
-                                                ratePerM3:
-                                                  prev[index]?.ratePerM3 || "",
-                                              },
-                                            }));
-                                            // Calculate shipping amount
-                                            if (
-                                              shippingRates[index]?.volume &&
-                                              shippingRates[index]?.ratePerM3 &&
+                                              shippingRates[index]?.length &&
+                                              shippingRates[index]?.width &&
+                                              shippingRates[index]?.height &&
                                               value
                                             ) {
                                               const amount =
                                                 calculateShippingAmount(
-                                                  shippingRates[index].volume,
-                                                  shippingRates[index]
-                                                    .ratePerM3,
+                                                  shippingRates[index].length,
+                                                  shippingRates[index].width,
+                                                  shippingRates[index].height,
                                                   value,
+                                                  currency === "JPY"
+                                                    ? shippingRates[index]
+                                                        ?.exchangeRate
+                                                    : undefined,
                                                 );
                                               if (amount) {
                                                 setValue(
@@ -1098,8 +1206,72 @@ export function InvoiceForm({ invoice }: InvoiceFormProps = {}) {
                                           className="h-8 text-xs"
                                         />
                                       </div>
+                                      {currency === "JPY" && (
+                                        <div>
+                                          <Label className="text-xs">
+                                            Exchange Rate (USD→JPY)
+                                          </Label>
+                                          <Input
+                                            type="text"
+                                            placeholder="0"
+                                            value={
+                                              shippingRates[index]
+                                                ?.exchangeRate || ""
+                                            }
+                                            onChange={(e) => {
+                                              const value =
+                                                e.target.value.replace(
+                                                  /[^\d.]/g,
+                                                  "",
+                                                );
+                                              setShippingRates((prev) => ({
+                                                ...prev,
+                                                [index]: {
+                                                  ...prev[index],
+                                                  exchangeRate: value,
+                                                  length:
+                                                    prev[index]?.length || "",
+                                                  width:
+                                                    prev[index]?.width || "",
+                                                  height:
+                                                    prev[index]?.height || "",
+                                                  ratePerM3:
+                                                    prev[index]?.ratePerM3 ||
+                                                    "",
+                                                },
+                                              }));
+                                              // Calculate shipping amount
+                                              if (
+                                                shippingRates[index]?.length &&
+                                                shippingRates[index]?.width &&
+                                                shippingRates[index]?.height &&
+                                                shippingRates[index]
+                                                  ?.ratePerM3 &&
+                                                value
+                                              ) {
+                                                const amount =
+                                                  calculateShippingAmount(
+                                                    shippingRates[index].length,
+                                                    shippingRates[index].width,
+                                                    shippingRates[index].height,
+                                                    shippingRates[index]
+                                                      .ratePerM3,
+                                                    value,
+                                                  );
+                                                if (amount) {
+                                                  setValue(
+                                                    `charges.${index}.amount`,
+                                                    amount,
+                                                  );
+                                                }
+                                              }
+                                            }}
+                                            className="h-8 text-xs"
+                                          />
+                                        </div>
+                                      )}
                                     </div>
-                                  )}
+                                  </div>
                                 </div>
                               ) : (
                                 <Input
@@ -1134,7 +1306,7 @@ export function InvoiceForm({ invoice }: InvoiceFormProps = {}) {
                           <td className="px-4 py-3">
                             <div className="relative">
                               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-medium text-gray-600 dark:text-gray-400">
-                                ¥
+                                {getCurrencySymbol()}
                               </span>
                               <Input
                                 type="text"
@@ -1169,7 +1341,8 @@ export function InvoiceForm({ invoice }: InvoiceFormProps = {}) {
                           </td>
                           <td className="px-4 py-3 text-right">
                             <span className="text-sm font-semibold text-gray-900 dark:text-white">
-                              ¥{amount.toLocaleString("en-US")}
+                              {getCurrencySymbol()}
+                              {amount.toLocaleString("en-US")}
                             </span>
                           </td>
                           <td className="px-2 py-3 text-center">
@@ -1213,11 +1386,15 @@ export function InvoiceForm({ invoice }: InvoiceFormProps = {}) {
                 <Label className="text-sm font-medium text-gray-700 dark:text-gray-300">
                   Currency:
                 </Label>
-                <Select value="JPY" disabled>
+                <Select
+                  value={currency}
+                  onValueChange={(value: "USD" | "JPY") => setCurrency(value)}
+                >
                   <SelectTrigger className="border border-gray-300 dark:border-gray-600 rounded-md px-3 py-1 text-sm w-40">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="USD">$ - US Dollar</SelectItem>
                     <SelectItem value="JPY">¥ - Japanese Yen</SelectItem>
                   </SelectContent>
                 </Select>
@@ -1227,7 +1404,8 @@ export function InvoiceForm({ invoice }: InvoiceFormProps = {}) {
                   Subtotal
                 </span>
                 <span className="text-sm font-medium text-gray-900 dark:text-white">
-                  ¥{subtotal.toLocaleString("en-US")}
+                  {getCurrencySymbol()}
+                  {subtotal.toLocaleString("en-US")}
                 </span>
               </div>
               <div className="flex items-center justify-between py-2">
@@ -1250,7 +1428,8 @@ export function InvoiceForm({ invoice }: InvoiceFormProps = {}) {
                   </Label>
                 </div>
                 <span className="text-sm font-medium text-gray-900 dark:text-white">
-                  ¥{taxAmount.toLocaleString("en-US")}
+                  {getCurrencySymbol()}
+                  {taxAmount.toLocaleString("en-US")}
                 </span>
               </div>
               <div className="flex justify-between py-3 border-t-2 border-gray-300 dark:border-gray-600">
@@ -1258,7 +1437,8 @@ export function InvoiceForm({ invoice }: InvoiceFormProps = {}) {
                   TOTAL
                 </span>
                 <span className="text-base font-bold text-gray-900 dark:text-white">
-                  ¥{total.toLocaleString("en-US")}
+                  {getCurrencySymbol()}
+                  {total.toLocaleString("en-US")}
                 </span>
               </div>
             </div>
@@ -1354,10 +1534,32 @@ export function InvoiceForm({ invoice }: InvoiceFormProps = {}) {
           onVehicleCreated={(vehicle) => {
             // Set the vehicle ID
             setValue("vehicleId", vehicle.id);
-            // Add vehicle to charges if it has a price
-            if (vehicle.price) {
+
+            // Check if there's already a VEHICLE charge type that needs updating
+            const currentCharges = watch("charges");
+            const vehicleChargeIndex = currentCharges.findIndex(
+              (charge) => charge.chargeType === "VEHICLE",
+            );
+
+            if (vehicleChargeIndex !== -1) {
+              // Update existing VEHICLE charge instead of adding a new one
+              const vehicleDescription =
+                vehicle.make && vehicle.model
+                  ? `${vehicle.year || ""} ${vehicle.make} ${vehicle.model} - ${vehicle.vin}`.trim()
+                  : vehicle.vin;
+              const formattedPrice = vehicle.price
+                ? vehicle.price.toLocaleString("en-US")
+                : "";
+              setValue(
+                `charges.${vehicleChargeIndex}.description`,
+                vehicleDescription,
+              );
+              setValue(`charges.${vehicleChargeIndex}.amount`, formattedPrice);
+            } else if (vehicle.price) {
+              // Only add a new charge if there isn't already a VEHICLE charge type
               addVehicleCharge(vehicle);
             }
+
             // Refresh vehicles to show the new vehicle
             fetchVehicles("");
           }}

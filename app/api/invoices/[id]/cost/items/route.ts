@@ -81,7 +81,7 @@ export async function POST(
     }
 
     const body = await request.json()
-    const { description, amount, vendorId, paymentDate, category } = body
+    const { description, amount, vendorId, paymentDate, paymentDeadline, category } = body
 
     if (!description || amount === undefined) {
       return NextResponse.json(
@@ -97,9 +97,9 @@ export async function POST(
       )
     }
 
-    if (!paymentDate) {
+    if (!paymentDeadline) {
       return NextResponse.json(
-        { error: "Payment date is required" },
+        { error: "Payment deadline is required" },
         { status: 400 }
       )
     }
@@ -110,7 +110,8 @@ export async function POST(
         description,
         amount: parseFloat(amount),
         vendorId: vendorId,
-        paymentDate: new Date(paymentDate),
+        paymentDate: paymentDate ? new Date(paymentDate) : null,
+        paymentDeadline: new Date(paymentDeadline),
         category: category || null,
       },
       include: {

@@ -39,15 +39,45 @@ export async function GET(
           },
         },
         charges: {
-          include: {
-            chargeType: true,
+          // Remove chargeType include - it's not commonly used and adds overhead
+          select: {
+            id: true,
+            description: true,
+            amount: true,
+            chargeTypeId: true,
+            createdAt: true,
+          },
+          orderBy: {
+            createdAt: "asc",
           },
         },
         costInvoice: {
-          include: {
+          select: {
+            id: true,
+            totalCost: true,
+            totalRevenue: true,
+            profit: true,
+            margin: true,
+            roi: true,
+            // Only load costItems if needed (can be lazy-loaded)
             costItems: {
-              include: {
-                vendor: true,
+              select: {
+                id: true,
+                description: true,
+                amount: true,
+                vendorId: true,
+                paymentDate: true,
+                paymentDeadline: true,
+                category: true,
+                vendor: {
+                  select: {
+                    id: true,
+                    name: true,
+                  },
+                },
+              },
+              orderBy: {
+                createdAt: "asc",
               },
             },
           },
