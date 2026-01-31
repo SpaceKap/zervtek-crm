@@ -104,6 +104,7 @@ async function copyContainerCostsToVehicleCostInvoices(containerInvoiceId: strin
             category: "Freight",
             vendorId: vendorId,
             paymentDate: containerInvoice.sharedInvoice.date,
+            paymentDeadline: containerInvoice.sharedInvoice.paymentDeadline,
           },
         })
 
