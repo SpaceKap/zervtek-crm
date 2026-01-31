@@ -125,7 +125,7 @@ export function InvoiceForm({ invoice }: InvoiceFormProps = {}) {
   >({});
 
   // Currency state (USD or JPY)
-  const [currency, setCurrency] = useState<"USD" | "JPY">("USD");
+  const [currency, setCurrency] = useState<"USD" | "JPY">("JPY");
 
   // Helper function to get currency symbol
   const getCurrencySymbol = () => {
