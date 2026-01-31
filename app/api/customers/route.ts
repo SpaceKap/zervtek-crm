@@ -2,13 +2,11 @@ import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
-import { requireAuth, canViewAllInquiries } from "@/lib/permissions"
-import { UserRole } from "@prisma/client"
+import { requireAuth } from "@/lib/permissions"
 
 export async function GET(request: NextRequest) {
   try {
-    const user = await requireAuth()
-    const canViewAll = canViewAllInquiries(user.role)
+    await requireAuth()
 
     const { searchParams } = new URL(request.url)
     const search = searchParams.get("search")
@@ -22,31 +20,7 @@ export async function GET(request: NextRequest) {
         }
       : {}
 
-    // Role-based filtering: Staff see only their customers, Managers see their + staff customers
-    if (!canViewAll) {
-      // Staff: only customers from their invoices
-      where.invoices = {
-        some: {
-          createdById: user.id,
-        },
-      }
-    } else if (user.role === UserRole.MANAGER) {
-      // Manager: customers from their invoices + staff invoices
-      const staffUsers = await prisma.user.findMany({
-        where: { role: UserRole.SALES },
-        select: { id: true },
-      })
-      const staffIds = staffUsers.map((u) => u.id)
-      where.invoices = {
-        some: {
-          createdById: {
-            in: [user.id, ...staffIds],
-          },
-        },
-      }
-    }
-    // ADMIN can see all (no filter)
-
+    // All authenticated users can see all customers (universal access)
     const customers = await prisma.customer.findMany({
       where,
       orderBy: { name: "asc" },
