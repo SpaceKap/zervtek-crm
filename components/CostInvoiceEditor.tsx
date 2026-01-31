@@ -671,10 +671,6 @@ export function CostInvoiceEditor({
           onClose={async (createdVendorId?: string) => {
             // Refresh vendors list first
             await fetchVendors();
-            // If a vendor was created and we're editing an item, set it
-            if (createdVendorId && editingItem) {
-              setVendorId(createdVendorId);
-            }
             setShowVendorForm(false);
           }}
         />
