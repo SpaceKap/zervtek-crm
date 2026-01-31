@@ -59,6 +59,7 @@ interface CustomerFormProps {
     portOfDestination: string | null;
   } | null;
   onClose: () => void;
+  onCustomerCreated?: (customer: { id: string; name: string }) => void;
 }
 
 // Get phone codes (grouped by code, as some countries share codes)
@@ -67,7 +68,11 @@ const COUNTRY_CODES = getUniquePhoneCodes();
 // Get all countries sorted alphabetically
 const COUNTRIES = getCountriesSorted();
 
-export function CustomerForm({ customer, onClose }: CustomerFormProps) {
+export function CustomerForm({
+  customer,
+  onClose,
+  onCustomerCreated,
+}: CustomerFormProps) {
   const [saving, setSaving] = useState(false);
   const [selectedCountry, setSelectedCountry] = useState<string>("");
   const [availableRegions, setAvailableRegions] = useState<string[]>([]);
@@ -215,6 +220,14 @@ export function CustomerForm({ customer, onClose }: CustomerFormProps) {
       });
 
       if (response.ok) {
+        const result = await response.json();
+        // If creating a new customer (not editing), call the callback
+        if (!customer && onCustomerCreated) {
+          onCustomerCreated({
+            id: result.id,
+            name: result.name,
+          });
+        }
         handleClose();
       } else {
         const error = await response.json();

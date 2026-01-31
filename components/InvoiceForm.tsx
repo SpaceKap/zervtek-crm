@@ -644,8 +644,11 @@ export function InvoiceForm({ invoice }: InvoiceFormProps = {}) {
               <div className="space-y-2">
                 <div className="flex gap-2">
                   <Select
+                    key={`customer-select-${customers.length}-${selectedCustomerId}`}
                     value={selectedCustomerId || ""}
-                    onValueChange={(value) => setValue("customerId", value)}
+                    onValueChange={(value) =>
+                      setValue("customerId", value, { shouldValidate: true })
+                    }
                   >
                     <SelectTrigger className="h-10 w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm">
                       <SelectValue placeholder="Select customer" />
@@ -858,6 +861,7 @@ export function InvoiceForm({ invoice }: InvoiceFormProps = {}) {
                               "VEHICLE" ? (
                                 <div className="flex gap-2 items-start flex-1">
                                   <Select
+                                    key={`vehicle-select-${vehicles.length}-${watch("vehicleId")}`}
                                     value={watch("vehicleId") || ""}
                                     onValueChange={(value) => {
                                       setValue("vehicleId", value, {
@@ -1520,7 +1524,15 @@ export function InvoiceForm({ invoice }: InvoiceFormProps = {}) {
           customer={null}
           onClose={() => {
             setShowCustomerForm(false);
-            fetchCustomers();
+          }}
+          onCustomerCreated={async (createdCustomer) => {
+            // Refresh customers list first
+            await fetchCustomers();
+            // Then select the newly created customer
+            setValue("customerId", createdCustomer.id, {
+              shouldValidate: true,
+            });
+            setShowCustomerForm(false);
           }}
         />
       )}
@@ -1531,9 +1543,12 @@ export function InvoiceForm({ invoice }: InvoiceFormProps = {}) {
             setShowVehicleForm(false);
             fetchVehicles(""); // Refresh all vehicles
           }}
-          onVehicleCreated={(vehicle) => {
-            // Set the vehicle ID
-            setValue("vehicleId", vehicle.id);
+          onVehicleCreated={async (vehicle) => {
+            // Refresh vehicles list first to ensure new vehicle is available
+            await fetchVehicles("");
+
+            // Set the vehicle ID after refresh
+            setValue("vehicleId", vehicle.id, { shouldValidate: true });
 
             // Check if there's already a VEHICLE charge type that needs updating
             const currentCharges = watch("charges");
@@ -1560,8 +1575,7 @@ export function InvoiceForm({ invoice }: InvoiceFormProps = {}) {
               addVehicleCharge(vehicle);
             }
 
-            // Refresh vehicles to show the new vehicle
-            fetchVehicles("");
+            setShowVehicleForm(false);
           }}
         />
       )}
