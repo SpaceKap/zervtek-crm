@@ -8,11 +8,20 @@ export async function GET() {
   try {
     await requireAuth()
 
+    // Optimize: Only fetch necessary fields
     const vendors = await prisma.vendor.findMany({
+      select: {
+        id: true,
+        name: true,
+        createdAt: true,
+      },
       orderBy: { name: "asc" },
     })
 
-    return NextResponse.json(vendors)
+    // Add cache headers for better performance (vendors don't change frequently)
+    const response = NextResponse.json(vendors)
+    response.headers.set('Cache-Control', 'private, max-age=60, stale-while-revalidate=300')
+    return response
   } catch (error) {
     console.error("Error fetching vendors:", error)
     return NextResponse.json(

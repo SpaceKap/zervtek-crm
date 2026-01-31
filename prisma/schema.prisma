@@ -99,6 +99,7 @@ model User {
   accounts Account[]
   sessions Session[]
 
+  @@index([role]) // Added for faster role-based queries
   @@schema("inquiry_pooler")
 }
 

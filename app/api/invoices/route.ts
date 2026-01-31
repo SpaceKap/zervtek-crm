@@ -97,13 +97,14 @@ export async function GET(request: NextRequest) {
       where.createdById = user.id
     } else if (user.role === "MANAGER") {
       // Managers see their invoices + staff invoices
-      // Use a subquery instead of fetching all users
-      const staffIds = await prisma.user.findMany({
+      // Optimized: Fetch staff IDs efficiently (with index on role)
+      const staffUsers = await prisma.user.findMany({
         where: { role: "SALES" },
         select: { id: true },
       })
+      const staffIds = staffUsers.map((u) => u.id)
       where.createdById = {
-        in: [user.id, ...staffIds.map((u) => u.id)],
+        in: [user.id, ...staffIds],
       }
     }
     // ADMIN can see all (no filter)
