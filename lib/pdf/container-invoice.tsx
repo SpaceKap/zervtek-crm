@@ -178,7 +178,6 @@ export function ContainerInvoicePDF({
   const billingAddress = containerInvoice.customer.billingAddress as any;
   const companyAddress = companyInfo.address as any;
   const bankDetails1 = companyInfo.bankDetails1 as any;
-  const bankDetails2 = companyInfo.bankDetails2 as any;
 
   const formatDate = (date: Date | string | null) => {
     if (!date) return "";

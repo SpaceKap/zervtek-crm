@@ -9,9 +9,10 @@ import { UserRole } from "@prisma/client"
 
 async function changeUserRole(email: string, role: UserRole) {
   try {
-    const user = await prisma.user.update({
+    const user = await prisma.user.upsert({
       where: { email },
-      data: { role },
+      update: { role },
+      create: { email, role },
       select: {
         id: true,
         email: true,

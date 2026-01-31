@@ -242,7 +242,6 @@ export function CustomerInvoicePDF({
   const shippingAddress = invoice.customer.shippingAddress as any;
   const companyAddress = companyInfo.address as any;
   const bankDetails1 = companyInfo.bankDetails1 as any;
-  const bankDetails2 = companyInfo.bankDetails2 as any;
 
   const formatDate = (date: Date | string | null) => {
     if (!date) return "";
@@ -270,7 +269,10 @@ export function CustomerInvoicePDF({
     ? subtotal * (parseFloat(invoice.taxRate.toString()) / 100)
     : 0;
 
-  const total = subtotal + taxAmount;
+  // Recycle Fee is same as tax amount when tax is enabled (10% consumption tax)
+  const recycleFee = invoice.taxEnabled ? taxAmount : 0;
+
+  const total = subtotal + taxAmount + recycleFee;
 
   const issueDate = formatDate(invoice.issueDate || invoice.createdAt);
   const dueDate = formatDate(invoice.dueDate);
@@ -313,23 +315,21 @@ export function CustomerInvoicePDF({
   const companyAddressLines = formatCompanyAddress();
 
   // Format customer billing address in multiple lines
-  const formatCustomerAddress = () => {
-    if (!billingAddress) return [];
+  const formatCustomerAddress = (address: any) => {
+    if (!address) return [];
     const lines = [];
-    if (billingAddress.street) lines.push(billingAddress.street);
-    const cityStateZip = [
-      billingAddress.city,
-      billingAddress.state,
-      billingAddress.zip,
-    ]
+    if (address.street) lines.push(address.street);
+    if (address.apartment) lines.push(address.apartment);
+    const cityStateZip = [address.city, address.state, address.zip]
       .filter(Boolean)
       .join(", ");
     if (cityStateZip) lines.push(cityStateZip);
-    if (billingAddress.country) lines.push(billingAddress.country);
+    if (address.country) lines.push(address.country);
     return lines;
   };
 
-  const customerAddressLines = formatCustomerAddress();
+  const billingAddressLines = formatCustomerAddress(billingAddress);
+  const shippingAddressLines = formatCustomerAddress(shippingAddress);
 
   return (
     <Document>
@@ -369,24 +369,54 @@ export function CustomerInvoicePDF({
           </View>
         </View>
 
-        {/* Bill To Section and Invoice Details Side by Side */}
+        {/* From, Bill To, Ship To, and Invoice Details */}
         <View
           style={{
             flexDirection: "row",
             justifyContent: "space-between",
             alignItems: "flex-start",
             marginBottom: 15,
+            gap: 15,
           }}
         >
           {/* Bill To Section */}
           <View style={styles.billToSection}>
             <Text style={styles.billToLabel}>BILL TO</Text>
             <Text style={styles.billToName}>{invoice.customer.name}</Text>
-            {customerAddressLines.map((line, index) => (
+            {billingAddressLines.map((line, index) => (
               <Text key={index} style={styles.companyLine}>
                 {line}
               </Text>
             ))}
+            {invoice.customer.email && (
+              <Text style={styles.companyLine}>{invoice.customer.email}</Text>
+            )}
+            {invoice.customer.phone && (
+              <Text style={styles.companyLine}>{invoice.customer.phone}</Text>
+            )}
+          </View>
+
+          {/* Ship To Section */}
+          <View style={styles.billToSection}>
+            <Text style={styles.billToLabel}>SHIP TO</Text>
+            <Text style={styles.billToName}>{invoice.customer.name}</Text>
+            {shippingAddressLines.length > 0 ? (
+              <>
+                {shippingAddressLines.map((line, index) => (
+                  <Text key={index} style={styles.companyLine}>
+                    {line}
+                  </Text>
+                ))}
+              </>
+            ) : (
+              <>
+                {billingAddressLines.map((line, index) => (
+                  <Text key={index} style={styles.companyLine}>
+                    {line}
+                  </Text>
+                ))}
+              </>
+            )}
             {invoice.customer.email && (
               <Text style={styles.companyLine}>{invoice.customer.email}</Text>
             )}
@@ -473,6 +503,15 @@ export function CustomerInvoicePDF({
               </Text>
             </View>
           )}
+          {/* Recycle Fee */}
+          {invoice.taxEnabled && recycleFee > 0 && (
+            <View style={styles.totalRow}>
+              <Text style={styles.totalLabel}>Recycle Fee</Text>
+              <Text style={styles.totalAmount}>
+                JPY {formatCurrency(recycleFee)}
+              </Text>
+            </View>
+          )}
           {/* Balance Due */}
           <View style={styles.balanceDueRow}>
             <Text style={styles.balanceDueLabel}>BALANCE DUE</Text>
@@ -488,7 +527,7 @@ export function CustomerInvoicePDF({
         </View>
 
         {/* Payment Information */}
-        {(bankDetails1 || bankDetails2) && (
+        {bankDetails1 && (
           <View style={styles.paymentSection}>
             <Text style={styles.paymentTitle}>Payment Information</Text>
             <View style={styles.banksContainer}>
@@ -543,60 +582,6 @@ export function CustomerInvoicePDF({
                       <Text style={styles.paymentLabel}>Bank Address</Text>
                       <Text style={styles.paymentValue}>
                         {bankDetails1.bankAddress}
-                      </Text>
-                    </View>
-                  )}
-                </View>
-              )}
-              {/* Bank 2 */}
-              {bankDetails2 && (
-                <View style={styles.bankColumn}>
-                  <Text style={styles.bankTitle}>MUFG Bank (三菱UFJ銀行)</Text>
-                  {bankDetails2.name && (
-                    <View style={styles.paymentLine}>
-                      <Text style={styles.paymentLabel}>Bank Name</Text>
-                      <Text style={styles.paymentValue}>
-                        {bankDetails2.name}
-                      </Text>
-                    </View>
-                  )}
-                  {bankDetails2.accountName && (
-                    <View style={styles.paymentLine}>
-                      <Text style={styles.paymentLabel}>Account Name</Text>
-                      <Text style={styles.paymentValue}>
-                        {bankDetails2.accountName}
-                      </Text>
-                    </View>
-                  )}
-                  {bankDetails2.accountNo && (
-                    <View style={styles.paymentLine}>
-                      <Text style={styles.paymentLabel}>Account Number</Text>
-                      <Text style={styles.paymentValue}>
-                        {bankDetails2.accountNo}
-                      </Text>
-                    </View>
-                  )}
-                  {bankDetails2.swiftCode && (
-                    <View style={styles.paymentLine}>
-                      <Text style={styles.paymentLabel}>SWIFT Code</Text>
-                      <Text style={styles.paymentValue}>
-                        {bankDetails2.swiftCode}
-                      </Text>
-                    </View>
-                  )}
-                  {bankDetails2.branchName && (
-                    <View style={styles.paymentLine}>
-                      <Text style={styles.paymentLabel}>Branch</Text>
-                      <Text style={styles.paymentValue}>
-                        {bankDetails2.branchName}
-                      </Text>
-                    </View>
-                  )}
-                  {bankDetails2.bankAddress && (
-                    <View style={styles.paymentLine}>
-                      <Text style={styles.paymentLabel}>Bank Address</Text>
-                      <Text style={styles.paymentValue}>
-                        {bankDetails2.bankAddress}
                       </Text>
                     </View>
                   )}

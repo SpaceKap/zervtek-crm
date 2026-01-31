@@ -5,14 +5,13 @@ import { prisma } from "@/lib/prisma"
 import { requireAuth, canCreateInvoice, canViewAllInquiries } from "@/lib/permissions"
 import { InvoiceStatus } from "@prisma/client"
 
-// Generate invoice number: AUC-YYYY-XXX
+// Generate invoice number: INV-XXXXX (starting from INV-80001)
 async function generateInvoiceNumber(): Promise<string> {
-  const year = new Date().getFullYear()
-  const prefix = `AUC-${year}-`
+  const prefix = "INV-"
 
   // Use a transaction to ensure atomicity and prevent race conditions
   return await prisma.$transaction(async (tx) => {
-    // Find the highest invoice number for this year
+    // Find the highest invoice number
     const lastInvoice = await tx.invoice.findFirst({
       where: {
         invoiceNumber: {
@@ -24,27 +23,29 @@ async function generateInvoiceNumber(): Promise<string> {
       },
     })
 
-    let nextNumber = 1
+    let nextNumber = 80001 // Start from INV-80001
     if (lastInvoice) {
       const lastNumber = parseInt(
         lastInvoice.invoiceNumber.replace(prefix, ""),
         10
       )
-      nextNumber = lastNumber + 1
+      // Only increment if last number is >= 80001, otherwise start from 80001
+      if (lastNumber >= 80001) {
+        nextNumber = lastNumber + 1
+      }
     }
 
-    return `${prefix}${nextNumber.toString().padStart(3, "0")}`
+    return `${prefix}${nextNumber.toString()}`
   })
 }
 
 // Generate multiple sequential invoice numbers for container invoices
 async function generateInvoiceNumbers(count: number): Promise<string[]> {
-  const year = new Date().getFullYear()
-  const prefix = `AUC-${year}-`
+  const prefix = "INV-"
 
   // Use a transaction to ensure atomicity and prevent race conditions
   return await prisma.$transaction(async (tx) => {
-    // Find the highest invoice number for this year
+    // Find the highest invoice number
     const lastInvoice = await tx.invoice.findFirst({
       where: {
         invoiceNumber: {
@@ -56,20 +57,23 @@ async function generateInvoiceNumbers(count: number): Promise<string[]> {
       },
     })
 
-    let startNumber = 1
+    let startNumber = 80001 // Start from INV-80001
     if (lastInvoice) {
       const lastNumber = parseInt(
         lastInvoice.invoiceNumber.replace(prefix, ""),
         10
       )
-      startNumber = lastNumber + 1
+      // Only increment if last number is >= 80001, otherwise start from 80001
+      if (lastNumber >= 80001) {
+        startNumber = lastNumber + 1
+      }
     }
 
     // Generate sequential numbers
     const numbers: string[] = []
     for (let i = 0; i < count; i++) {
       const number = startNumber + i
-      numbers.push(`${prefix}${number.toString().padStart(3, "0")}`)
+      numbers.push(`${prefix}${number.toString()}`)
     }
 
     return numbers

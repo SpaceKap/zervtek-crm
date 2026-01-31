@@ -422,7 +422,6 @@ model CompanyInfo {
   website   String?
   taxId     String?
   bankDetails1 Json? // { name, swiftCode, branchName, accountNo, bankAddress, accountName }
-  bankDetails2 Json? // { name, swiftCode, branchName, accountNo, bankAddress, accountName }
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

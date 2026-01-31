@@ -37,7 +37,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { name, logo, address, phone, email, website, taxId, bankDetails1, bankDetails2 } = body
+    const { name, logo, address, phone, email, website, taxId, bankDetails1 } = body
 
     // Get existing company info or create if doesn't exist
     const existingCompany = await prisma.companyInfo.findFirst()
@@ -67,7 +67,6 @@ export async function PATCH(request: NextRequest) {
     if (website !== undefined) updateData.website = website === "" || website === null ? null : website
     if (taxId !== undefined) updateData.taxId = taxId === "" || taxId === null ? null : taxId
     if (bankDetails1 !== undefined) updateData.bankDetails1 = bankDetails1 || {}
-    if (bankDetails2 !== undefined) updateData.bankDetails2 = bankDetails2 || {}
 
     const companyInfo = existingCompany
       ? await prisma.companyInfo.update({
@@ -84,7 +83,6 @@ export async function PATCH(request: NextRequest) {
             website: website || null,
             taxId: taxId || null,
             bankDetails1: bankDetails1 || {},
-            bankDetails2: bankDetails2 || {},
           },
         })
 

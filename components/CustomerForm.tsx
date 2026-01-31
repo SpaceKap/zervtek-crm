@@ -28,22 +28,61 @@ import {
 } from "@/lib/countries-data";
 import { getRegionsForCountry, getRegionLabel } from "@/lib/address-data";
 
-const customerSchema = z.object({
-  firstName: z.string().min(1, "First name is required"),
-  lastName: z.string().min(1, "Last name is required"),
-  email: z.string().email().optional().or(z.literal("")),
-  phoneCountryCode: z.string().optional(),
-  phoneNumber: z.string().optional(),
-  portOfDestination: z.string().optional(),
-  address: z.object({
-    street: z.string().optional(),
-    apartment: z.string().optional(),
-    city: z.string().optional(),
-    state: z.string().optional(),
-    zip: z.string().optional(),
-    country: z.string().optional(),
-  }),
-});
+const customerSchema = z
+  .object({
+    firstName: z.string().min(1, "First name is required"),
+    lastName: z.string().min(1, "Last name is required"),
+    email: z
+      .string()
+      .email("Valid email is required")
+      .min(1, "Email is required"),
+    phoneCountryCode: z.string().min(1, "Phone country code is required"),
+    phoneNumber: z.string().min(1, "Phone number is required"),
+    portOfDestination: z.string().min(1, "Port of destination is required"),
+    address: z.object({
+      street: z.string().min(1, "Street address is required"),
+      apartment: z.string().min(1, "Apartment/suite is required"),
+      city: z.string().min(1, "City is required"),
+      state: z.string().min(1, "State/Province/Region is required"),
+      zip: z.string().min(1, "ZIP/Postal code is required"),
+      country: z.string().min(1, "Country/Region is required"),
+    }),
+    shippingAddress: z
+      .object({
+        street: z.string().optional(),
+        apartment: z.string().optional(),
+        city: z.string().optional(),
+        state: z.string().optional(),
+        zip: z.string().optional(),
+        country: z.string().optional(),
+      })
+      .optional(),
+    sameAsBilling: z.boolean().default(true),
+  })
+  .refine(
+    (data) => {
+      // If shipping address is different, all shipping fields are required
+      if (!data.sameAsBilling) {
+        if (!data.shippingAddress) {
+          return false;
+        }
+        return (
+          !!data.shippingAddress.street &&
+          !!data.shippingAddress.apartment &&
+          !!data.shippingAddress.city &&
+          !!data.shippingAddress.state &&
+          !!data.shippingAddress.zip &&
+          !!data.shippingAddress.country
+        );
+      }
+      return true;
+    },
+    {
+      message:
+        "All shipping address fields are required when shipping address is different",
+      path: ["shippingAddress"],
+    },
+  );
 
 type CustomerFormData = z.infer<typeof customerSchema>;
 
@@ -76,6 +115,11 @@ export function CustomerForm({
   const [saving, setSaving] = useState(false);
   const [selectedCountry, setSelectedCountry] = useState<string>("");
   const [availableRegions, setAvailableRegions] = useState<string[]>([]);
+  const [selectedShippingCountry, setSelectedShippingCountry] =
+    useState<string>("");
+  const [availableShippingRegions, setAvailableShippingRegions] = useState<
+    string[]
+  >([]);
 
   const {
     register,
@@ -101,6 +145,8 @@ export function CustomerForm({
         zip: "",
         country: "",
       },
+      shippingAddress: undefined,
+      sameAsBilling: true,
     },
   });
 
@@ -135,8 +181,13 @@ export function CustomerForm({
         }
       }
 
-      const address = (customer.billingAddress as any) || {};
-      const country = address.country || customer.country || "";
+      const billingAddress = (customer.billingAddress as any) || {};
+      const shippingAddress =
+        (customer.shippingAddress as any) || billingAddress;
+      const country = billingAddress.country || customer.country || "";
+      const shippingCountry = shippingAddress.country || country;
+      const sameAsBilling =
+        JSON.stringify(billingAddress) === JSON.stringify(shippingAddress);
 
       reset({
         firstName,
@@ -146,14 +197,28 @@ export function CustomerForm({
         phoneNumber,
         portOfDestination: customer.portOfDestination || "",
         address: {
-          street: address.street || "",
-          apartment: address.apartment || "",
-          city: address.city || "",
-          state: address.state || "",
-          zip: address.zip || "",
+          street: billingAddress.street || "",
+          apartment: billingAddress.apartment || "",
+          city: billingAddress.city || "",
+          state: billingAddress.state || "",
+          zip: billingAddress.zip || "",
           country,
         },
+        shippingAddress: {
+          street: shippingAddress.street || "",
+          apartment: shippingAddress.apartment || "",
+          city: shippingAddress.city || "",
+          state: shippingAddress.state || "",
+          zip: shippingAddress.zip || "",
+          country: shippingCountry,
+        },
+        sameAsBilling,
       });
+
+      if (shippingCountry) {
+        setSelectedShippingCountry(shippingCountry);
+        setAvailableShippingRegions(getRegionsForCountry(shippingCountry));
+      }
 
       setSelectedCountry(country);
       if (country) {
@@ -162,7 +227,7 @@ export function CustomerForm({
     }
   }, [customer, reset]);
 
-  // Update regions when country changes
+  // Update regions when billing country changes
   useEffect(() => {
     const country = watch("address.country");
     if (country) {
@@ -178,6 +243,38 @@ export function CustomerForm({
       setAvailableRegions([]);
     }
   }, [watch("address.country"), setValue]);
+
+  // Update regions when shipping country changes
+  useEffect(() => {
+    const country = watch("shippingAddress.country");
+    if (country) {
+      setSelectedShippingCountry(country);
+      const regions = getRegionsForCountry(country);
+      setAvailableShippingRegions(regions);
+      // Clear state if regions change
+      if (regions.length === 0) {
+        setValue("shippingAddress.state", "");
+      }
+    } else {
+      setSelectedShippingCountry("");
+      setAvailableShippingRegions([]);
+    }
+  }, [watch("shippingAddress.country"), setValue]);
+
+  // Handle "same as billing" checkbox
+  const sameAsBilling = watch("sameAsBilling");
+  useEffect(() => {
+    if (sameAsBilling) {
+      const billingAddress = watch("address");
+      setValue("shippingAddress", { ...billingAddress });
+      setSelectedShippingCountry(billingAddress.country || "");
+      if (billingAddress.country) {
+        setAvailableShippingRegions(
+          getRegionsForCountry(billingAddress.country),
+        );
+      }
+    }
+  }, [sameAsBilling, watch("address"), setValue]);
 
   const handleClose = () => {
     reset();
@@ -207,7 +304,9 @@ export function CustomerForm({
         phone,
         country: data.address.country || null,
         billingAddress: data.address,
-        shippingAddress: data.address, // Use same address for both
+        shippingAddress: data.sameAsBilling
+          ? data.address
+          : data.shippingAddress || data.address,
         portOfDestination: data.portOfDestination || null,
       };
 
@@ -349,7 +448,10 @@ export function CustomerForm({
                         htmlFor="email"
                         className="text-sm font-medium text-gray-700 dark:text-gray-300"
                       >
-                        Email
+                        Email{" "}
+                        <span className="text-red-500 dark:text-red-400">
+                          *
+                        </span>
                       </Label>
                       <Input
                         id="email"
@@ -371,36 +473,53 @@ export function CustomerForm({
                         htmlFor="phone"
                         className="text-sm font-medium text-gray-700 dark:text-gray-300"
                       >
-                        Phone Number
+                        Phone Number{" "}
+                        <span className="text-red-500 dark:text-red-400">
+                          *
+                        </span>
                       </Label>
                       <div className="flex gap-3">
-                        <Select
-                          value={watch("phoneCountryCode") || ""}
-                          onValueChange={(value) =>
-                            setValue("phoneCountryCode", value)
-                          }
-                        >
-                          <SelectTrigger className="w-[150px] h-10">
-                            <SelectValue placeholder="Code" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {COUNTRY_CODES.map((cc) => (
-                              <SelectItem key={cc.code} value={cc.code}>
-                                {cc.code}{" "}
-                                {cc.countries.length > 1
-                                  ? `(${cc.countries[0]}...)`
-                                  : `(${cc.countries[0]})`}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <Input
-                          id="phone"
-                          type="tel"
-                          {...register("phoneNumber")}
-                          placeholder="Phone number"
-                          className="flex-1 h-10"
-                        />
+                        <div className="w-[150px]">
+                          <Select
+                            value={watch("phoneCountryCode") || ""}
+                            onValueChange={(value) =>
+                              setValue("phoneCountryCode", value)
+                            }
+                          >
+                            <SelectTrigger className="h-10">
+                              <SelectValue placeholder="Code *" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {COUNTRY_CODES.map((cc) => (
+                                <SelectItem key={cc.code} value={cc.code}>
+                                  {cc.code}{" "}
+                                  {cc.countries.length > 1
+                                    ? `(${cc.countries[0]}...)`
+                                    : `(${cc.countries[0]})`}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          {errors.phoneCountryCode && (
+                            <p className="text-xs text-red-500 dark:text-red-400 mt-1">
+                              {errors.phoneCountryCode.message}
+                            </p>
+                          )}
+                        </div>
+                        <div className="flex-1">
+                          <Input
+                            id="phone"
+                            type="tel"
+                            {...register("phoneNumber")}
+                            placeholder="Phone number"
+                            className="h-10"
+                          />
+                          {errors.phoneNumber && (
+                            <p className="text-xs text-red-500 dark:text-red-400 mt-1">
+                              {errors.phoneNumber.message}
+                            </p>
+                          )}
+                        </div>
                       </div>
                     </div>
 
@@ -410,7 +529,10 @@ export function CustomerForm({
                         htmlFor="portOfDestination"
                         className="text-sm font-medium text-gray-700 dark:text-gray-300"
                       >
-                        Port of Destination
+                        Port of Destination{" "}
+                        <span className="text-red-500 dark:text-red-400">
+                          *
+                        </span>
                       </Label>
                       <Input
                         id="portOfDestination"
@@ -418,6 +540,11 @@ export function CustomerForm({
                         placeholder="e.g., Port of Los Angeles, Port of Tokyo"
                         className="h-10"
                       />
+                      {errors.portOfDestination && (
+                        <p className="text-xs text-red-500 dark:text-red-400 mt-1">
+                          {errors.portOfDestination.message}
+                        </p>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -436,7 +563,10 @@ export function CustomerForm({
                         htmlFor="addressCountry"
                         className="text-sm font-medium text-gray-700 dark:text-gray-300"
                       >
-                        Country/Region
+                        Country/Region{" "}
+                        <span className="text-red-500 dark:text-red-400">
+                          *
+                        </span>
                       </Label>
                       <Select
                         value={watch("address.country") || ""}
@@ -456,6 +586,11 @@ export function CustomerForm({
                           ))}
                         </SelectContent>
                       </Select>
+                      {errors.address?.country && (
+                        <p className="text-xs text-red-500 dark:text-red-400 mt-1">
+                          {errors.address.country.message}
+                        </p>
+                      )}
                     </div>
 
                     {/* Street Address */}
@@ -464,7 +599,10 @@ export function CustomerForm({
                         htmlFor="addressStreet"
                         className="text-sm font-medium text-gray-700 dark:text-gray-300"
                       >
-                        Address
+                        Street address{" "}
+                        <span className="text-red-500 dark:text-red-400">
+                          *
+                        </span>
                       </Label>
                       <Input
                         id="addressStreet"
@@ -472,6 +610,11 @@ export function CustomerForm({
                         placeholder="Street address"
                         className="h-10"
                       />
+                      {errors.address?.street && (
+                        <p className="text-xs text-red-500 dark:text-red-400 mt-1">
+                          {errors.address.street.message}
+                        </p>
+                      )}
                     </div>
 
                     {/* Apartment */}
@@ -480,7 +623,10 @@ export function CustomerForm({
                         htmlFor="addressApartment"
                         className="text-sm font-medium text-gray-700 dark:text-gray-300"
                       >
-                        Apartment, suite, etc.
+                        Apartment, suite, etc.{" "}
+                        <span className="text-red-500 dark:text-red-400">
+                          *
+                        </span>
                       </Label>
                       <Input
                         id="addressApartment"
@@ -488,6 +634,11 @@ export function CustomerForm({
                         placeholder="Apartment, suite, etc."
                         className="h-10"
                       />
+                      {errors.address?.apartment && (
+                        <p className="text-xs text-red-500 dark:text-red-400 mt-1">
+                          {errors.address.apartment.message}
+                        </p>
+                      )}
                     </div>
 
                     {/* City & State */}
@@ -497,7 +648,10 @@ export function CustomerForm({
                           htmlFor="addressCity"
                           className="text-sm font-medium text-gray-700 dark:text-gray-300"
                         >
-                          City
+                          City{" "}
+                          <span className="text-red-500 dark:text-red-400">
+                            *
+                          </span>
                         </Label>
                         <Input
                           id="addressCity"
@@ -505,13 +659,21 @@ export function CustomerForm({
                           placeholder="City"
                           className="h-10"
                         />
+                        {errors.address?.city && (
+                          <p className="text-xs text-red-500 dark:text-red-400 mt-1">
+                            {errors.address.city.message}
+                          </p>
+                        )}
                       </div>
                       <div className="space-y-1.5">
                         <Label
                           htmlFor="addressState"
                           className="text-sm font-medium text-gray-700 dark:text-gray-300"
                         >
-                          {regionLabel}
+                          State/Province/Region{" "}
+                          <span className="text-red-500 dark:text-red-400">
+                            *
+                          </span>
                         </Label>
                         {availableRegions.length > 0 ? (
                           <Select
@@ -541,6 +703,11 @@ export function CustomerForm({
                             className="h-10"
                           />
                         )}
+                        {errors.address?.state && (
+                          <p className="text-xs text-red-500 dark:text-red-400 mt-1">
+                            {errors.address.state.message}
+                          </p>
+                        )}
                       </div>
                     </div>
 
@@ -550,7 +717,10 @@ export function CustomerForm({
                         htmlFor="addressZip"
                         className="text-sm font-medium text-gray-700 dark:text-gray-300"
                       >
-                        ZIP/Postal Code
+                        ZIP/Postal Code{" "}
+                        <span className="text-red-500 dark:text-red-400">
+                          *
+                        </span>
                       </Label>
                       <Input
                         id="addressZip"
@@ -558,9 +728,232 @@ export function CustomerForm({
                         placeholder="ZIP/Postal code"
                         className="h-10"
                       />
+                      {errors.address?.zip && (
+                        <p className="text-xs text-red-500 dark:text-red-400 mt-1">
+                          {errors.address.zip.message}
+                        </p>
+                      )}
                     </div>
                   </div>
                 </div>
+              </div>
+            </div>
+
+            {/* Shipping Address Section */}
+            {!sameAsBilling && (
+              <div className="mt-8 border-t border-gray-200 dark:border-gray-700 pt-6">
+                <div className="grid grid-cols-2 gap-8">
+                  {/* Left Column - Empty (matching billing layout) */}
+                  <div className="space-y-0"></div>
+
+                  {/* Right Column - Shipping Address */}
+                  <div className="space-y-0">
+                    <div className="mb-6">
+                      <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100 mb-6">
+                        Shipping Address
+                      </h3>
+                      <div className="space-y-5">
+                        {/* Country/Region */}
+                        <div className="space-y-1.5">
+                          <Label
+                            htmlFor="shippingAddressCountry"
+                            className="text-sm font-medium text-gray-700 dark:text-gray-300"
+                          >
+                            Country/Region{" "}
+                            <span className="text-red-500 dark:text-red-400">
+                              *
+                            </span>
+                          </Label>
+                          <Select
+                            value={watch("shippingAddress.country") || ""}
+                            onValueChange={(value) => {
+                              setValue("shippingAddress.country", value);
+                              setValue("shippingAddress.state", "");
+                            }}
+                          >
+                            <SelectTrigger className="h-10">
+                              <SelectValue placeholder="Select country" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {COUNTRIES.map((country) => (
+                                <SelectItem key={country} value={country}>
+                                  {country}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          {errors.shippingAddress?.country && (
+                            <p className="text-xs text-red-500 dark:text-red-400 mt-1">
+                              {errors.shippingAddress.country.message}
+                            </p>
+                          )}
+                        </div>
+
+                        {/* Street Address */}
+                        <div className="space-y-1.5">
+                          <Label
+                            htmlFor="shippingAddressStreet"
+                            className="text-sm font-medium text-gray-700 dark:text-gray-300"
+                          >
+                            Street address{" "}
+                            <span className="text-red-500 dark:text-red-400">
+                              *
+                            </span>
+                          </Label>
+                          <Input
+                            id="shippingAddressStreet"
+                            {...register("shippingAddress.street")}
+                            placeholder="Street address"
+                            className="h-10"
+                          />
+                          {errors.shippingAddress?.street && (
+                            <p className="text-xs text-red-500 dark:text-red-400 mt-1">
+                              {errors.shippingAddress.street.message}
+                            </p>
+                          )}
+                        </div>
+
+                        {/* Apartment */}
+                        <div className="space-y-1.5">
+                          <Label
+                            htmlFor="shippingAddressApartment"
+                            className="text-sm font-medium text-gray-700 dark:text-gray-300"
+                          >
+                            Apartment, suite, etc.{" "}
+                            <span className="text-red-500 dark:text-red-400">
+                              *
+                            </span>
+                          </Label>
+                          <Input
+                            id="shippingAddressApartment"
+                            {...register("shippingAddress.apartment")}
+                            placeholder="Apartment, suite, etc."
+                            className="h-10"
+                          />
+                          {errors.shippingAddress?.apartment && (
+                            <p className="text-xs text-red-500 dark:text-red-400 mt-1">
+                              {errors.shippingAddress.apartment.message}
+                            </p>
+                          )}
+                        </div>
+
+                        {/* City & State */}
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-1.5">
+                            <Label
+                              htmlFor="shippingAddressCity"
+                              className="text-sm font-medium text-gray-700 dark:text-gray-300"
+                            >
+                              City{" "}
+                              <span className="text-red-500 dark:text-red-400">
+                                *
+                              </span>
+                            </Label>
+                            <Input
+                              id="shippingAddressCity"
+                              {...register("shippingAddress.city")}
+                              placeholder="City"
+                              className="h-10"
+                            />
+                            {errors.shippingAddress?.city && (
+                              <p className="text-xs text-red-500 dark:text-red-400 mt-1">
+                                {errors.shippingAddress.city.message}
+                              </p>
+                            )}
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label
+                              htmlFor="shippingAddressState"
+                              className="text-sm font-medium text-gray-700 dark:text-gray-300"
+                            >
+                              State/Province/Region{" "}
+                              <span className="text-red-500 dark:text-red-400">
+                                *
+                              </span>
+                            </Label>
+                            {availableShippingRegions.length > 0 ? (
+                              <Select
+                                value={watch("shippingAddress.state") || ""}
+                                onValueChange={(value) =>
+                                  setValue("shippingAddress.state", value)
+                                }
+                              >
+                                <SelectTrigger className="h-10">
+                                  <SelectValue
+                                    placeholder={`Select ${getRegionLabel(selectedShippingCountry).toLowerCase()}`}
+                                  />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {availableShippingRegions.map((region) => (
+                                    <SelectItem key={region} value={region}>
+                                      {region}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            ) : (
+                              <Input
+                                id="shippingAddressState"
+                                {...register("shippingAddress.state")}
+                                placeholder={getRegionLabel(
+                                  selectedShippingCountry,
+                                )}
+                                className="h-10"
+                              />
+                            )}
+                            {errors.shippingAddress?.state && (
+                              <p className="text-xs text-red-500 dark:text-red-400 mt-1">
+                                {errors.shippingAddress.state.message}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* ZIP/Postal Code */}
+                        <div className="space-y-1.5">
+                          <Label
+                            htmlFor="shippingAddressZip"
+                            className="text-sm font-medium text-gray-700 dark:text-gray-300"
+                          >
+                            ZIP/Postal Code{" "}
+                            <span className="text-red-500 dark:text-red-400">
+                              *
+                            </span>
+                          </Label>
+                          <Input
+                            id="shippingAddressZip"
+                            {...register("shippingAddress.zip")}
+                            placeholder="ZIP/Postal code"
+                            className="h-10"
+                          />
+                          {errors.shippingAddress?.zip && (
+                            <p className="text-xs text-red-500 dark:text-red-400 mt-1">
+                              {errors.shippingAddress.zip.message}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Checkbox for shipping address */}
+            <div className="mt-8 border-t border-gray-200 dark:border-gray-700 pt-6">
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="sameAsBilling"
+                  {...register("sameAsBilling")}
+                  className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                />
+                <Label
+                  htmlFor="sameAsBilling"
+                  className="text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer"
+                >
+                  Shipping address is different
+                </Label>
               </div>
             </div>
           </form>

@@ -41,7 +41,14 @@ const invoiceSchema = z
     customerUsesInJapan: z.boolean().default(false),
     charges: z.array(
       z.object({
-        chargeType: z.enum(["VEHICLE", "EXPORT_FEES", "SHIPPING", "CUSTOM"]),
+        chargeType: z.enum([
+          "VEHICLE",
+          "EXPORT_FEES",
+          "SHIPPING",
+          "RECYCLE_FEES",
+          "DISCOUNT",
+          "CUSTOM",
+        ]),
         description: z.string().optional(),
         amount: z.string().min(1, "Amount is required"),
       }),
@@ -85,6 +92,8 @@ interface Customer {
   id: string;
   name: string;
   email: string | null;
+  billingAddress?: any;
+  shippingAddress?: any;
 }
 
 interface Vehicle {
@@ -126,6 +135,8 @@ export function InvoiceForm({ invoice }: InvoiceFormProps = {}) {
 
   // Currency state (USD or JPY)
   const [currency, setCurrency] = useState<"USD" | "JPY">("JPY");
+  // Recycle Fee - manual entry
+  const [recycleFee, setRecycleFee] = useState<string>("");
 
   // Helper function to get currency symbol
   const getCurrencySymbol = () => {
@@ -240,6 +251,8 @@ export function InvoiceForm({ invoice }: InvoiceFormProps = {}) {
             "VEHICLE",
             "EXPORT_FEES",
             "SHIPPING",
+            "RECYCLE_FEES",
+            "DISCOUNT",
             "CUSTOM",
           ].includes(chargeTypeName)
             ? chargeTypeName
@@ -506,17 +519,29 @@ export function InvoiceForm({ invoice }: InvoiceFormProps = {}) {
     }
   }, [selectedCustomerId, customers]);
 
-  // Calculate totals
-  const subtotal = charges.reduce((sum, charge) => {
-    const amount = parseFloat(charge.amount?.replace(/,/g, "") || "0");
-    return sum + amount;
-  }, 0);
+  // Calculate totals - separate regular charges from discounts
+  const { subtotal: chargesSubtotal, discountTotal } = charges.reduce(
+    (acc, charge) => {
+      const amount = parseFloat(charge.amount?.replace(/,/g, "") || "0");
+      if (charge.chargeType === "DISCOUNT") {
+        acc.discountTotal += amount;
+      } else {
+        acc.subtotal += amount;
+      }
+      return acc;
+    },
+    { subtotal: 0, discountTotal: 0 },
+  );
 
   const taxAmount = watch("taxEnabled")
-    ? subtotal * (watch("taxRate") / 100)
+    ? chargesSubtotal * (watch("taxRate") / 100)
     : 0;
 
-  const total = subtotal + taxAmount;
+  const total =
+    chargesSubtotal -
+    discountTotal +
+    taxAmount +
+    parseFloat(recycleFee.replace(/,/g, "") || "0");
 
   if (loadingInquiry) {
     return (
@@ -535,54 +560,59 @@ export function InvoiceForm({ invoice }: InvoiceFormProps = {}) {
       <div className="max-w-6xl mx-auto">
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
           {/* Header */}
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
-            INVOICE
-          </h2>
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+              INVOICE
+            </h2>
+            <div className="flex items-center gap-4">
+              {/* Currency Selector */}
+              <div className="space-y-1.5">
+                <Label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Currency
+                </Label>
+                <Select
+                  value={currency}
+                  onValueChange={(value: "USD" | "JPY") => setCurrency(value)}
+                >
+                  <SelectTrigger className="h-10 w-32 border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="USD">USD ($)</SelectItem>
+                    <SelectItem value="JPY">JPY (¥)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
 
-          {/* Invoice Number, Issue Date, Due Date */}
-          <div className="grid grid-cols-2 gap-4 mb-6">
-            <div>
-              <Label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Invoice#
-              </Label>
-              <Input
-                type="text"
-                placeholder="Auto-generated"
-                disabled
-                className="w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm bg-gray-50 dark:bg-gray-800"
-              />
-            </div>
-            <div></div>
-            <div>
-              <Label
-                htmlFor="issueDate"
-                className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-              >
-                Issue Date <span className="text-red-500">*</span>
-              </Label>
-              <DatePicker
-                id="issueDate"
-                {...register("issueDate")}
-                className="w-full border border-gray-300 dark:border-gray-600 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400"
-              />
-              {errors.issueDate && (
-                <p className="text-xs text-red-500 mt-1">
-                  {errors.issueDate.message}
-                </p>
-              )}
-            </div>
-            <div>
-              <Label
-                htmlFor="dueDate"
-                className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-              >
-                Due Date
-              </Label>
-              <DatePicker
-                id="dueDate"
-                {...register("dueDate")}
-                className="w-full border border-gray-300 dark:border-gray-600 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400"
-              />
+              {/* Status Selector */}
+              <div className="space-y-1.5">
+                <Label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Status
+                </Label>
+                <Select
+                  value={watch("status")}
+                  onValueChange={(value) =>
+                    setValue(
+                      "status",
+                      value as
+                        | "DRAFT"
+                        | "PENDING_APPROVAL"
+                        | "APPROVED"
+                        | "FINALIZED",
+                    )
+                  }
+                >
+                  <SelectTrigger className="h-10 w-48 border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="DRAFT">Draft</SelectItem>
+                    <SelectItem value="PENDING_APPROVAL">
+                      Submit for Approval
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </div>
 
@@ -602,8 +632,8 @@ export function InvoiceForm({ invoice }: InvoiceFormProps = {}) {
             </div>
           )}
 
-          {/* From & To Sections */}
-          <div className="grid grid-cols-2 gap-6 mb-6">
+          {/* From, Billing, Shipping, and Invoice Details */}
+          <div className="grid grid-cols-4 gap-4 mb-6">
             {/* From Section */}
             <div>
               <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">
@@ -636,10 +666,10 @@ export function InvoiceForm({ invoice }: InvoiceFormProps = {}) {
               )}
             </div>
 
-            {/* To Section */}
+            {/* Billing Address Section */}
             <div>
               <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">
-                To: <span className="text-red-500">*</span>
+                Bill To: <span className="text-red-500">*</span>
               </h3>
               <div className="space-y-2">
                 <div className="flex gap-2">
@@ -680,11 +710,172 @@ export function InvoiceForm({ invoice }: InvoiceFormProps = {}) {
                 )}
                 {selectedCustomer && (
                   <div className="text-sm text-gray-700 dark:text-gray-300 space-y-1">
+                    <div className="font-medium">{selectedCustomer.name}</div>
+                    {selectedCustomer.billingAddress && (
+                      <>
+                        {selectedCustomer.billingAddress.street && (
+                          <div>{selectedCustomer.billingAddress.street}</div>
+                        )}
+                        {selectedCustomer.billingAddress.apartment && (
+                          <div>{selectedCustomer.billingAddress.apartment}</div>
+                        )}
+                        {[
+                          selectedCustomer.billingAddress.city,
+                          selectedCustomer.billingAddress.state,
+                          selectedCustomer.billingAddress.zip,
+                        ]
+                          .filter(Boolean)
+                          .join(", ") && (
+                          <div>
+                            {[
+                              selectedCustomer.billingAddress.city,
+                              selectedCustomer.billingAddress.state,
+                              selectedCustomer.billingAddress.zip,
+                            ]
+                              .filter(Boolean)
+                              .join(", ")}
+                          </div>
+                        )}
+                        {selectedCustomer.billingAddress.country && (
+                          <div>{selectedCustomer.billingAddress.country}</div>
+                        )}
+                      </>
+                    )}
                     {selectedCustomer.email && (
-                      <div>Email: {selectedCustomer.email}</div>
+                      <div>{selectedCustomer.email}</div>
+                    )}
+                    {selectedCustomer.phone && (
+                      <div>{selectedCustomer.phone}</div>
                     )}
                   </div>
                 )}
+              </div>
+            </div>
+
+            {/* Shipping Address Section */}
+            <div>
+              <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">
+                Ship To:
+              </h3>
+              {selectedCustomer ? (
+                <div className="text-sm text-gray-700 dark:text-gray-300 space-y-1">
+                  <div className="font-medium">{selectedCustomer.name}</div>
+                  {selectedCustomer.shippingAddress ? (
+                    <>
+                      {selectedCustomer.shippingAddress.street && (
+                        <div>{selectedCustomer.shippingAddress.street}</div>
+                      )}
+                      {selectedCustomer.shippingAddress.apartment && (
+                        <div>{selectedCustomer.shippingAddress.apartment}</div>
+                      )}
+                      {[
+                        selectedCustomer.shippingAddress.city,
+                        selectedCustomer.shippingAddress.state,
+                        selectedCustomer.shippingAddress.zip,
+                      ]
+                        .filter(Boolean)
+                        .join(", ") && (
+                        <div>
+                          {[
+                            selectedCustomer.shippingAddress.city,
+                            selectedCustomer.shippingAddress.state,
+                            selectedCustomer.shippingAddress.zip,
+                          ]
+                            .filter(Boolean)
+                            .join(", ")}
+                        </div>
+                      )}
+                      {selectedCustomer.shippingAddress.country && (
+                        <div>{selectedCustomer.shippingAddress.country}</div>
+                      )}
+                    </>
+                  ) : selectedCustomer.billingAddress ? (
+                    <>
+                      {selectedCustomer.billingAddress.street && (
+                        <div>{selectedCustomer.billingAddress.street}</div>
+                      )}
+                      {selectedCustomer.billingAddress.apartment && (
+                        <div>{selectedCustomer.billingAddress.apartment}</div>
+                      )}
+                      {[
+                        selectedCustomer.billingAddress.city,
+                        selectedCustomer.billingAddress.state,
+                        selectedCustomer.billingAddress.zip,
+                      ]
+                        .filter(Boolean)
+                        .join(", ") && (
+                        <div>
+                          {[
+                            selectedCustomer.billingAddress.city,
+                            selectedCustomer.billingAddress.state,
+                            selectedCustomer.billingAddress.zip,
+                          ]
+                            .filter(Boolean)
+                            .join(", ")}
+                        </div>
+                      )}
+                      {selectedCustomer.billingAddress.country && (
+                        <div>{selectedCustomer.billingAddress.country}</div>
+                      )}
+                    </>
+                  ) : null}
+                  {selectedCustomer.email && (
+                    <div>{selectedCustomer.email}</div>
+                  )}
+                  {selectedCustomer.phone && (
+                    <div>{selectedCustomer.phone}</div>
+                  )}
+                </div>
+              ) : (
+                <div className="text-sm text-gray-500 dark:text-gray-400">
+                  Select a customer
+                </div>
+              )}
+            </div>
+
+            {/* Invoice Details (Invoice#, Net, Date) */}
+            <div className="space-y-3">
+              <div>
+                <Label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Invoice#
+                </Label>
+                <Input
+                  type="text"
+                  placeholder="Auto-generated"
+                  disabled
+                  className="w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm bg-gray-50 dark:bg-gray-800"
+                />
+              </div>
+              <div>
+                <Label
+                  htmlFor="issueDate"
+                  className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                >
+                  Issue Date <span className="text-red-500">*</span>
+                </Label>
+                <DatePicker
+                  id="issueDate"
+                  {...register("issueDate")}
+                  className="w-full border border-gray-300 dark:border-gray-600 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400"
+                />
+                {errors.issueDate && (
+                  <p className="text-xs text-red-500 mt-1">
+                    {errors.issueDate.message}
+                  </p>
+                )}
+              </div>
+              <div>
+                <Label
+                  htmlFor="dueDate"
+                  className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                >
+                  Due Date
+                </Label>
+                <DatePicker
+                  id="dueDate"
+                  {...register("dueDate")}
+                  className="w-full border border-gray-300 dark:border-gray-600 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400"
+                />
               </div>
             </div>
           </div>
@@ -744,6 +935,8 @@ export function InvoiceForm({ invoice }: InvoiceFormProps = {}) {
                                     | "VEHICLE"
                                     | "EXPORT_FEES"
                                     | "SHIPPING"
+                                    | "RECYCLE_FEES"
+                                    | "DISCOUNT"
                                     | "CUSTOM";
 
                                   // Set charge type first
@@ -770,6 +963,24 @@ export function InvoiceForm({ invoice }: InvoiceFormProps = {}) {
                                     setValue(
                                       `charges.${index}.description`,
                                       "Shipping",
+                                      {
+                                        shouldValidate: true,
+                                        shouldDirty: true,
+                                      },
+                                    );
+                                  } else if (value === "RECYCLE_FEES") {
+                                    setValue(
+                                      `charges.${index}.description`,
+                                      "Recycle Fee",
+                                      {
+                                        shouldValidate: true,
+                                        shouldDirty: true,
+                                      },
+                                    );
+                                  } else if (value === "DISCOUNT") {
+                                    setValue(
+                                      `charges.${index}.description`,
+                                      "Discount",
                                       {
                                         shouldValidate: true,
                                         shouldDirty: true,
@@ -827,6 +1038,8 @@ export function InvoiceForm({ invoice }: InvoiceFormProps = {}) {
                                     if (
                                       currentDesc === "Export Fees" ||
                                       currentDesc === "Shipping" ||
+                                      currentDesc === "Recycle Fee" ||
+                                      currentDesc === "Discount" ||
                                       currentDesc === "Vehicle"
                                     ) {
                                       setValue(
@@ -853,6 +1066,12 @@ export function InvoiceForm({ invoice }: InvoiceFormProps = {}) {
                                   </SelectItem>
                                   <SelectItem value="SHIPPING">
                                     Shipping
+                                  </SelectItem>
+                                  <SelectItem value="RECYCLE_FEES">
+                                    Recycle Fee
+                                  </SelectItem>
+                                  <SelectItem value="DISCOUNT">
+                                    Discount
                                   </SelectItem>
                                   <SelectItem value="CUSTOM">Custom</SelectItem>
                                 </SelectContent>
@@ -1344,7 +1563,18 @@ export function InvoiceForm({ invoice }: InvoiceFormProps = {}) {
                             )}
                           </td>
                           <td className="px-4 py-3 text-right">
-                            <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                            <span
+                              className={`text-sm font-semibold ${
+                                watch(`charges.${index}.chargeType`) ===
+                                "DISCOUNT"
+                                  ? "text-red-600 dark:text-red-400"
+                                  : "text-gray-900 dark:text-white"
+                              }`}
+                            >
+                              {watch(`charges.${index}.chargeType`) ===
+                              "DISCOUNT"
+                                ? "-"
+                                : ""}
                               {getCurrencySymbol()}
                               {amount.toLocaleString("en-US")}
                             </span>
@@ -1386,32 +1616,26 @@ export function InvoiceForm({ invoice }: InvoiceFormProps = {}) {
           {/* Totals Section */}
           <div className="flex justify-end mb-6">
             <div className="w-80">
-              <div className="flex items-center justify-between mb-2">
-                <Label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Currency:
-                </Label>
-                <Select
-                  value={currency}
-                  onValueChange={(value: "USD" | "JPY") => setCurrency(value)}
-                >
-                  <SelectTrigger className="border border-gray-300 dark:border-gray-600 rounded-md px-3 py-1 text-sm w-40">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="USD">$ - US Dollar</SelectItem>
-                    <SelectItem value="JPY">¥ - Japanese Yen</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
               <div className="flex justify-between py-2 border-t border-gray-200 dark:border-gray-700">
                 <span className="text-sm text-gray-700 dark:text-gray-300">
                   Subtotal
                 </span>
                 <span className="text-sm font-medium text-gray-900 dark:text-white">
                   {getCurrencySymbol()}
-                  {subtotal.toLocaleString("en-US")}
+                  {chargesSubtotal.toLocaleString("en-US")}
                 </span>
               </div>
+              {discountTotal > 0 && (
+                <div className="flex justify-between py-2">
+                  <span className="text-sm text-gray-700 dark:text-gray-300">
+                    Discount
+                  </span>
+                  <span className="text-sm font-medium text-red-600 dark:text-red-400">
+                    -{getCurrencySymbol()}
+                    {discountTotal.toLocaleString("en-US")}
+                  </span>
+                </div>
+              )}
               <div className="flex items-center justify-between py-2">
                 <div className="flex items-center gap-2">
                   <Checkbox
@@ -1436,6 +1660,36 @@ export function InvoiceForm({ invoice }: InvoiceFormProps = {}) {
                   {taxAmount.toLocaleString("en-US")}
                 </span>
               </div>
+              {/* Recycle Fee - manual entry when tax is enabled */}
+              {watch("taxEnabled") && (
+                <div className="flex items-center justify-between py-2">
+                  <Label className="text-sm text-gray-700 dark:text-gray-300">
+                    Recycle Fee
+                  </Label>
+                  <div className="relative w-32">
+                    <span className="absolute left-2 top-1/2 -translate-y-1/2 text-sm font-medium text-gray-600 dark:text-gray-400">
+                      {getCurrencySymbol()}
+                    </span>
+                    <Input
+                      type="text"
+                      value={recycleFee}
+                      onChange={(e) => {
+                        const value = e.target.value.replace(/[^\d]/g, "");
+                        if (value === "") {
+                          setRecycleFee("");
+                        } else {
+                          const formatted = parseInt(value, 10).toLocaleString(
+                            "en-US",
+                          );
+                          setRecycleFee(formatted);
+                        }
+                      }}
+                      placeholder="0"
+                      className="h-8 pl-6 text-sm text-right border border-gray-300 dark:border-gray-600 rounded-md px-2 py-1"
+                    />
+                  </div>
+                </div>
+              )}
               <div className="flex justify-between py-3 border-t-2 border-gray-300 dark:border-gray-600">
                 <span className="text-base font-bold text-gray-900 dark:text-white">
                   TOTAL
@@ -1465,37 +1719,8 @@ export function InvoiceForm({ invoice }: InvoiceFormProps = {}) {
             />
           </div>
 
-          {/* Status & Actions */}
-          <div className="flex items-center justify-between pt-4 border-t border-gray-200 dark:border-gray-700">
-            <div className="space-y-1.5">
-              <Label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                Status
-              </Label>
-              <Select
-                value={watch("status")}
-                onValueChange={(value) =>
-                  setValue(
-                    "status",
-                    value as
-                      | "DRAFT"
-                      | "PENDING_APPROVAL"
-                      | "APPROVED"
-                      | "FINALIZED",
-                  )
-                }
-              >
-                <SelectTrigger className="h-10 w-48 border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="DRAFT">Draft</SelectItem>
-                  <SelectItem value="PENDING_APPROVAL">
-                    Submit for Approval
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
+          {/* Actions */}
+          <div className="flex items-center justify-end pt-4 border-t border-gray-200 dark:border-gray-700">
             <div className="flex gap-3">
               <Button
                 type="button"

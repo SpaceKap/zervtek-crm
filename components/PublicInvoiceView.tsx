@@ -41,11 +41,6 @@ export function PublicInvoiceView({
     (typeof companyInfo.bankDetails1 === "string"
       ? JSON.parse(companyInfo.bankDetails1)
       : companyInfo.bankDetails1);
-  const bankDetails2 =
-    companyInfo?.bankDetails2 &&
-    (typeof companyInfo.bankDetails2 === "string"
-      ? JSON.parse(companyInfo.bankDetails2)
-      : companyInfo.bankDetails2);
 
   const handleCopy = async (text: string, fieldId: string) => {
     try {
@@ -117,15 +112,12 @@ export function PublicInvoiceView({
     return lines;
   };
 
-  const formatCustomerAddress = (customer: any) => {
+  const formatCustomerAddress = (address: any) => {
     const lines = [];
-    // Use billingAddress (stored as JSON)
-    if (customer.billingAddress) {
-      const addr =
-        typeof customer.billingAddress === "string"
-          ? JSON.parse(customer.billingAddress)
-          : customer.billingAddress;
+    if (address) {
+      const addr = typeof address === "string" ? JSON.parse(address) : address;
       if (addr.street) lines.push(addr.street);
+      if (addr.apartment) lines.push(addr.apartment);
       if (addr.city || addr.state || addr.zip) {
         const cityStateZip = [addr.city, addr.state, addr.zip]
           .filter(Boolean)
@@ -140,7 +132,18 @@ export function PublicInvoiceView({
   const companyAddressLines = companyInfo?.address
     ? formatCompanyAddress(companyInfo.address)
     : [];
-  const customerAddressLines = formatCustomerAddress(invoice.customer);
+  const billingAddress = invoice.customer.billingAddress
+    ? typeof invoice.customer.billingAddress === "string"
+      ? JSON.parse(invoice.customer.billingAddress)
+      : invoice.customer.billingAddress
+    : null;
+  const shippingAddress = invoice.customer.shippingAddress
+    ? typeof invoice.customer.shippingAddress === "string"
+      ? JSON.parse(invoice.customer.shippingAddress)
+      : invoice.customer.shippingAddress
+    : null;
+  const billingAddressLines = formatCustomerAddress(billingAddress);
+  const shippingAddressLines = formatCustomerAddress(shippingAddress);
 
   const totalCharges = invoice.charges.reduce(
     (sum: number, charge: any) => sum + parseFloat(charge.amount.toString()),
@@ -153,7 +156,9 @@ export function PublicInvoiceView({
     const taxRate = parseFloat(invoice.taxRate.toString());
     taxAmount = subtotal * (taxRate / 100);
   }
-  const total = subtotal + taxAmount;
+  // Recycle Fee is same as tax amount when tax is enabled (10% consumption tax)
+  const recycleFee = invoice.taxEnabled ? taxAmount : 0;
+  const total = subtotal + taxAmount + recycleFee;
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-[#1E1E1E] py-8 px-4">
@@ -206,91 +211,109 @@ export function PublicInvoiceView({
 
           <Separator className="my-4" />
 
-          {/* Bill To Section with Invoice Details */}
-          <div className="flex items-start justify-between gap-6">
-            {/* Customer Information */}
-            <div className="flex-1">
+          {/* Bill To, Ship To Section with Invoice Details */}
+          <div className="grid grid-cols-4 gap-4">
+            {/* Bill To Section */}
+            <div>
               <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase mb-2">
                 Bill To
               </h3>
-              <div className="flex items-start justify-between gap-6">
-                <div className="flex-1">
-                  <p className="font-semibold text-gray-900 dark:text-white mb-1">
-                    {invoice.customer.name || "N/A"}
-                  </p>
-                  {customerAddressLines.length > 0 && (
-                    <div className="text-sm text-gray-600 dark:text-gray-400 space-y-1 mt-1">
-                      {customerAddressLines.map((line: string, idx: number) => (
-                        <p key={idx}>{line}</p>
-                      ))}
-                    </div>
-                  )}
-                  {invoice.customer.email && (
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
-                      Email: {invoice.customer.email}
-                    </p>
-                  )}
-                  {invoice.customer.phone && (
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                      Phone: {invoice.customer.phone}
-                    </p>
-                  )}
+              <div className="text-sm text-gray-700 dark:text-gray-300 space-y-1">
+                <p className="font-semibold">
+                  {invoice.customer.name || "N/A"}
+                </p>
+                {billingAddressLines.length > 0 && (
+                  <>
+                    {billingAddressLines.map((line: string, idx: number) => (
+                      <p key={idx}>{line}</p>
+                    ))}
+                  </>
+                )}
+                {invoice.customer.email && <p>{invoice.customer.email}</p>}
+                {invoice.customer.phone && <p>{invoice.customer.phone}</p>}
+              </div>
+            </div>
+
+            {/* Ship To Section */}
+            <div>
+              <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase mb-2">
+                Ship To
+              </h3>
+              <div className="text-sm text-gray-700 dark:text-gray-300 space-y-1">
+                <p className="font-semibold">
+                  {invoice.customer.name || "N/A"}
+                </p>
+                {shippingAddressLines.length > 0 ? (
+                  <>
+                    {shippingAddressLines.map((line: string, idx: number) => (
+                      <p key={idx}>{line}</p>
+                    ))}
+                  </>
+                ) : billingAddressLines.length > 0 ? (
+                  <>
+                    {billingAddressLines.map((line: string, idx: number) => (
+                      <p key={idx}>{line}</p>
+                    ))}
+                  </>
+                ) : null}
+                {invoice.customer.email && <p>{invoice.customer.email}</p>}
+                {invoice.customer.phone && <p>{invoice.customer.phone}</p>}
+              </div>
+            </div>
+
+            {/* Invoice Details */}
+            <div className="col-span-2">
+              <div className="space-y-2 text-sm min-w-[280px]">
+                <div className="flex justify-between items-center gap-8">
+                  <span className="font-semibold text-gray-700 dark:text-gray-300 uppercase">
+                    INVOICE
+                  </span>
+                  <span className="font-semibold text-gray-900 dark:text-white uppercase">
+                    {invoice.invoiceNumber}
+                  </span>
                 </div>
-                {/* Invoice Details - Two Column Layout */}
-                <div className="flex-shrink-0">
-                  <div className="space-y-2 text-sm min-w-[280px]">
-                    <div className="flex justify-between items-center gap-8">
-                      <span className="font-semibold text-gray-700 dark:text-gray-300 uppercase">
-                        INVOICE
-                      </span>
-                      <span className="font-semibold text-gray-900 dark:text-white uppercase">
-                        {invoice.invoiceNumber}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center gap-8">
-                      <span className="font-semibold text-gray-700 dark:text-gray-300 uppercase">
-                        DATE
-                      </span>
-                      <span className="font-semibold text-gray-900 dark:text-white">
-                        {format(new Date(invoice.issueDate), "yyyy/MM/dd")}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center gap-8">
-                      <span className="font-semibold text-gray-700 dark:text-gray-300 uppercase">
-                        TERMS
-                      </span>
-                      <span className="font-semibold text-gray-900 dark:text-white">
-                        {invoice.dueDate
-                          ? (() => {
-                              const issue =
-                                typeof invoice.issueDate === "string"
-                                  ? new Date(invoice.issueDate)
-                                  : invoice.issueDate;
-                              const due =
-                                typeof invoice.dueDate === "string"
-                                  ? new Date(invoice.dueDate)
-                                  : invoice.dueDate;
-                              const diffTime = due.getTime() - issue.getTime();
-                              const diffDays = Math.ceil(
-                                diffTime / (1000 * 60 * 60 * 24),
-                              );
-                              return `Net ${diffDays}`;
-                            })()
-                          : "Net 3"}
-                      </span>
-                    </div>
-                    {invoice.dueDate && (
-                      <div className="flex justify-between items-center gap-8">
-                        <span className="font-semibold text-gray-700 dark:text-gray-300 uppercase">
-                          DUE DATE
-                        </span>
-                        <span className="font-semibold text-gray-900 dark:text-white">
-                          {format(new Date(invoice.dueDate), "yyyy/MM/dd")}
-                        </span>
-                      </div>
-                    )}
+                <div className="flex justify-between items-center gap-8">
+                  <span className="font-semibold text-gray-700 dark:text-gray-300 uppercase">
+                    DATE
+                  </span>
+                  <span className="font-semibold text-gray-900 dark:text-white">
+                    {format(new Date(invoice.issueDate), "yyyy/MM/dd")}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center gap-8">
+                  <span className="font-semibold text-gray-700 dark:text-gray-300 uppercase">
+                    TERMS
+                  </span>
+                  <span className="font-semibold text-gray-900 dark:text-white">
+                    {invoice.dueDate
+                      ? (() => {
+                          const issue =
+                            typeof invoice.issueDate === "string"
+                              ? new Date(invoice.issueDate)
+                              : invoice.issueDate;
+                          const due =
+                            typeof invoice.dueDate === "string"
+                              ? new Date(invoice.dueDate)
+                              : invoice.dueDate;
+                          const diffTime = due.getTime() - issue.getTime();
+                          const diffDays = Math.ceil(
+                            diffTime / (1000 * 60 * 60 * 24),
+                          );
+                          return `Net ${diffDays}`;
+                        })()
+                      : "Net 3"}
+                  </span>
+                </div>
+                {invoice.dueDate && (
+                  <div className="flex justify-between items-center gap-8">
+                    <span className="font-semibold text-gray-700 dark:text-gray-300 uppercase">
+                      DUE DATE
+                    </span>
+                    <span className="font-semibold text-gray-900 dark:text-white">
+                      {format(new Date(invoice.dueDate), "yyyy/MM/dd")}
+                    </span>
                   </div>
-                </div>
+                )}
               </div>
             </div>
           </div>
@@ -361,6 +384,20 @@ export function PublicInvoiceView({
                       <td className="py-3 px-4 text-right w-32">
                         <p className="text-gray-700 dark:text-gray-300 whitespace-nowrap">
                           ¥{taxAmount.toLocaleString()}
+                        </p>
+                      </td>
+                    </tr>
+                  )}
+                  {invoice.taxEnabled && recycleFee > 0 && (
+                    <tr>
+                      <td className="py-3 px-4 text-right">
+                        <p className="text-gray-700 dark:text-gray-300">
+                          Recycle Fee
+                        </p>
+                      </td>
+                      <td className="py-3 px-4 text-right w-32">
+                        <p className="text-gray-700 dark:text-gray-300 whitespace-nowrap">
+                          ¥{recycleFee.toLocaleString()}
                         </p>
                       </td>
                     </tr>
@@ -456,14 +493,14 @@ export function PublicInvoiceView({
               )}
 
               {/* Bank Details */}
-              {(bankDetails1 || bankDetails2) && (
+              {bankDetails1 && (
                 <div className="space-y-4">
                   {invoice.wisePaymentLink && <Separator />}
                   <div>
                     <p className="text-sm font-semibold text-gray-900 dark:text-white mb-4">
                       Bank Transfer Details
                     </p>
-                    <div className="grid md:grid-cols-2 gap-6">
+                    <div className="grid gap-6">
                       {/* Bank Account 1 */}
                       {bankDetails1 && (
                         <div className="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-4 border border-gray-200 dark:border-gray-800">
@@ -506,56 +543,13 @@ export function PublicInvoiceView({
                           </div>
                         </div>
                       )}
-
-                      {/* Bank Account 2 */}
-                      {bankDetails2 && (
-                        <div className="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-4 border border-gray-200 dark:border-gray-800">
-                          <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-3 pb-2 border-b border-gray-200 dark:border-gray-700">
-                            MUFG Bank (三菱UFJ銀行)
-                          </h4>
-                          <div className="space-y-2 text-sm">
-                            {renderBankDetail(
-                              "Bank Name",
-                              bankDetails2.name,
-                              "bank2-name",
-                            )}
-                            {renderBankDetail(
-                              "Account Name",
-                              bankDetails2.accountName,
-                              "bank2-accountName",
-                            )}
-                            {renderBankDetail(
-                              "Account Number",
-                              bankDetails2.accountNo,
-                              "bank2-accountNo",
-                              true,
-                            )}
-                            {renderBankDetail(
-                              "SWIFT Code",
-                              bankDetails2.swiftCode,
-                              "bank2-swiftCode",
-                              true,
-                            )}
-                            {renderBankDetail(
-                              "Branch",
-                              bankDetails2.branchName,
-                              "bank2-branchName",
-                            )}
-                            {renderBankDetail(
-                              "Bank Address",
-                              bankDetails2.bankAddress,
-                              "bank2-bankAddress",
-                            )}
-                          </div>
-                        </div>
-                      )}
                     </div>
                   </div>
                 </div>
               )}
 
               {/* Fallback if no payment method */}
-              {!invoice.wisePaymentLink && !bankDetails1 && !bankDetails2 && (
+              {!invoice.wisePaymentLink && !bankDetails1 && (
                 <div>
                   <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
                     Payment instructions will be provided by the company.

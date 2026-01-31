@@ -41,7 +41,6 @@ const companyInfoSchema = z.object({
     })
     .optional(),
   bankDetails1: bankDetailsSchema.optional().nullable(),
-  bankDetails2: bankDetailsSchema.optional().nullable(),
 });
 
 type CompanyInfoFormData = z.infer<typeof companyInfoSchema>;
@@ -89,16 +88,8 @@ export function CompanyInfoForm() {
           bankAddress: "",
           accountName: "",
         };
-        const bankDetails2 = (data.bankDetails2 as any) || {
-          name: "",
-          swiftCode: "",
-          branchName: "",
-          accountNo: "",
-          bankAddress: "",
-          accountName: "",
-        };
-        setCompanyInfo({ ...data, address, bankDetails1, bankDetails2 });
-        reset({ ...data, address, bankDetails1, bankDetails2 });
+        setCompanyInfo({ ...data, address, bankDetails1 });
+        reset({ ...data, address, bankDetails1 });
       }
     } catch (error) {
       console.error("Error fetching company info:", error);
@@ -136,9 +127,6 @@ export function CompanyInfoForm() {
       }
       if (data.bankDetails1 !== undefined) {
         payload.bankDetails1 = data.bankDetails1 || {};
-      }
-      if (data.bankDetails2 !== undefined) {
-        payload.bankDetails2 = data.bankDetails2 || {};
       }
 
       const response = await fetch("/api/company", {
@@ -427,63 +415,6 @@ export function CompanyInfoForm() {
                 id="bank1-account-name"
                 placeholder="Account Name"
                 {...register("bankDetails1.accountName")}
-              />
-            </div>
-          </div>
-
-          {/* Bank Details 2 */}
-          <div className="space-y-4 border-t pt-6">
-            <Label className="text-lg font-semibold">Bank Details 2</Label>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="bank2-name">Bank Name</Label>
-                <Input
-                  id="bank2-name"
-                  placeholder="Bank Name"
-                  {...register("bankDetails2.name")}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="bank2-swift">SWIFT Code</Label>
-                <Input
-                  id="bank2-swift"
-                  placeholder="SWIFT Code"
-                  {...register("bankDetails2.swiftCode")}
-                />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="bank2-branch">Branch Name</Label>
-                <Input
-                  id="bank2-branch"
-                  placeholder="Branch Name"
-                  {...register("bankDetails2.branchName")}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="bank2-account">Account No.</Label>
-                <Input
-                  id="bank2-account"
-                  placeholder="Account No."
-                  {...register("bankDetails2.accountNo")}
-                />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="bank2-address">Bank Address</Label>
-              <Input
-                id="bank2-address"
-                placeholder="Bank Address"
-                {...register("bankDetails2.bankAddress")}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="bank2-account-name">Account Name</Label>
-              <Input
-                id="bank2-account-name"
-                placeholder="Account Name"
-                {...register("bankDetails2.accountName")}
               />
             </div>
           </div>
