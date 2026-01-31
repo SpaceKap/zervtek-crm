@@ -49,7 +49,7 @@ export function SortableInquiryCard({
     transform,
     transition,
     isDragging,
-  } = useSortable({ 
+  } = useSortable({
     id: inquiry.id,
     data: {
       inquiryId: inquiry.id,

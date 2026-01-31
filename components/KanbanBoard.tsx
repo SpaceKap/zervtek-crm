@@ -159,11 +159,13 @@ export function KanbanBoard({
     // If dropping on another inquiry card, find which stage that card belongs to
     // Otherwise, assume we're dropping directly on a column
     let targetStage = stages.find((stage) => stage.id === targetStageId);
-    
+
     // If not found, it might be another inquiry card - find which stage it belongs to
     if (!targetStage) {
       for (const stage of stages) {
-        const foundInquiry = stage.inquiries.find((inq) => inq.id === targetStageId);
+        const foundInquiry = stage.inquiries.find(
+          (inq) => inq.id === targetStageId,
+        );
         if (foundInquiry) {
           targetStage = stage;
           targetStageId = stage.id;

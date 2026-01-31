@@ -168,7 +168,9 @@ export function InvoiceDetail({
               amount: parseFloat(siv.allocatedAmount.toString()),
               vendorId: null,
               vendor: null,
-              paymentDate: siv.sharedInvoice.date ? siv.sharedInvoice.date.toISOString() : null,
+              paymentDate: siv.sharedInvoice.date
+                ? siv.sharedInvoice.date.toISOString()
+                : null,
               paymentDeadline: siv.sharedInvoice.paymentDeadline.toISOString(),
               category: invoiceType === "CONTAINER" ? "Shipping" : "Forwarding",
               // Store metadata for shared invoice items
@@ -1371,7 +1373,8 @@ export function InvoiceDetail({
                               <div className="text-sm text-gray-700 dark:text-gray-300">
                                 {item.paymentDeadline && (
                                   <p>
-                                    Deadline: {format(
+                                    Deadline:{" "}
+                                    {format(
                                       new Date(item.paymentDeadline),
                                       "MMM dd, yyyy",
                                     )}
@@ -1379,7 +1382,8 @@ export function InvoiceDetail({
                                 )}
                                 {item.paymentDate ? (
                                   <p className="text-xs text-muted-foreground mt-1">
-                                    Paid: {format(
+                                    Paid:{" "}
+                                    {format(
                                       new Date(item.paymentDate),
                                       "MMM dd, yyyy",
                                     )}
@@ -1802,7 +1806,9 @@ function CostItemForm({
     item?.paymentDate ? format(new Date(item.paymentDate), "yyyy-MM-dd") : "",
   );
   const [paymentDeadline, setPaymentDeadline] = useState(
-    item?.paymentDeadline ? format(new Date(item.paymentDeadline), "yyyy-MM-dd") : new Date().toISOString().split("T")[0],
+    item?.paymentDeadline
+      ? format(new Date(item.paymentDeadline), "yyyy-MM-dd")
+      : new Date().toISOString().split("T")[0],
   );
   const [category, setCategory] = useState(
     item?.category || item?.description || "",

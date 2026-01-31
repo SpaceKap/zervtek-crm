@@ -713,7 +713,9 @@ function CostItemForm({
     item?.paymentDate ? format(new Date(item.paymentDate), "yyyy-MM-dd") : "",
   );
   const [paymentDeadline, setPaymentDeadline] = useState(
-    item?.paymentDeadline ? format(new Date(item.paymentDeadline), "yyyy-MM-dd") : new Date().toISOString().split("T")[0],
+    item?.paymentDeadline
+      ? format(new Date(item.paymentDeadline), "yyyy-MM-dd")
+      : new Date().toISOString().split("T")[0],
   );
   const [category, setCategory] = useState(
     item?.category || item?.description || "",
