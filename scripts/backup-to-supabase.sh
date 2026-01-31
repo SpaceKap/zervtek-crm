@@ -47,11 +47,11 @@ echo -e "${YELLOW}📦 Creating backup from local database...${NC}"
 
 # Create backup using pg_dump (without --clean to avoid dropping schema)
 # Use --no-owner --no-privileges to avoid permission issues
+# Remove --if-exists since it requires --clean
 docker compose exec -T postgres pg_dump -U postgres -d $DB_NAME \
     --schema=$DB_SCHEMA \
     --no-owner \
-    --no-privileges \
-    --if-exists > $BACKUP_FILE
+    --no-privileges > $BACKUP_FILE
 
 if [ $? -ne 0 ]; then
     echo -e "${RED}❌ Error: Failed to create backup${NC}"
