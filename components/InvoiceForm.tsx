@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
+import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -208,11 +209,15 @@ export function InvoiceForm({ invoice }: InvoiceFormProps = {}) {
     fetchCustomers();
   }, []);
 
+  const fetchInquiryDataMemo = useCallback(async (id: string) => {
+    await fetchInquiryData(id);
+  }, [customers]);
+
   useEffect(() => {
     if (inquiryId && customers.length > 0) {
-      fetchInquiryData(inquiryId);
+      fetchInquiryDataMemo(inquiryId);
     }
-  }, [inquiryId, customers.length]);
+  }, [inquiryId, customers.length, fetchInquiryDataMemo]);
 
   // Load invoice data for editing - ensure customers are loaded first
   useEffect(() => {
@@ -312,7 +317,13 @@ export function InvoiceForm({ invoice }: InvoiceFormProps = {}) {
     } finally {
       setLoadingInquiry(false);
     }
-  };
+  }, [customers, setValue]);
+
+  useEffect(() => {
+    if (inquiryId && customers.length > 0) {
+      fetchInquiryData(inquiryId);
+    }
+  }, [inquiryId, customers.length, fetchInquiryData]);
 
   useEffect(() => {
     // Fetch all vehicles on mount
@@ -623,10 +634,12 @@ export function InvoiceForm({ invoice }: InvoiceFormProps = {}) {
               <Label className="block text-sm font-semibold text-gray-900 dark:text-white mb-2">
                 Company Logo
               </Label>
-              <div className="mt-2">
-                <img
+              <div className="mt-2 relative w-[200px] h-[100px]">
+                <Image
                   src={companyInfo.logo}
-                  alt="Logo"
+                  alt="Company Logo"
+                  fill
+                  className="object-contain"
                   className="h-16 object-contain"
                 />
               </div>

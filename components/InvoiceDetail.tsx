@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -100,7 +100,7 @@ export function InvoiceDetail({
   );
 
   // Calculate total revenue including tax
-  const calculateTotalRevenue = (chargesArray: any[]) => {
+  const calculateTotalRevenue = useCallback((chargesArray: any[]) => {
     const chargesTotal = chargesArray.reduce(
       (sum: number, charge: any) => sum + parseFloat(charge.amount.toString()),
       0,
@@ -114,14 +114,14 @@ export function InvoiceDetail({
     // Always calculate from charges, don't rely on costInvoice.totalRevenue
     // as it might be 0 or outdated
     return subtotal;
-  };
+  }, [invoice.taxEnabled, invoice.taxRate]);
 
   const [revenue, setRevenue] = useState(() => calculateTotalRevenue(charges));
 
   // Update revenue when charges change
   useEffect(() => {
     setRevenue(calculateTotalRevenue(charges));
-  }, [charges, invoice.taxEnabled, invoice.taxRate]);
+  }, [charges, calculateTotalRevenue]);
 
   const canEdit =
     !invoice.isLocked &&

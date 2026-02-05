@@ -341,6 +341,7 @@ export function CustomerInvoicePDF({
               <View style={styles.logoContainer}>
                 <Image
                   src={companyInfo.logo}
+                  alt="Company Logo"
                   style={{
                     width: 100,
                     height: 50,

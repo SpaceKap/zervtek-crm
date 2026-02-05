@@ -170,6 +170,7 @@ export function PublicInvoiceView({
             <div className="flex-1">
               {companyInfo?.logo && (
                 <div className="mb-4">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={companyInfo.logo}
                     alt={companyInfo.name || "Company Logo"}

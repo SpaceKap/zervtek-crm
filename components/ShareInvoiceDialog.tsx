@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Dialog,
   DialogContent,
@@ -29,13 +29,7 @@ export function ShareInvoiceDialog({
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (open && !publicUrl) {
-      generateShareLink();
-    }
-  }, [open]);
-
-  const generateShareLink = async () => {
+  const generateShareLink = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -54,7 +48,13 @@ export function ShareInvoiceDialog({
     } finally {
       setLoading(false);
     }
-  };
+  }, [invoiceId]);
+
+  useEffect(() => {
+    if (open && !publicUrl) {
+      generateShareLink();
+    }
+  }, [open, publicUrl, generateShareLink]);
 
   const handleCopy = async () => {
     if (!publicUrl) return;

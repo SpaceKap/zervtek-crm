@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -54,11 +54,7 @@ export function InvoicesList() {
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<string>("all");
 
-  useEffect(() => {
-    fetchInvoices();
-  }, [statusFilter, customerId]);
-
-  const fetchInvoices = async () => {
+  const fetchInvoices = useCallback(async () => {
     try {
       let url = "/api/invoices";
       const params = new URLSearchParams();
@@ -87,7 +83,11 @@ export function InvoicesList() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [statusFilter, customerId]);
+
+  useEffect(() => {
+    fetchInvoices();
+  }, [fetchInvoices]);
 
   const calculateTotal = (charges: Array<{ amount: number }>) => {
     return charges.reduce(

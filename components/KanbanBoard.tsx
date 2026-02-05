@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { KanbanColumn } from "./KanbanColumn";
 import { InquiryStatus, InquirySource } from "@prisma/client";
 import { useRouter } from "next/navigation";
@@ -116,7 +116,7 @@ export function KanbanBoard({
     return () => window.removeEventListener("popstate", updateFromUrl);
   }, [userId]);
 
-  const fetchBoard = async () => {
+  const fetchBoard = useCallback(async () => {
     try {
       setLoading(true);
       const url = filterUserId
@@ -132,14 +132,14 @@ export function KanbanBoard({
     } finally {
       setLoading(false);
     }
-  };
+  }, [filterUserId]);
 
   useEffect(() => {
     fetchBoard();
     // Refresh every 30 seconds
     const interval = setInterval(fetchBoard, 30000);
     return () => clearInterval(interval);
-  }, [filterUserId]);
+  }, [fetchBoard]);
 
   const handleView = (inquiryId: string) => {
     router.push(`/dashboard/inquiries/${inquiryId}`);

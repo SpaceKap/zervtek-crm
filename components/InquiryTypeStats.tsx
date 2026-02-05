@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Card,
   CardContent,
@@ -55,7 +55,7 @@ export function InquiryTypeStats() {
   const [loading, setLoading] = useState(false);
   const [stats, setStats] = useState<InquiryTypeStatsData | null>(null);
 
-  const fetchStats = async () => {
+  const fetchStats = useCallback(async () => {
     setLoading(true);
     try {
       const params = new URLSearchParams();
@@ -72,11 +72,11 @@ export function InquiryTypeStats() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [startDate, endDate]);
 
   useEffect(() => {
     fetchStats();
-  }, []);
+  }, [fetchStats]);
 
   const handleFilter = () => {
     fetchStats();

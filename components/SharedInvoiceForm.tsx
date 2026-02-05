@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -159,16 +159,20 @@ export function SharedInvoiceForm({
     fetchVendors();
   }, []);
 
+  const fetchVehiclesMemo = useCallback(async (searchTerm: string) => {
+    await fetchVehicles(searchTerm);
+  }, []);
+
   useEffect(() => {
     if (search) {
       const timeout = setTimeout(() => {
-        fetchVehicles(search);
+        fetchVehiclesMemo(search);
       }, 300);
       return () => clearTimeout(timeout);
     } else {
       setVehicles([]);
     }
-  }, [search]);
+  }, [search, fetchVehiclesMemo]);
 
   useEffect(() => {
     if (invoice) {

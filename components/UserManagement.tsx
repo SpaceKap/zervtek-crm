@@ -130,9 +130,10 @@ export function UserManagement() {
               <div className="flex items-center gap-4 flex-1">
                 {/* Avatar */}
                 {user.image ? (
+                  /* eslint-disable-next-line @next/next/no-img-element */
                   <img
                     src={user.image}
-                    alt={user.name || user.email}
+                    alt={user.name || user.email || "User avatar"}
                     className="w-10 h-10 rounded-full"
                   />
                 ) : (

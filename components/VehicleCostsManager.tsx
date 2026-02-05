@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { ShippingStage } from "@prisma/client";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
@@ -103,15 +103,7 @@ export function VehicleCostsManager({
     return value.replace(/,/g, "");
   };
 
-  useEffect(() => {
-    fetchCosts();
-    fetchVendors();
-    if (isPurchaseStage) {
-      fetchStageData();
-    }
-  }, [vehicleId, currentStage]);
-
-  const fetchStageData = async () => {
+  const fetchCosts = useCallback(async () => {
     try {
       const response = await fetch(`/api/vehicles/${vehicleId}/stages`);
       if (response.ok) {
