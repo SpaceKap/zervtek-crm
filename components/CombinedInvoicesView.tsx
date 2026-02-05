@@ -3,6 +3,7 @@
 import { useState, useRef } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { InvoicesList } from "./InvoicesList";
 import {
   SharedInvoicesList,
@@ -62,37 +63,24 @@ export function CombinedInvoicesView({
         )}
       </div>
 
-      {canViewShared && (
-        <div className="flex gap-2 border-b">
-          <button
-            onClick={() => setActiveTab("invoices")}
-            className={`px-4 py-2 font-medium text-sm transition-colors ${
-              activeTab === "invoices"
-                ? "border-b-2 border-primary text-primary"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            Customer Invoices
-          </button>
-          <button
-            onClick={() => setActiveTab("shared")}
-            className={`px-4 py-2 font-medium text-sm transition-colors ${
-              activeTab === "shared"
-                ? "border-b-2 border-primary text-primary"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            Shared Invoices
-          </button>
-        </div>
-      )}
-
-      {activeTab === "invoices" && <InvoicesList />}
-      {activeTab === "shared" && (
-        <SharedInvoicesList
-          ref={sharedInvoicesListRef}
-          isAdmin={currentUser.role === UserRole.ADMIN}
-        />
+      {canViewShared ? (
+        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "invoices" | "shared")} className="w-full">
+          <TabsList className="grid w-full max-w-md grid-cols-2 mb-6">
+            <TabsTrigger value="invoices">Customer Invoices</TabsTrigger>
+            <TabsTrigger value="shared">Shared Invoices</TabsTrigger>
+          </TabsList>
+          <TabsContent value="invoices">
+            <InvoicesList />
+          </TabsContent>
+          <TabsContent value="shared">
+            <SharedInvoicesList
+              ref={sharedInvoicesListRef}
+              isAdmin={currentUser.role === UserRole.ADMIN}
+            />
+          </TabsContent>
+        </Tabs>
+      ) : (
+        <InvoicesList />
       )}
     </div>
   );
