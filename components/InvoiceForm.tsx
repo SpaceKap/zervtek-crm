@@ -209,16 +209,6 @@ export function InvoiceForm({ invoice }: InvoiceFormProps = {}) {
     fetchCustomers();
   }, []);
 
-  const fetchInquiryDataMemo = useCallback(async (id: string) => {
-    await fetchInquiryData(id);
-  }, [customers]);
-
-  useEffect(() => {
-    if (inquiryId && customers.length > 0) {
-      fetchInquiryDataMemo(inquiryId);
-    }
-  }, [inquiryId, customers.length, fetchInquiryDataMemo]);
-
   // Load invoice data for editing - ensure customers are loaded first
   useEffect(() => {
     if (invoice && customers.length > 0) {
@@ -276,7 +266,7 @@ export function InvoiceForm({ invoice }: InvoiceFormProps = {}) {
     }
   }, [invoice, customers.length, setValue]);
 
-  const fetchInquiryData = async (id: string) => {
+  const fetchInquiryData = useCallback(async (id: string) => {
     try {
       const response = await fetch(`/api/inquiries/${id}`);
       if (response.ok) {
