@@ -266,48 +266,51 @@ export function InvoiceForm({ invoice }: InvoiceFormProps = {}) {
     }
   }, [invoice, customers.length, setValue]);
 
-  const fetchInquiryData = useCallback(async (id: string) => {
-    try {
-      const response = await fetch(`/api/inquiries/${id}`);
-      if (response.ok) {
-        const inquiry = await response.json();
+  const fetchInquiryData = useCallback(
+    async (id: string) => {
+      try {
+        const response = await fetch(`/api/inquiries/${id}`);
+        if (response.ok) {
+          const inquiry = await response.json();
 
-        // Find or create customer
-        let customer = customers.find(
-          (c) => c.email === inquiry.email || c.name === inquiry.customerName,
-        );
+          // Find or create customer
+          let customer = customers.find(
+            (c) => c.email === inquiry.email || c.name === inquiry.customerName,
+          );
 
-        if (!customer && inquiry.customerName) {
-          // Create customer from inquiry
-          const customerResponse = await fetch("/api/customers", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              name: inquiry.customerName,
-              email: inquiry.email || null,
-              phone: inquiry.phone || null,
-            }),
-          });
-          if (customerResponse.ok) {
-            customer = await customerResponse.json();
-            if (customer) {
-              setCustomers([...customers, customer]);
-              setValue("customerId", customer.id);
+          if (!customer && inquiry.customerName) {
+            // Create customer from inquiry
+            const customerResponse = await fetch("/api/customers", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                name: inquiry.customerName,
+                email: inquiry.email || null,
+                phone: inquiry.phone || null,
+              }),
+            });
+            if (customerResponse.ok) {
+              customer = await customerResponse.json();
+              if (customer) {
+                setCustomers([...customers, customer]);
+                setValue("customerId", customer.id);
+              }
             }
+          } else if (customer) {
+            setValue("customerId", customer.id);
           }
-        } else if (customer) {
-          setValue("customerId", customer.id);
-        }
 
-        // Note: Vehicle creation would need VIN from inquiry metadata
-        // This is a placeholder - in production, extract VIN from inquiry data
+          // Note: Vehicle creation would need VIN from inquiry metadata
+          // This is a placeholder - in production, extract VIN from inquiry data
+        }
+      } catch (error) {
+        console.error("Error fetching inquiry data:", error);
+      } finally {
+        setLoadingInquiry(false);
       }
-    } catch (error) {
-      console.error("Error fetching inquiry data:", error);
-    } finally {
-      setLoadingInquiry(false);
-    }
-  }, [customers, setValue]);
+    },
+    [customers, setValue],
+  );
 
   useEffect(() => {
     if (inquiryId && customers.length > 0) {

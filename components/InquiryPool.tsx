@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { InquirySource, InquiryStatus } from "@prisma/client";
 import { useRouter } from "next/navigation";
 import { AddInquiryDialog } from "./AddInquiryDialog";
+import { ReleaseConfirmationDialog } from "./ReleaseConfirmationDialog";
 
 interface Inquiry {
   id: string;
