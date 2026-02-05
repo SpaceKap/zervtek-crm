@@ -389,6 +389,6 @@ export function KanbanBoard({
         onConfirm={confirmRelease}
         loading={releasing}
       />
-    </div>
+    </DndContext>
   );
 }
