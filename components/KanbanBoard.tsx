@@ -122,17 +122,19 @@ export function KanbanBoard({
       const url = filterUserId
         ? `/api/kanban?userId=${filterUserId}`
         : "/api/kanban";
+      console.log("[KanbanBoard] Fetching board from:", url);
       const response = await fetch(url);
       if (response.ok) {
         const data = await response.json();
+        console.log("[KanbanBoard] Received data:", { stagesCount: data.stages?.length || 0, stages: data.stages });
         setStages(data.stages || []);
       } else {
         const errorData = await response.json().catch(() => ({ error: "Unknown error" }));
-        console.error("Error fetching kanban board:", errorData);
+        console.error("[KanbanBoard] API error:", response.status, errorData);
         setStages([]);
       }
     } catch (error) {
-      console.error("Error fetching kanban board:", error);
+      console.error("[KanbanBoard] Fetch error:", error);
       setStages([]);
     } finally {
       setLoading(false);

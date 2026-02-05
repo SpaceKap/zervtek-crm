@@ -39,6 +39,8 @@ export async function GET(request: NextRequest) {
       orderBy: { order: "asc" },
     })
 
+    console.log(`[Kanban API] Found ${stages.length} existing stages`)
+
     // Define default stages
     const defaultStages = [
       { name: "New", order: 0, status: InquiryStatus.NEW, color: "#3b82f6" },
@@ -52,29 +54,37 @@ export async function GET(request: NextRequest) {
 
     // If no stages exist, create default ones
     if (stages.length === 0) {
+      console.log("[Kanban API] No stages found, creating default stages")
       await prisma.kanbanStage.createMany({
         data: defaultStages,
       })
       stages = await prisma.kanbanStage.findMany({
         orderBy: { order: "asc" },
       })
+      console.log(`[Kanban API] Created ${stages.length} stages`)
     } else {
       // Sync existing stages with default values (upsert)
+      console.log("[Kanban API] Syncing stages with default values")
       for (const defaultStage of defaultStages) {
-        await prisma.kanbanStage.upsert({
-          where: { status: defaultStage.status },
-          update: {
-            name: defaultStage.name,
-            order: defaultStage.order,
-            color: defaultStage.color,
-          },
-          create: defaultStage,
-        })
+        try {
+          await prisma.kanbanStage.upsert({
+            where: { status: defaultStage.status },
+            update: {
+              name: defaultStage.name,
+              order: defaultStage.order,
+              color: defaultStage.color,
+            },
+            create: defaultStage,
+          })
+        } catch (error) {
+          console.error(`[Kanban API] Error upserting stage ${defaultStage.status}:`, error)
+        }
       }
       // Re-fetch stages after sync
       stages = await prisma.kanbanStage.findMany({
         orderBy: { order: "asc" },
       })
+      console.log(`[Kanban API] After sync, found ${stages.length} stages`)
     }
 
     // Build where clause for inquiries
@@ -138,6 +148,8 @@ export async function GET(request: NextRequest) {
       inquiries: inquiriesByStatus[stage.status] || [],
     }))
 
+    console.log(`[Kanban API] Returning ${boardData.length} stages with ${inquiries.length} total inquiries`)
+    
     return NextResponse.json({
       stages: boardData,
       userId: targetUserId,
@@ -145,9 +157,12 @@ export async function GET(request: NextRequest) {
       viewMode: targetUserId === null ? "all" : targetUserId === session.user.id ? "me" : "user",
     })
   } catch (error) {
-    console.error("Error fetching kanban board:", error)
+    console.error("[Kanban API] Error fetching kanban board:", error)
+    if (error instanceof Error) {
+      console.error("[Kanban API] Error details:", error.message, error.stack)
+    }
     return NextResponse.json(
-      { error: "Failed to fetch kanban board" },
+      { error: "Failed to fetch kanban board", details: error instanceof Error ? error.message : String(error) },
       { status: 500 }
     )
   }
