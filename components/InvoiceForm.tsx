@@ -31,7 +31,7 @@ import {
 import { CustomerForm } from "@/components/CustomerForm";
 const invoiceSchema = z
   .object({
-    customerId: z.string().min(1, "Customer is required"),
+  customerId: z.string().min(1, "Customer is required"),
     vehicleId: z.string().optional(), // Required when VEHICLE charge type is selected
     status: z.enum(["DRAFT", "PENDING_APPROVAL", "APPROVED", "FINALIZED"]),
     issueDate: z.string().min(1, "Issue date is required"),
@@ -281,7 +281,7 @@ export function InvoiceForm({ invoice }: InvoiceFormProps = {}) {
           if (!customer && inquiry.customerName) {
             // Create customer from inquiry
             const customerResponse = await fetch("/api/customers", {
-              method: "POST",
+        method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
                 name: inquiry.customerName,
@@ -549,7 +549,7 @@ export function InvoiceForm({ invoice }: InvoiceFormProps = {}) {
     parseFloat(recycleFee.replace(/,/g, "") || "0");
 
   if (loadingInquiry) {
-    return (
+  return (
       <div className="flex-1 p-6 overflow-y-auto border-r border-gray-200 dark:border-gray-700 lg:w-full">
         <div className="max-w-6xl mx-auto">
           <div className="p-8 text-center text-muted-foreground">
@@ -563,7 +563,7 @@ export function InvoiceForm({ invoice }: InvoiceFormProps = {}) {
   return (
     <div className="flex-1 p-6 overflow-y-auto border-r border-gray-200 dark:border-gray-700 lg:w-full">
       <div className="max-w-6xl mx-auto">
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
           {/* Header */}
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
@@ -709,7 +709,7 @@ export function InvoiceForm({ invoice }: InvoiceFormProps = {}) {
                     </span>
                   </Button>
                 </div>
-                {errors.customerId && (
+            {errors.customerId && (
                   <p className="text-xs text-red-500 mt-1">
                     {errors.customerId.message}
                   </p>
@@ -756,7 +756,7 @@ export function InvoiceForm({ invoice }: InvoiceFormProps = {}) {
                   </div>
                 )}
               </div>
-            </div>
+          </div>
 
             {/* Shipping Address Section */}
             <div>
@@ -1171,7 +1171,7 @@ export function InvoiceForm({ invoice }: InvoiceFormProps = {}) {
                                     )}
                                     className="h-9 border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400"
                                   />
-                                  <div className="space-y-2">
+          <div className="space-y-2">
                                     <div className="grid grid-cols-3 gap-2">
                                       <div>
                                         <Label className="text-xs">
@@ -1498,8 +1498,8 @@ export function InvoiceForm({ invoice }: InvoiceFormProps = {}) {
                                             className="h-8 text-xs"
                                           />
                                         </div>
-                                      )}
-                                    </div>
+            )}
+          </div>
                                   </div>
                                 </div>
                               ) : (
@@ -1728,14 +1728,14 @@ export function InvoiceForm({ invoice }: InvoiceFormProps = {}) {
           {/* Actions */}
           <div className="flex items-center justify-end pt-4 border-t border-gray-200 dark:border-gray-700">
             <div className="flex gap-3">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => router.back()}
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => router.back()}
                 className="h-10 px-6"
-              >
-                Cancel
-              </Button>
+        >
+          Cancel
+        </Button>
               <Button type="submit" disabled={saving} className="h-10 px-6">
                 {saving
                   ? invoice
@@ -2118,13 +2118,13 @@ function VehicleForm({
             </div>
             <div className="flex justify-end gap-2">
               <Button type="button" variant="outline" onClick={onClose}>
-                Cancel
-              </Button>
-              <Button type="submit" disabled={saving}>
+          Cancel
+        </Button>
+        <Button type="submit" disabled={saving}>
                 {saving ? "Creating..." : "Create"}
-              </Button>
-            </div>
-          </form>
+        </Button>
+      </div>
+    </form>
         </CardContent>
       </Card>
     </div>
