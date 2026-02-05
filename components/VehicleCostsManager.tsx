@@ -159,6 +159,13 @@ export function VehicleCostsManager({
     }
   };
 
+  useEffect(() => {
+    fetchCosts();
+    fetchVendors();
+    if (isPurchaseStage) {
+      fetchStageData();
+    }
+  }, [vehicleId, currentStage, isPurchaseStage, fetchCosts, fetchStageData]);
 
   const handleOpenDialog = (cost?: Cost) => {
     setError(null);
