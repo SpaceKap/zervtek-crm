@@ -14,14 +14,17 @@ let databaseUrl = process.env.DATABASE_URL || "";
 
 // Fix DATABASE_URL if running outside Docker (postgres hostname won't resolve)
 if (databaseUrl.includes("@postgres:5432")) {
-  // If Supabase backup URL is available, prefer it (more reliable outside Docker)
+  // Try localhost first (if database is exposed on host port)
+  const localhostUrl = databaseUrl.replace("@postgres:5432", "@localhost:5432");
+  
+  // If Supabase backup URL is available, use it (more reliable outside Docker)
   if (process.env.SUPABASE_BACKUP_URL) {
     console.log("Note: Using Supabase backup URL for database connection (running outside Docker)");
     databaseUrl = process.env.SUPABASE_BACKUP_URL;
   } else {
-    // Fallback to localhost (if database is exposed on host port)
+    // Fallback to localhost
     console.log("Note: Replacing Docker service name 'postgres' with 'localhost' for direct script execution");
-    databaseUrl = databaseUrl.replace("@postgres:5432", "@localhost:5432");
+    databaseUrl = localhostUrl;
   }
 }
 
