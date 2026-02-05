@@ -1,26 +1,46 @@
 import { PrismaClient } from "@prisma/client";
 import { InquiryStatus } from "@prisma/client";
 
-// Fix DATABASE_URL if running outside Docker (postgres hostname won't resolve)
-let databaseUrl = process.env.DATABASE_URL || "";
-if (databaseUrl.includes("@postgres:5432")) {
-  // Replace Docker service name with localhost for direct script execution
-  databaseUrl = databaseUrl.replace("@postgres:5432", "@localhost:5432");
-  console.log("Note: Using localhost instead of Docker service name for database connection");
-  console.log(`Connecting to: ${databaseUrl.replace(/:[^:@]+@/, ":****@")}`); // Hide password in logs
+// Try to load dotenv if available (for local development)
+try {
+  const dotenv = require("dotenv");
+  dotenv.config();
+} catch (e) {
+  // dotenv not installed, use environment variables directly
 }
 
-const prisma = new PrismaClient(
-  databaseUrl && databaseUrl !== process.env.DATABASE_URL
-    ? {
-        datasources: {
-          db: {
-            url: databaseUrl,
-          },
-        },
-      }
-    : undefined
-);
+// Get DATABASE_URL from environment
+let databaseUrl = process.env.DATABASE_URL || "";
+
+// Fix DATABASE_URL if running outside Docker (postgres hostname won't resolve)
+if (databaseUrl.includes("@postgres:5432")) {
+  // If Supabase backup URL is available, prefer it (more reliable outside Docker)
+  if (process.env.SUPABASE_BACKUP_URL) {
+    console.log("Note: Using Supabase backup URL for database connection (running outside Docker)");
+    databaseUrl = process.env.SUPABASE_BACKUP_URL;
+  } else {
+    // Fallback to localhost (if database is exposed on host port)
+    console.log("Note: Replacing Docker service name 'postgres' with 'localhost' for direct script execution");
+    databaseUrl = databaseUrl.replace("@postgres:5432", "@localhost:5432");
+  }
+}
+
+if (!databaseUrl) {
+  console.error("Error: DATABASE_URL not found in environment variables");
+  process.exit(1);
+}
+
+// Hide password in logs
+const safeUrl = databaseUrl.replace(/:([^:@]+)@/, ":****@");
+console.log(`Connecting to database: ${safeUrl}`);
+
+const prisma = new PrismaClient({
+  datasources: {
+    db: {
+      url: databaseUrl,
+    },
+  },
+});
 
 async function checkKanbanStages() {
   try {
