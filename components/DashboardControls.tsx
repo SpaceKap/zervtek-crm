@@ -71,13 +71,10 @@ export function DashboardControls({
           <option value="all">All Sources</option>
           <option value="WHATSAPP">WhatsApp</option>
           <option value="EMAIL">Email</option>
-          <option value="WEB">Web</option>
           <option value="CHATBOT">Chatbot</option>
           <option value="JCT_STOCK_INQUIRY">JCT Stock Inquiry</option>
+          <option value="STOCK_INQUIRY">Stock Inquiry</option>
           <option value="ONBOARDING_FORM">Onboarding Form</option>
-          <option value="CONTACT_US_INQUIRY_FORM">
-            Contact Us Inquiry Form
-          </option>
           <option value="HERO_INQUIRY">Hero Section Inquiry</option>
           <option value="INQUIRY_FORM">Contact Form Inquiry</option>
         </select>

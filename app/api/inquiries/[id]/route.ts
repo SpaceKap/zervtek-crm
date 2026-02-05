@@ -176,3 +176,47 @@ export async function PATCH(
     )
   }
 }
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const session = await getServerSession(authOptions)
+    if (!session?.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    // Only allow avi@zervtek.com to delete inquiries
+    if (session.user.email !== "avi@zervtek.com") {
+      return NextResponse.json(
+        { error: "Forbidden: Only avi@zervtek.com can delete inquiries" },
+        { status: 403 }
+      )
+    }
+
+    const inquiry = await prisma.inquiry.findUnique({
+      where: { id: params.id },
+    })
+
+    if (!inquiry) {
+      return NextResponse.json(
+        { error: "Inquiry not found" },
+        { status: 404 }
+      )
+    }
+
+    // Delete the inquiry permanently
+    await prisma.inquiry.delete({
+      where: { id: params.id },
+    })
+
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    console.error("Error deleting inquiry:", error)
+    return NextResponse.json(
+      { error: "Failed to delete inquiry" },
+      { status: 500 }
+    )
+  }
+}

@@ -38,6 +38,7 @@ export default async function DashboardPage() {
       users={users}
       showUnassignedOnly={true}
       currentUserId={session.user.id}
+      currentUserEmail={session.user.email || ""}
     />
   );
 }

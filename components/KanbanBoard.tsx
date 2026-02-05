@@ -1,6 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { KanbanColumn } from "./KanbanColumn";
+import { InquiryStatus, InquirySource } from "@prisma/client";
+import { useRouter } from "next/navigation";
+import { AddInquiryDialog } from "./AddInquiryDialog";
+import { NotesDialog } from "./NotesDialog";
+import { ReleaseConfirmationDialog } from "./ReleaseConfirmationDialog";
 import {
   DndContext,
   DragEndEvent,
@@ -10,17 +16,14 @@ import {
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
-import { SortableContext, arrayMove } from "@dnd-kit/sortable";
-import { KanbanColumn } from "./KanbanColumn";
-import { InquiryCard } from "./InquiryCard";
-import { InquiryStatus } from "@prisma/client";
-import { useRouter } from "next/navigation";
-import { AddInquiryDialog } from "./AddInquiryDialog";
-import { NotesDialog } from "./NotesDialog";
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
 
 interface Inquiry {
   id: string;
-  source: any;
+  source: InquirySource;
   customerName: string | null;
   email: string | null;
   phone: string | null;
@@ -52,6 +55,7 @@ interface KanbanBoardProps {
   isAdmin?: boolean;
   users?: Array<{ id: string; name: string | null; email: string }>;
   currentUserId?: string;
+  currentUserEmail?: string;
 }
 
 export function KanbanBoard({
@@ -60,12 +64,11 @@ export function KanbanBoard({
   isAdmin = false,
   users = [],
   currentUserId,
+  currentUserEmail,
 }: KanbanBoardProps) {
   const router = useRouter();
   const [stages, setStages] = useState<Stage[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeId, setActiveId] = useState<string | null>(null);
-  const [activeInquiry, setActiveInquiry] = useState<Inquiry | null>(null);
   const [filterUserId, setFilterUserId] = useState<string | undefined>(userId);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogStatus, setDialogStatus] = useState<InquiryStatus | undefined>(
@@ -76,6 +79,19 @@ export function KanbanBoard({
     null,
   );
   const [notes, setNotes] = useState<string>("");
+  const [releaseDialogOpen, setReleaseDialogOpen] = useState(false);
+  const [pendingReleaseId, setPendingReleaseId] = useState<string | null>(null);
+  const [releasing, setReleasing] = useState(false);
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+  );
 
   // Update filter when userId prop changes
   useEffect(() => {
@@ -99,14 +115,6 @@ export function KanbanBoard({
     window.addEventListener("popstate", updateFromUrl);
     return () => window.removeEventListener("popstate", updateFromUrl);
   }, [userId]);
-
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 5,
-      },
-    }),
-  );
 
   const fetchBoard = async () => {
     try {
@@ -133,127 +141,6 @@ export function KanbanBoard({
     return () => clearInterval(interval);
   }, [filterUserId]);
 
-  const handleDragStart = (event: DragStartEvent) => {
-    const { active } = event;
-    setActiveId(active.id as string);
-    // Find the inquiry being dragged
-    for (const stage of stages) {
-      const inquiry = stage.inquiries.find((inq) => inq.id === active.id);
-      if (inquiry) {
-        setActiveInquiry(inquiry);
-        break;
-      }
-    }
-  };
-
-  const handleDragEnd = async (event: DragEndEvent) => {
-    const { active, over } = event;
-    setActiveId(null);
-    setActiveInquiry(null);
-
-    if (!over) return;
-
-    const inquiryId = active.id as string;
-    let targetStageId = over.id as string;
-
-    // If dropping on another inquiry card, find which stage that card belongs to
-    // Otherwise, assume we're dropping directly on a column
-    let targetStage = stages.find((stage) => stage.id === targetStageId);
-
-    // If not found, it might be another inquiry card - find which stage it belongs to
-    if (!targetStage) {
-      for (const stage of stages) {
-        const foundInquiry = stage.inquiries.find(
-          (inq) => inq.id === targetStageId,
-        );
-        if (foundInquiry) {
-          targetStage = stage;
-          targetStageId = stage.id;
-          break;
-        }
-      }
-    }
-
-    // Still not found? Try to find by droppable data attribute
-    if (!targetStage && over.data.current) {
-      const droppableId = over.data.current.droppableId;
-      if (droppableId) {
-        targetStage = stages.find((stage) => stage.id === droppableId);
-        if (targetStage) {
-          targetStageId = targetStage.id;
-        }
-      }
-    }
-
-    if (!targetStage) {
-      console.warn("Could not find target stage for drag operation");
-      return;
-    }
-
-    // Find the source stage and inquiry
-    let sourceStage: Stage | undefined;
-    let inquiry: Inquiry | undefined;
-
-    for (const stage of stages) {
-      const foundInquiry = stage.inquiries.find((inq) => inq.id === inquiryId);
-      if (foundInquiry) {
-        sourceStage = stage;
-        inquiry = foundInquiry;
-        break;
-      }
-    }
-
-    if (!sourceStage || !inquiry || sourceStage.id === targetStage.id) {
-      return;
-    }
-
-    // Optimistically update UI
-    const newStages = stages.map((stage) => {
-      if (stage.id === sourceStage!.id) {
-        return {
-          ...stage,
-          inquiries: stage.inquiries.filter((inq) => inq.id !== inquiryId),
-        };
-      }
-      if (stage.id === targetStage.id) {
-        return {
-          ...stage,
-          inquiries: [
-            ...stage.inquiries,
-            { ...inquiry!, status: targetStage.status },
-          ],
-        };
-      }
-      return stage;
-    });
-    setStages(newStages);
-
-    // Update in backend
-    try {
-      const response = await fetch(`/api/kanban`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          inquiryId,
-          newStatus: targetStage.status,
-        }),
-      });
-
-      if (!response.ok) {
-        // Revert on error
-        fetchBoard();
-        alert("Failed to update inquiry status");
-      }
-    } catch (error) {
-      console.error("Error updating inquiry status:", error);
-      // Revert on error
-      fetchBoard();
-      alert("Failed to update inquiry status");
-    }
-  };
-
   const handleView = (inquiryId: string) => {
     router.push(`/dashboard/inquiries/${inquiryId}`);
   };
@@ -267,12 +154,25 @@ export function KanbanBoard({
     fetchBoard();
   };
 
-  const handleRelease = async (inquiryId: string) => {
+  const handleRelease = (inquiryId: string) => {
+    setPendingReleaseId(inquiryId);
+    setReleaseDialogOpen(true);
+  };
+
+  const confirmRelease = async () => {
+    if (!pendingReleaseId) return;
+
     try {
-      const response = await fetch(`/api/inquiries/${inquiryId}/release`, {
-        method: "POST",
-      });
+      setReleasing(true);
+      const response = await fetch(
+        `/api/inquiries/${pendingReleaseId}/release`,
+        {
+          method: "POST",
+        },
+      );
       if (response.ok) {
+        setReleaseDialogOpen(false);
+        setPendingReleaseId(null);
         // Redirect to dashboard after releasing
         router.push("/dashboard");
         router.refresh();
@@ -283,6 +183,8 @@ export function KanbanBoard({
     } catch (error) {
       console.error("Error releasing inquiry:", error);
       alert("Failed to release inquiry");
+    } finally {
+      setReleasing(false);
     }
   };
 
@@ -313,6 +215,84 @@ export function KanbanBoard({
     fetchBoard();
   };
 
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveId(event.active.id as string);
+  };
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+    setActiveId(null);
+
+    if (!over) return;
+
+    const inquiryId = active.id as string;
+    const targetStageId = over.id as string;
+
+    // Find the target stage
+    const targetStage = stages.find((stage) => stage.id === targetStageId);
+    if (!targetStage) return;
+
+    // Find the inquiry
+    const inquiry = stages
+      .flatMap((stage) => stage.inquiries)
+      .find((inq) => inq.id === inquiryId);
+    if (!inquiry) return;
+
+    // Don't update if already in the same stage
+    if (inquiry.status === targetStage.status) return;
+
+    try {
+      const response = await fetch("/api/kanban", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          inquiryId,
+          newStatus: targetStage.status,
+        }),
+      });
+
+      if (response.ok) {
+        fetchBoard();
+      } else {
+        const error = await response.json();
+        alert(error.error || "Failed to update inquiry status");
+        fetchBoard(); // Refresh to revert UI
+      }
+    } catch (error) {
+      console.error("Error updating inquiry status:", error);
+      alert("Failed to update inquiry status");
+      fetchBoard(); // Refresh to revert UI
+    }
+  };
+
+  const handleDelete = async (inquiryId: string) => {
+    if (
+      !confirm(
+        "Are you sure you want to permanently delete this inquiry? This action cannot be undone.",
+      )
+    ) {
+      return;
+    }
+
+    try {
+      setDeleting(true);
+      const response = await fetch(`/api/inquiries/${inquiryId}`, {
+        method: "DELETE",
+      });
+      if (response.ok) {
+        fetchBoard();
+      } else {
+        const error = await response.json();
+        alert(error.error || "Failed to delete inquiry");
+      }
+    } catch (error) {
+      console.error("Error deleting inquiry:", error);
+      alert("Failed to delete inquiry");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -324,6 +304,10 @@ export function KanbanBoard({
     );
   }
 
+  const allInquiryIds = stages.flatMap((stage) =>
+    stage.inquiries.map((inq) => inq.id),
+  );
+
   return (
     <DndContext
       sensors={sensors}
@@ -331,23 +315,30 @@ export function KanbanBoard({
       onDragEnd={handleDragEnd}
     >
       <div className="flex gap-4 h-full overflow-x-auto overflow-y-hidden pb-4">
-        {stages.map((stage) => (
-          <KanbanColumn
-            key={stage.id}
-            id={stage.id}
-            title={stage.name}
-            color={stage.color}
-            inquiries={stage.inquiries}
-            onView={handleView}
-            onCreateInquiry={handleCreateInquiry}
-            status={stage.status}
-            onRelease={handleRelease}
-            onNotes={handleNotes}
-            currentUserId={currentUserId}
-            isManager={isManager}
-            isAdmin={isAdmin}
-          />
-        ))}
+        <SortableContext
+          items={allInquiryIds}
+          strategy={verticalListSortingStrategy}
+        >
+          {stages.map((stage) => (
+            <KanbanColumn
+              key={stage.id}
+              id={stage.id}
+              title={stage.name}
+              color={stage.color}
+              inquiries={stage.inquiries}
+              onView={handleView}
+              onCreateInquiry={handleCreateInquiry}
+              status={stage.status}
+              onRelease={handleRelease}
+              onNotes={handleNotes}
+              onDelete={handleDelete}
+              currentUserId={currentUserId}
+              currentUserEmail={currentUserEmail}
+              isManager={isManager}
+              isAdmin={isAdmin}
+            />
+          ))}
+        </SortableContext>
         {/* Add Column Button */}
         <div className="min-w-[360px] flex items-center justify-center flex-shrink-0">
           <button className="w-full h-12 border-2 border-dashed border-gray-300 dark:border-[#2C2C2C] rounded-lg hover:border-gray-400 dark:hover:border-[#49454F] hover:bg-gray-50 dark:hover:bg-[#1E1E1E] transition-colors flex items-center justify-center gap-2 text-gray-500 dark:text-[#A1A1A1]">
@@ -357,9 +348,21 @@ export function KanbanBoard({
         </div>
       </div>
       <DragOverlay>
-        {activeInquiry ? (
-          <div className="opacity-90 rotate-2">
-            <InquiryCard inquiry={activeInquiry} isAdmin={isAdmin} />
+        {activeId ? (
+          <div className="opacity-50">
+            {(() => {
+              const inquiry = stages
+                .flatMap((stage) => stage.inquiries)
+                .find((inq) => inq.id === activeId);
+              if (!inquiry) return null;
+              return (
+                <div className="bg-white dark:bg-[#1E1E1E] border border-gray-200 dark:border-[#2C2C2C] rounded-lg p-4 shadow-lg">
+                  <div className="font-semibold text-sm">
+                    {inquiry.customerName || inquiry.email || "Unknown Customer"}
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         ) : null}
       </DragOverlay>
@@ -380,6 +383,12 @@ export function KanbanBoard({
           onSuccess={handleNotesSaved}
         />
       )}
-    </DndContext>
+      <ReleaseConfirmationDialog
+        open={releaseDialogOpen}
+        onOpenChange={setReleaseDialogOpen}
+        onConfirm={confirmRelease}
+        loading={releasing}
+      />
+    </div>
   );
 }

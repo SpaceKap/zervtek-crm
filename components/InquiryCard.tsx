@@ -28,10 +28,13 @@ interface InquiryCardProps {
   onRelease?: (id: string) => void;
   onView?: (id: string) => void;
   onNotes?: (id: string) => void;
+  onDelete?: (id: string) => void;
   showAssignButton?: boolean;
   showReleaseButton?: boolean;
   showNotesButton?: boolean;
+  showDeleteButton?: boolean;
   currentUserId?: string;
+  currentUserEmail?: string;
   isManager?: boolean;
   isAdmin?: boolean;
   hideSourceBadge?: boolean;
@@ -44,7 +47,6 @@ const statusColors: Record<InquiryStatus, string> = {
   CONTACTED: "bg-yellow-100 text-yellow-700 border-yellow-200",
   QUALIFIED: "bg-green-100 text-green-700 border-green-200",
   DEPOSIT: "bg-purple-100 text-purple-700 border-purple-200",
-  NEGOTIATION: "bg-orange-100 text-orange-700 border-orange-200",
   CLOSED_WON: "bg-green-100 text-green-700 border-green-200",
   CLOSED_LOST: "bg-gray-100 text-gray-700 border-gray-200",
   RECURRING: "bg-cyan-100 text-cyan-700 border-cyan-200",
@@ -55,7 +57,6 @@ const statusLabels: Record<InquiryStatus, string> = {
   CONTACTED: "Contacted",
   QUALIFIED: "Qualified",
   DEPOSIT: "Deposit",
-  NEGOTIATION: "Negotiation",
   CLOSED_WON: "Closed Won",
   CLOSED_LOST: "Closed Lost",
   RECURRING: "Recurring",
@@ -64,7 +65,6 @@ const statusLabels: Record<InquiryStatus, string> = {
 const sourceColors: Record<InquirySource, string> = {
   WHATSAPP: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
   EMAIL: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
-  WEB: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200",
   CHATBOT:
     "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200",
   JCT_STOCK_INQUIRY:
@@ -73,23 +73,24 @@ const sourceColors: Record<InquirySource, string> = {
     "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200",
   ONBOARDING_FORM:
     "bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-200",
-  CONTACT_US_INQUIRY_FORM:
-    "bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200",
   HERO_INQUIRY: "bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-200",
   INQUIRY_FORM: "bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-200",
+  WEB: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200", // Legacy support
+  CONTACT_US_INQUIRY_FORM:
+    "bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200", // Legacy support
 };
 
 const sourceLabels: Record<InquirySource, string> = {
   WHATSAPP: "WhatsApp",
   EMAIL: "Email",
-  WEB: "Web",
   CHATBOT: "Chatbot",
   JCT_STOCK_INQUIRY: "JCT Stock Inquiry",
   STOCK_INQUIRY: "Stock Inquiry",
   ONBOARDING_FORM: "Onboarding Form",
-  CONTACT_US_INQUIRY_FORM: "Contact Us Inquiry Form",
   HERO_INQUIRY: "Hero Section Inquiry",
   INQUIRY_FORM: "Contact Form Inquiry",
+  WEB: "Web", // Legacy support
+  CONTACT_US_INQUIRY_FORM: "Contact Us Inquiry Form", // Legacy support
 };
 
 export function InquiryCard({
@@ -98,16 +99,20 @@ export function InquiryCard({
   onRelease,
   onView,
   onNotes,
+  onDelete,
   showAssignButton = false,
   showReleaseButton = false,
   showNotesButton = false,
+  showDeleteButton = false,
   currentUserId,
+  currentUserEmail,
   isManager = false,
   isAdmin = false,
   hideSourceBadge = false,
   hideStatusBadge = false,
   dragHandleProps,
 }: InquiryCardProps) {
+  const canDelete = currentUserEmail === "avi@zervtek.com";
   const metadata = (inquiry.metadata as any) || {};
   const lookingFor = metadata.lookingFor || null;
   const country = metadata.country || null;
@@ -377,6 +382,30 @@ export function InquiryCard({
                 Release
               </Button>
             ) : null}
+            {canDelete && showDeleteButton && onDelete && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  if (
+                    confirm(
+                      "Are you sure you want to permanently delete this inquiry? This action cannot be undone.",
+                    )
+                  ) {
+                    onDelete(inquiry.id);
+                  }
+                }}
+                onMouseDown={(e) => e.stopPropagation()}
+                className="h-7 text-xs flex items-center gap-1 shrink-0 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
+              >
+                <span className="material-symbols-outlined text-sm">
+                  delete
+                </span>
+                Delete
+              </Button>
+            )}
           </div>
         </div>
       </CardContent>

@@ -15,6 +15,7 @@ interface DashboardPageClientProps {
   isAdmin: boolean;
   users: User[];
   currentUserId: string;
+  currentUserEmail: string;
   showUnassignedOnly: boolean;
 }
 
@@ -75,6 +76,7 @@ export function DashboardPageClient({
         users={users}
         showUnassignedOnly={showUnassignedOnly}
         currentUserId={currentUserId}
+        currentUserEmail={currentUserEmail}
         hideControls={true}
         filterUserId={filterUserId}
         filterSource={filterSource}

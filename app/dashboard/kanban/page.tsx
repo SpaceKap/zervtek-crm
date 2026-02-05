@@ -95,6 +95,7 @@ export default async function KanbanPage({
           isAdmin={isAdmin}
           users={users}
           currentUserId={session.user.id}
+          currentUserEmail={session.user.email || ""}
         />
       </div>
     </div>

@@ -26,27 +26,27 @@ interface InquiryTypeStatsData {
 const sourceLabels: Record<InquirySource, string> = {
   WHATSAPP: "WhatsApp",
   EMAIL: "Email",
-  WEB: "Web",
   CHATBOT: "Chatbot",
   JCT_STOCK_INQUIRY: "JCT Stock Inquiry",
   STOCK_INQUIRY: "Stock Inquiry",
   ONBOARDING_FORM: "Onboarding Form",
-  CONTACT_US_INQUIRY_FORM: "Contact Us Inquiry Form",
   HERO_INQUIRY: "Hero Section Inquiry",
   INQUIRY_FORM: "Contact Form Inquiry",
+  WEB: "Web", // Legacy support
+  CONTACT_US_INQUIRY_FORM: "Contact Us Inquiry Form", // Legacy support
 };
 
 const sourceColors: Record<InquirySource, string> = {
   WHATSAPP: "bg-green-500",
   EMAIL: "bg-blue-500",
-  WEB: "bg-purple-500",
   CHATBOT: "bg-orange-500",
   JCT_STOCK_INQUIRY: "bg-amber-500",
   STOCK_INQUIRY: "bg-amber-400",
   ONBOARDING_FORM: "bg-teal-500",
-  CONTACT_US_INQUIRY_FORM: "bg-indigo-500",
   HERO_INQUIRY: "bg-pink-500",
   INQUIRY_FORM: "bg-cyan-500",
+  WEB: "bg-purple-500", // Legacy support
+  CONTACT_US_INQUIRY_FORM: "bg-indigo-500", // Legacy support
 };
 
 export function InquiryTypeStats() {

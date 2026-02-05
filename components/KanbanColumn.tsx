@@ -1,16 +1,12 @@
 "use client";
 
-import { useDroppable } from "@dnd-kit/core";
-import {
-  SortableContext,
-  verticalListSortingStrategy,
-} from "@dnd-kit/sortable";
 import { SortableInquiryCard } from "./SortableInquiryCard";
-import { InquiryStatus } from "@prisma/client";
+import { InquiryStatus, InquirySource } from "@prisma/client";
+import { useDroppable } from "@dnd-kit/core";
 
 interface Inquiry {
   id: string;
-  source: any;
+  source: InquirySource;
   customerName: string | null;
   email: string | null;
   phone: string | null;
@@ -36,7 +32,9 @@ interface KanbanColumnProps {
   status: InquiryStatus;
   onRelease?: (id: string) => void;
   onNotes?: (id: string) => void;
+  onDelete?: (id: string) => void;
   currentUserId?: string;
+  currentUserEmail?: string;
   isManager?: boolean;
   isAdmin?: boolean;
 }
@@ -51,16 +49,14 @@ export function KanbanColumn({
   status,
   onRelease,
   onNotes,
+  onDelete,
   currentUserId,
+  currentUserEmail,
   isManager = false,
   isAdmin = false,
 }: KanbanColumnProps) {
   const { setNodeRef, isOver } = useDroppable({
-    id,
-    data: {
-      droppableId: id,
-      type: "column",
-    },
+    id: id,
   });
 
   // Get color dot based on status
@@ -70,7 +66,6 @@ export function KanbanColumn({
       CONTACTED: "bg-blue-400",
       QUALIFIED: "bg-green-400",
       DEPOSIT: "bg-purple-400",
-      NEGOTIATION: "bg-orange-400",
       CLOSED_WON: "bg-green-500",
       CLOSED_LOST: "bg-gray-400",
       RECURRING: "bg-cyan-400",
@@ -117,25 +112,24 @@ export function KanbanColumn({
       {/* Column Content */}
       <div
         ref={setNodeRef}
-        className="flex-1 p-3 space-y-3 overflow-y-auto overflow-x-hidden"
+        className={`flex-1 p-3 space-y-3 overflow-y-auto overflow-x-hidden transition-colors ${
+          isOver ? "bg-blue-50 dark:bg-blue-900/10" : ""
+        }`}
       >
-        <SortableContext
-          items={inquiries.map((inq) => inq.id)}
-          strategy={verticalListSortingStrategy}
-        >
-          {inquiries.map((inquiry) => (
-            <SortableInquiryCard
-              key={inquiry.id}
-              inquiry={inquiry}
-              onView={onView}
-              onRelease={onRelease}
-              onNotes={onNotes}
-              currentUserId={currentUserId}
-              isManager={isManager}
-              isAdmin={isAdmin}
-            />
-          ))}
-        </SortableContext>
+        {inquiries.map((inquiry) => (
+          <SortableInquiryCard
+            key={inquiry.id}
+            inquiry={inquiry}
+            onView={onView}
+            onRelease={onRelease}
+            onNotes={onNotes}
+            onDelete={onDelete}
+            currentUserId={currentUserId}
+            currentUserEmail={currentUserEmail}
+            isManager={isManager}
+            isAdmin={isAdmin}
+          />
+        ))}
         {inquiries.length === 0 && (
           <button
             onClick={(e) => {

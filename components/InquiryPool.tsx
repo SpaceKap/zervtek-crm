@@ -39,6 +39,7 @@ interface InquiryPoolProps {
   isAdmin?: boolean;
   showUnassignedOnly?: boolean;
   currentUserId?: string;
+  currentUserEmail?: string;
   hideControls?: boolean;
   filterUserId?: string;
   filterSource?: string;
@@ -55,6 +56,7 @@ export function InquiryPool({
   isAdmin = false,
   showUnassignedOnly = true,
   currentUserId,
+  currentUserEmail,
   hideControls = false,
   filterUserId: externalFilterUserId,
   filterSource: externalFilterSource,
@@ -76,6 +78,9 @@ export function InquiryPool({
     externalFilterUserId || userId || "all",
   );
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [releaseDialogOpen, setReleaseDialogOpen] = useState(false);
+  const [pendingReleaseId, setPendingReleaseId] = useState<string | null>(null);
+  const [releasing, setReleasing] = useState(false);
 
   // Use external filters if provided, otherwise use internal state
   const currentFilterSource =
@@ -184,12 +189,25 @@ export function InquiryPool({
     }
   };
 
-  const handleRelease = async (inquiryId: string) => {
+  const handleRelease = (inquiryId: string) => {
+    setPendingReleaseId(inquiryId);
+    setReleaseDialogOpen(true);
+  };
+
+  const confirmRelease = async () => {
+    if (!pendingReleaseId) return;
+
     try {
-      const response = await fetch(`/api/inquiries/${inquiryId}/release`, {
-        method: "POST",
-      });
+      setReleasing(true);
+      const response = await fetch(
+        `/api/inquiries/${pendingReleaseId}/release`,
+        {
+          method: "POST",
+        },
+      );
       if (response.ok) {
+        setReleaseDialogOpen(false);
+        setPendingReleaseId(null);
         // Refresh the list to show the released inquiry
         fetchInquiries();
         router.refresh();
@@ -200,6 +218,27 @@ export function InquiryPool({
     } catch (error) {
       console.error("Error releasing inquiry:", error);
       alert("Failed to release inquiry");
+    } finally {
+      setReleasing(false);
+    }
+  };
+
+  const handleDelete = async (inquiryId: string) => {
+    try {
+      const response = await fetch(`/api/inquiries/${inquiryId}`, {
+        method: "DELETE",
+      });
+      if (response.ok) {
+        // Remove from list
+        setInquiries(inquiries.filter((inq) => inq.id !== inquiryId));
+        router.refresh();
+      } else {
+        const error = await response.json();
+        alert(error.error || "Failed to delete inquiry");
+      }
+    } catch (error) {
+      console.error("Error deleting inquiry:", error);
+      alert("Failed to delete inquiry");
     }
   };
 
@@ -270,13 +309,10 @@ export function InquiryPool({
               <option value="all">All Sources</option>
               <option value="WHATSAPP">WhatsApp</option>
               <option value="EMAIL">Email</option>
-              <option value="WEB">Web</option>
               <option value="CHATBOT">Chatbot</option>
               <option value="JCT_STOCK_INQUIRY">JCT Stock Inquiry</option>
+              <option value="STOCK_INQUIRY">Stock Inquiry</option>
               <option value="ONBOARDING_FORM">Onboarding Form</option>
-              <option value="CONTACT_US_INQUIRY_FORM">
-                Contact Us Inquiry Form
-              </option>
               <option value="HERO_INQUIRY">Hero Section Inquiry</option>
               <option value="INQUIRY_FORM">Contact Form Inquiry</option>
             </select>
@@ -333,6 +369,9 @@ export function InquiryPool({
               onAssign={handleAssign}
               onRelease={handleRelease}
               onView={handleView}
+              onDelete={handleDelete}
+              showDeleteButton={true}
+              currentUserEmail={currentUserEmail}
               showAssignButton={!inquiry.assignedToId}
               showReleaseButton={!!inquiry.assignedToId}
               currentUserId={currentUserId}
@@ -342,6 +381,12 @@ export function InquiryPool({
           ))}
         </div>
       )}
+      <ReleaseConfirmationDialog
+        open={releaseDialogOpen}
+        onOpenChange={setReleaseDialogOpen}
+        onConfirm={confirmRelease}
+        loading={releasing}
+      />
     </div>
   );
 }

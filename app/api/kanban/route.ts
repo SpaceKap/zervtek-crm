@@ -46,10 +46,9 @@ export async function GET(request: NextRequest) {
         { name: "Contacted", order: 1, status: InquiryStatus.CONTACTED, color: "#8b5cf6" },
         { name: "Qualified", order: 2, status: InquiryStatus.QUALIFIED, color: "#10b981" },
         { name: "Deposit", order: 3, status: InquiryStatus.DEPOSIT, color: "#f59e0b" },
-        { name: "Negotiation", order: 4, status: InquiryStatus.NEGOTIATION, color: "#ef4444" },
-        { name: "Closed Won", order: 5, status: InquiryStatus.CLOSED_WON, color: "#22c55e" },
-        { name: "Closed Lost", order: 6, status: InquiryStatus.CLOSED_LOST, color: "#6b7280" },
-        { name: "Recurring", order: 7, status: InquiryStatus.RECURRING, color: "#06b6d4" },
+        { name: "Closed Won", order: 4, status: InquiryStatus.CLOSED_WON, color: "#22c55e" },
+        { name: "Closed Lost", order: 5, status: InquiryStatus.CLOSED_LOST, color: "#6b7280" },
+        { name: "Recurring", order: 6, status: InquiryStatus.RECURRING, color: "#06b6d4" },
       ]
 
       await prisma.kanbanStage.createMany({

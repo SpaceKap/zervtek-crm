@@ -28,7 +28,9 @@ interface SortableInquiryCardProps {
   onView?: (id: string) => void;
   onRelease?: (id: string) => void;
   onNotes?: (id: string) => void;
+  onDelete?: (id: string) => void;
   currentUserId?: string;
+  currentUserEmail?: string;
   isManager?: boolean;
   isAdmin?: boolean;
 }
@@ -38,7 +40,9 @@ export function SortableInquiryCard({
   onView,
   onRelease,
   onNotes,
+  onDelete,
   currentUserId,
+  currentUserEmail,
   isManager = false,
   isAdmin = false,
 }: SortableInquiryCardProps) {
@@ -51,34 +55,32 @@ export function SortableInquiryCard({
     isDragging,
   } = useSortable({
     id: inquiry.id,
-    data: {
-      inquiryId: inquiry.id,
-      status: inquiry.status,
-    },
   });
 
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : 1,
-    cursor: isDragging ? "grabbing" : "grab",
   };
 
   return (
-    <div ref={setNodeRef} style={style} {...attributes}>
+    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
       <InquiryCard
         inquiry={inquiry}
         onView={onView}
         onRelease={onRelease}
         onNotes={onNotes}
+        onDelete={onDelete}
         showReleaseButton={true}
         showNotesButton={true}
+        showDeleteButton={true}
         currentUserId={currentUserId}
+        currentUserEmail={currentUserEmail}
         isManager={isManager}
         isAdmin={isAdmin}
-        hideSourceBadge={true}
+        hideSourceBadge={false}
         hideStatusBadge={true}
-        dragHandleProps={listeners}
+        dragHandleProps={undefined}
       />
     </div>
   );
