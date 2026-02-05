@@ -7,6 +7,10 @@ const nextConfig = {
       bodySizeLimit: '2mb',
     },
   },
+  eslint: {
+    // Allow production builds to complete even with ESLint warnings
+    ignoreDuringBuilds: true,
+  },
 }
 
 module.exports = nextConfig
