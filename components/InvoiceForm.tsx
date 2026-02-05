@@ -633,7 +633,6 @@ export function InvoiceForm({ invoice }: InvoiceFormProps = {}) {
                   alt="Company Logo"
                   fill
                   className="object-contain"
-                  className="h-16 object-contain"
                 />
               </div>
             </div>
