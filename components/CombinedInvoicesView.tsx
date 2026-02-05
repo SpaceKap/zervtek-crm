@@ -32,14 +32,21 @@ export function CombinedInvoicesView({
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-            Invoices
-          </h1>
-          <p className="text-muted-foreground">
-            Manage customer invoices
-            {canViewShared ? " and shared invoices" : ""}
-          </p>
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 rounded-lg bg-primary/10 dark:bg-[#D4AF37]/20">
+            <span className="material-symbols-outlined text-3xl text-primary dark:text-[#D4AF37]">
+              receipt
+            </span>
+          </div>
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+              Invoices
+            </h1>
+            <p className="text-muted-foreground mt-0.5">
+              Manage customer invoices
+              {canViewShared ? " and shared invoices" : ""}
+            </p>
+          </div>
         </div>
         {activeTab === "invoices" && (
           <Link href="/dashboard/invoices/new">
@@ -64,7 +71,13 @@ export function CombinedInvoicesView({
       </div>
 
       {canViewShared ? (
-        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "invoices" | "shared")} className="w-full">
+        <Tabs
+          value={activeTab}
+          onValueChange={(value) =>
+            setActiveTab(value as "invoices" | "shared")
+          }
+          className="w-full"
+        >
           <TabsList className="grid w-full max-w-md grid-cols-2 mb-6">
             <TabsTrigger value="invoices">Customer Invoices</TabsTrigger>
             <TabsTrigger value="shared">Shared Invoices</TabsTrigger>

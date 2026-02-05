@@ -14,13 +14,20 @@ export default async function ChargeTypesPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-          Charge Types
-        </h1>
-        <p className="text-muted-foreground">
-          Manage charge types for customer invoices
-        </p>
+      <div className="flex items-center gap-3">
+        <div className="p-2.5 rounded-lg bg-primary/10 dark:bg-[#D4AF37]/20">
+          <span className="material-symbols-outlined text-3xl text-primary dark:text-[#D4AF37]">
+            list
+          </span>
+        </div>
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+            Charge Types
+          </h1>
+          <p className="text-muted-foreground mt-0.5">
+            Manage charge types for customer invoices
+          </p>
+        </div>
       </div>
 
       <ChargeTypesList />
