@@ -1,8 +1,18 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { ShippingStage } from "@prisma/client";
 import { Button } from "./ui/button";
+
+// ShippingStage enum - TODO: Add to Prisma schema
+enum ShippingStage {
+  PURCHASE = "PURCHASE",
+  TRANSPORT = "TRANSPORT",
+  REPAIR = "REPAIR",
+  DOCUMENTS = "DOCUMENTS",
+  BOOKING = "BOOKING",
+  SHIPPED = "SHIPPED",
+  DHL = "DHL",
+}
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import {
