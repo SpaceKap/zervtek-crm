@@ -14,7 +14,8 @@
         "seed": "tsx scripts/seed-inquiries.ts",
         "seed-invoicing": "tsx scripts/seed-invoicing.ts",
         "change-role": "tsx scripts/change-role.ts",
-        "list-users": "tsx scripts/change-role.ts --list"
+        "list-users": "tsx scripts/change-role.ts --list",
+        "check-kanban": "tsx scripts/check-kanban-stages.ts"
     },
     "dependencies": {
         "@auth/prisma-adapter": "^2.6.0",
