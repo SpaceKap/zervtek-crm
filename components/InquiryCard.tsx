@@ -1,9 +1,17 @@
 "use client";
 
+import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { InquirySource, InquiryStatus } from "@prisma/client";
 import { formatDistanceToNow, format } from "date-fns";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 interface InquiryCardProps {
   inquiry: {
@@ -119,6 +127,14 @@ export function InquiryCard({
   const notes = metadata.notes || "";
   const hasNotes = notes && notes.trim().length > 0;
   const previouslyTriedBy = metadata.previouslyTriedBy || null;
+  
+  // Message expansion state
+  const [isMessageExpanded, setIsMessageExpanded] = useState(false);
+  const [showMessageDialog, setShowMessageDialog] = useState(false);
+  
+  // Check if message is long enough to need truncation
+  const messageLength = inquiry.message?.length || 0;
+  const shouldTruncate = messageLength > 100; // Approximate 2 lines
 
   // Determine if card should be clickable (assigned or admin)
   const isClickable = inquiry.assignedToId !== null || isAdmin;
@@ -242,9 +258,28 @@ export function InquiryCard({
               <span className="font-medium text-gray-700 dark:text-[#D0D0D0]">
                 Message:
               </span>{" "}
-              <span className="line-clamp-2 leading-tight">
-                {inquiry.message}
-              </span>
+              <div className="mt-0.5">
+                <span
+                  className={`leading-tight ${
+                    shouldTruncate && !isMessageExpanded
+                      ? "line-clamp-2"
+                      : ""
+                  }`}
+                >
+                  {inquiry.message}
+                </span>
+                {shouldTruncate && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowMessageDialog(true);
+                    }}
+                    className="ml-1 text-blue-600 dark:text-blue-400 hover:underline font-medium text-xs"
+                  >
+                    Read more
+                  </button>
+                )}
+              </div>
             </div>
           )}
 
@@ -409,6 +444,23 @@ export function InquiryCard({
           </div>
         </div>
       </CardContent>
+      
+      {/* Message Dialog */}
+      <Dialog open={showMessageDialog} onOpenChange={setShowMessageDialog}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Message</DialogTitle>
+            <DialogDescription>
+              {inquiry.customerName || inquiry.email || "Unknown Customer"}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="mt-4">
+            <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap break-words">
+              {inquiry.message}
+            </p>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }
