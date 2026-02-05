@@ -49,6 +49,7 @@ interface InquiryCardProps {
   hideSourceBadge?: boolean;
   hideStatusBadge?: boolean;
   dragHandleProps?: any;
+  isInFunnel?: boolean; // Indicates if card is in the kanban board (funnel)
 }
 
 const statusColors: Record<InquiryStatus, string> = {
@@ -120,6 +121,7 @@ export function InquiryCard({
   hideSourceBadge = false,
   hideStatusBadge = false,
   dragHandleProps,
+  isInFunnel = false,
 }: InquiryCardProps) {
   const canDelete = currentUserEmail === "avi@zervtek.com";
   const metadata = (inquiry.metadata as any) || {};
@@ -140,8 +142,12 @@ export function InquiryCard({
   // Determine if card should be clickable (assigned or admin)
   const isClickable = inquiry.assignedToId !== null || isAdmin;
 
-  // Determine if contact info should be visible (assigned or admin)
-  const showContactInfo = inquiry.assignedToId !== null || isAdmin;
+  // Determine if contact info should be visible
+  // Only show if:
+  // 1. Assigned to current user (they assigned it to themselves)
+  // 2. AND it's in the funnel (kanban board)
+  const isAssignedToCurrentUser = inquiry.assignedToId === currentUserId;
+  const showContactInfo = isInFunnel && isAssignedToCurrentUser;
   const getInitials = (name: string | null | undefined, email: string) => {
     if (name) {
       return name
@@ -468,7 +474,8 @@ export function InquiryCard({
                   </span>
                 </div>
               )}
-              {inquiry.email && (
+              {/* Only show contact info if assigned to current user and in funnel */}
+              {showContactInfo && inquiry.email && (
                 <div className="flex items-center gap-2">
                   <span className="material-symbols-outlined text-base text-gray-500 dark:text-gray-400">
                     email
@@ -478,7 +485,7 @@ export function InquiryCard({
                   </span>
                 </div>
               )}
-              {inquiry.phone && (
+              {showContactInfo && inquiry.phone && (
                 <div className="flex items-center gap-2">
                   <span className="material-symbols-outlined text-base text-gray-500 dark:text-gray-400">
                     phone

@@ -82,6 +82,7 @@ export function SortableInquiryCard({
         hideSourceBadge={false}
         hideStatusBadge={true}
         dragHandleProps={undefined}
+        isInFunnel={true}
       />
     </div>
   );
