@@ -24,6 +24,7 @@ export function DashboardPageClient({
   isAdmin,
   users,
   currentUserId,
+  currentUserEmail,
   showUnassignedOnly,
 }: DashboardPageClientProps) {
   const [filterUserId, setFilterUserId] = useState<string>("all");
