@@ -36,7 +36,7 @@ interface SortableInquiryCardProps {
   isAdmin?: boolean;
 }
 
-export function SortableInquiryCard({
+function SortableInquiryCardComponent({
   inquiry,
   onView,
   onRelease,
@@ -88,4 +88,6 @@ export function SortableInquiryCard({
       />
     </div>
   );
-});
+}
+
+export const SortableInquiryCard = memo(SortableInquiryCardComponent);
