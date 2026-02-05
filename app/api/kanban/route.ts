@@ -46,8 +46,22 @@ export async function GET(request: NextRequest) {
       updatedAt: Date;
     }> = [];
     
+    // First, delete any invalid stages using raw SQL (before querying)
     try {
-      // Use raw query to bypass Prisma enum validation
+      const validStatuses = Object.values(InquiryStatus);
+      const statusList = validStatuses.map(s => `'${s}'`).join(',');
+      const deleteResult = await prisma.$executeRawUnsafe(`
+        DELETE FROM inquiry_pooler."KanbanStage"
+        WHERE status NOT IN (${statusList})
+      `);
+      console.log(`[Kanban API] Cleaned up invalid stages`);
+    } catch (cleanupError) {
+      console.error("[Kanban API] Error cleaning up invalid stages:", cleanupError);
+      // Continue anyway
+    }
+    
+    // Now query using raw SQL to bypass Prisma enum validation
+    try {
       stages = await prisma.$queryRaw`
         SELECT id, name, "order", color, status, "createdAt", "updatedAt"
         FROM inquiry_pooler."KanbanStage"
@@ -55,28 +69,9 @@ export async function GET(request: NextRequest) {
       ` as any;
       console.log(`[Kanban API] Raw query succeeded, found ${stages.length} stages`);
     } catch (error) {
-      // If raw query fails, try to delete invalid stages first, then retry
       console.error("[Kanban API] Raw query failed:", error);
-      try {
-        // Delete any stages with invalid statuses using raw SQL
-        const validStatuses = Object.values(InquiryStatus);
-        const statusList = validStatuses.map(s => `'${s}'`).join(',');
-        await prisma.$executeRawUnsafe(`
-          DELETE FROM inquiry_pooler."KanbanStage"
-          WHERE status NOT IN (${statusList})
-        `);
-        console.log("[Kanban API] Deleted invalid stages, retrying query");
-        // Retry raw query
-        stages = await prisma.$queryRaw`
-          SELECT id, name, "order", color, status, "createdAt", "updatedAt"
-          FROM inquiry_pooler."KanbanStage"
-          ORDER BY "order" ASC
-        ` as any;
-      } catch (retryError) {
-        console.error("[Kanban API] Retry also failed:", retryError);
-        // Last resort: return empty array and let the sync logic create stages
-        stages = [];
-      }
+      // Return empty array - sync logic will create stages
+      stages = [];
     }
 
     console.log(`[Kanban API] Found ${stages.length} existing stages`)
