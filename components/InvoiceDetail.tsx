@@ -141,7 +141,7 @@ export function InvoiceDetail({
   }, [invoice.charges]);
 
   useEffect(() => {
-    // Combine regular cost items with shared invoice costs (forwarder costs)
+    // Combine regular cost items with shared invoice costs and vehicle stage costs
     const regularCostItems = invoice.costInvoice?.costItems || [];
 
     // Get shared invoice costs (forwarder and container costs) for this vehicle
@@ -185,8 +185,40 @@ export function InvoiceDetail({
     // Convert Map to array
     const sharedInvoiceCosts = Array.from(sharedInvoiceCostsMap.values());
 
-    setCostItems([...regularCostItems, ...sharedInvoiceCosts]);
-  }, [invoice.costInvoice?.costItems, invoice.vehicle?.sharedInvoiceVehicles]);
+    // Get vehicle stage costs
+    const vehicleStageCosts: CostItem[] = [];
+    if (invoice.vehicle?.stageCosts) {
+      invoice.vehicle.stageCosts.forEach((cost: any) => {
+        vehicleStageCosts.push({
+          id: `vehicle-stage-${cost.id}`,
+          description: `${cost.costType}${cost.stage ? ` (${cost.stage})` : ""}`,
+          amount: parseFloat(cost.amount.toString()),
+          vendorId: cost.vendorId,
+          vendor: cost.vendor
+            ? {
+                id: cost.vendor.id,
+                name: cost.vendor.name,
+              }
+            : null,
+          paymentDate: cost.paymentDate ? cost.paymentDate.toISOString() : null,
+          paymentDeadline: cost.paymentDeadline
+            ? cost.paymentDeadline.toISOString()
+            : "",
+          category: cost.costType,
+        });
+      });
+    }
+
+    setCostItems([
+      ...regularCostItems,
+      ...sharedInvoiceCosts,
+      ...vehicleStageCosts,
+    ]);
+  }, [
+    invoice.costInvoice?.costItems,
+    invoice.vehicle?.sharedInvoiceVehicles,
+    invoice.vehicle?.stageCosts,
+  ]);
 
   const fetchVendors = async () => {
     try {
@@ -366,7 +398,7 @@ export function InvoiceDetail({
           <div className="flex items-center justify-between gap-4">
             {/* Left: Invoice Info */}
             <div className="flex items-center gap-4 min-w-0 flex-1">
-              <Link href="/dashboard/invoices">
+              <Link href="/dashboard/financial-operations">
                 <Button variant="ghost" size="icon" className="shrink-0">
                   <span className="material-symbols-outlined">arrow_back</span>
                 </Button>
@@ -1324,7 +1356,7 @@ export function InvoiceDetail({
                           Vendor
                         </th>
                         <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                          Payment Date
+                          Payment Deadline & Date
                         </th>
                         <th className="text-right py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wide w-32">
                           Amount
@@ -1335,6 +1367,10 @@ export function InvoiceDetail({
                     <tbody>
                       {costItems.map((item) => {
                         const isSharedInvoice = item.id.startsWith("shared-");
+                        const isVehicleStageCost =
+                          item.id.startsWith("vehicle-stage-");
+                        const isReadOnly =
+                          isSharedInvoice || isVehicleStageCost;
                         return (
                           <tr
                             key={item.id}
@@ -1358,6 +1394,14 @@ export function InvoiceDetail({
                                     Shared
                                   </Badge>
                                 )}
+                                {isVehicleStageCost && (
+                                  <Badge
+                                    variant="outline"
+                                    className="text-xs bg-green-50 text-green-700 border-green-300 dark:bg-green-900/20 dark:text-green-300 dark:border-green-700"
+                                  >
+                                    Vehicle Cost
+                                  </Badge>
+                                )}
                               </div>
                             </td>
                             <td className="py-3 px-4">
@@ -1370,10 +1414,12 @@ export function InvoiceDetail({
                               </p>
                             </td>
                             <td className="py-3 px-4">
-                              <div className="text-sm text-gray-700 dark:text-gray-300">
+                              <div className="text-sm text-gray-700 dark:text-gray-300 space-y-1">
                                 {item.paymentDeadline && (
                                   <p>
-                                    Deadline:{" "}
+                                    <span className="font-medium">
+                                      Deadline:
+                                    </span>{" "}
                                     {format(
                                       new Date(item.paymentDeadline),
                                       "MMM dd, yyyy",
@@ -1381,15 +1427,15 @@ export function InvoiceDetail({
                                   </p>
                                 )}
                                 {item.paymentDate ? (
-                                  <p className="text-xs text-muted-foreground mt-1">
-                                    Paid:{" "}
+                                  <p className="text-xs text-muted-foreground">
+                                    <span className="font-medium">Paid:</span>{" "}
                                     {format(
                                       new Date(item.paymentDate),
                                       "MMM dd, yyyy",
                                     )}
                                   </p>
                                 ) : (
-                                  <p className="text-xs text-muted-foreground italic mt-1">
+                                  <p className="text-xs text-muted-foreground italic">
                                     Not paid
                                   </p>
                                 )}
@@ -1410,10 +1456,16 @@ export function InvoiceDetail({
                                     size="sm"
                                     variant="ghost"
                                     onClick={() => {
-                                      if (isSharedInvoice) {
-                                        alert(
-                                          "To edit shared invoice costs, please edit the shared invoice directly.",
-                                        );
+                                      if (isReadOnly) {
+                                        if (isSharedInvoice) {
+                                          alert(
+                                            "To edit shared invoice costs, please edit the shared invoice directly.",
+                                          );
+                                        } else if (isVehicleStageCost) {
+                                          alert(
+                                            "To edit vehicle stage costs, please go to the vehicle page and edit them there.",
+                                          );
+                                        }
                                       } else {
                                         setEditingItem(item);
                                         setShowItemForm(true);
@@ -1429,48 +1481,62 @@ export function InvoiceDetail({
                                     size="sm"
                                     variant="ghost"
                                     onClick={async () => {
-                                      if (
-                                        !confirm(
-                                          isSharedInvoice
-                                            ? "Remove this vehicle from the shared invoice? This will remove the cost allocation."
-                                            : "Delete this cost item?",
-                                        )
-                                      )
+                                      if (isReadOnly) {
+                                        if (isSharedInvoice) {
+                                          if (
+                                            !confirm(
+                                              "Remove this vehicle from the shared invoice? This will remove the cost allocation.",
+                                            )
+                                          )
+                                            return;
+                                          try {
+                                            const sharedInvoiceId = (
+                                              item as any
+                                            ).sharedInvoiceId;
+                                            const vehicleId = (item as any)
+                                              .vehicleId;
+                                            const response = await fetch(
+                                              `/api/shared-invoices/${sharedInvoiceId}/vehicles?vehicleId=${vehicleId}`,
+                                              { method: "DELETE" },
+                                            );
+                                            if (response.ok) {
+                                              router.refresh();
+                                            } else {
+                                              const error =
+                                                await response.json();
+                                              alert(
+                                                error.error ||
+                                                  "Failed to remove vehicle from shared invoice",
+                                              );
+                                            }
+                                          } catch (error) {
+                                            alert(
+                                              "Failed to remove vehicle from shared invoice",
+                                            );
+                                          }
+                                        } else if (isVehicleStageCost) {
+                                          alert(
+                                            "To delete vehicle stage costs, please go to the vehicle page and delete them there.",
+                                          );
+                                        }
+                                        return;
+                                      }
+                                      if (!confirm("Delete this cost item?"))
                                         return;
                                       try {
-                                        if (isSharedInvoice) {
-                                          const sharedInvoiceId = (item as any)
-                                            .sharedInvoiceId;
-                                          const vehicleId = (item as any)
-                                            .vehicleId;
-                                          const response = await fetch(
-                                            `/api/shared-invoices/${sharedInvoiceId}/vehicles?vehicleId=${vehicleId}`,
-                                            { method: "DELETE" },
+                                        const response = await fetch(
+                                          `/api/invoices/${invoice.id}/cost/items/${item.id}`,
+                                          { method: "DELETE" },
+                                        );
+                                        if (response.ok) {
+                                          setCostItems(
+                                            costItems.filter(
+                                              (i) => i.id !== item.id,
+                                            ),
                                           );
-                                          if (response.ok) {
-                                            router.refresh();
-                                          } else {
-                                            const error = await response.json();
-                                            alert(
-                                              error.error ||
-                                                "Failed to remove vehicle from shared invoice",
-                                            );
-                                          }
+                                          router.refresh();
                                         } else {
-                                          const response = await fetch(
-                                            `/api/invoices/${invoice.id}/cost/items/${item.id}`,
-                                            { method: "DELETE" },
-                                          );
-                                          if (response.ok) {
-                                            setCostItems(
-                                              costItems.filter(
-                                                (i) => i.id !== item.id,
-                                              ),
-                                            );
-                                            router.refresh();
-                                          } else {
-                                            alert("Failed to delete cost item");
-                                          }
+                                          alert("Failed to delete cost item");
                                         }
                                       } catch (error) {
                                         alert(

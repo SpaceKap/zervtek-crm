@@ -9,19 +9,46 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 import { VendorForm } from "./VendorForm";
+
+import { VendorCategory } from "@prisma/client";
 
 interface Vendor {
   id: string;
   name: string;
+  email?: string | null;
+  category?: VendorCategory;
   createdAt: string;
 }
+
+const categoryLabels: Record<VendorCategory, string> = {
+  DEALERSHIP: "Dealership",
+  AUCTION_HOUSE: "Auction House",
+  TRANSPORT_VENDOR: "Transport Company",
+  GARAGE: "Garage",
+  FREIGHT_VENDOR: "Freight Company",
+  FORWARDING_VENDOR: "Forwarder", // Map to Forwarder for display
+  FORWARDER: "Forwarder",
+  SHIPPING_AGENT: "Shipping Agent",
+  YARD: "Yard",
+};
 
 export function VendorsList() {
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingVendor, setEditingVendor] = useState<Vendor | null>(null);
+  const [categoryFilter, setCategoryFilter] = useState<VendorCategory | "ALL">(
+    "ALL",
+  );
 
   useEffect(() => {
     fetchVendors();
@@ -29,7 +56,19 @@ export function VendorsList() {
 
   const fetchVendors = async () => {
     try {
-      const response = await fetch("/api/vendors");
+      const baseUrl =
+        categoryFilter !== "ALL"
+          ? `/api/vendors?category=${categoryFilter}`
+          : "/api/vendors";
+      // Add cache-busting parameter to ensure fresh data
+      const separator = baseUrl.includes("?") ? "&" : "?";
+      const url = `${baseUrl}${separator}_t=${Date.now()}`;
+      const response = await fetch(url, {
+        cache: "no-store",
+        headers: {
+          "Cache-Control": "no-cache",
+        },
+      });
       if (response.ok) {
         const data = await response.json();
         setVendors(data);
@@ -40,6 +79,11 @@ export function VendorsList() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchVendors();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [categoryFilter]);
 
   const handleCreate = () => {
     setEditingVendor(null);
@@ -91,7 +135,7 @@ export function VendorsList() {
             <div>
               <CardTitle>Vendors</CardTitle>
               <CardDescription>
-                Manage vendors for cost invoices
+                Manage vendors - anyone we pay for any reason.
               </CardDescription>
             </div>
             <Button onClick={handleCreate}>
@@ -103,6 +147,34 @@ export function VendorsList() {
           </div>
         </CardHeader>
         <CardContent>
+          {/* Category Filter */}
+          <div className="mb-6 flex items-center gap-4">
+            <Label>Filter by Category:</Label>
+            <Select
+              value={categoryFilter}
+              onValueChange={(value) =>
+                setCategoryFilter(value as VendorCategory | "ALL")
+              }
+            >
+              <SelectTrigger className="w-64">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">All Categories</SelectItem>
+                {Object.entries(categoryLabels)
+                  .filter(([value]) => value !== "FORWARDING_VENDOR") // Hide FORWARDING_VENDOR, use FORWARDER instead
+                  .map(([value, label]) => (
+                    <SelectItem key={value} value={value}>
+                      {label}
+                    </SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
+            <div className="text-sm text-muted-foreground">
+              {vendors.length} vendor{vendors.length !== 1 ? "s" : ""}
+            </div>
+          </div>
+
           {vendors.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               No vendors found. Click &quot;Add Vendor&quot; to create one.
@@ -124,6 +196,20 @@ export function VendorsList() {
                           {vendor.name}
                         </h3>
                       </div>
+                      {vendor.category && (
+                        <div className="mb-1">
+                          <span className="inline-block px-2 py-0.5 text-xs bg-primary/10 text-primary rounded">
+                            {vendor.category === "FORWARDING_VENDOR"
+                              ? "Forwarder"
+                              : categoryLabels[vendor.category]}
+                          </span>
+                        </div>
+                      )}
+                      {vendor.email && (
+                        <p className="text-xs text-muted-foreground mb-1">
+                          {vendor.email}
+                        </p>
+                      )}
                       <p className="text-xs text-muted-foreground">
                         Created{" "}
                         {new Date(vendor.createdAt).toLocaleDateString()}

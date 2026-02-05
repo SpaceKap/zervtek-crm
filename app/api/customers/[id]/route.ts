@@ -60,6 +60,7 @@ export async function PATCH(
       billingAddress,
       shippingAddress,
       portOfDestination,
+      assignedToId,
     } = body
 
     const customer = await prisma.customer.update({
@@ -72,6 +73,7 @@ export async function PATCH(
         ...(billingAddress !== undefined && { billingAddress }),
         ...(shippingAddress !== undefined && { shippingAddress }),
         ...(portOfDestination !== undefined && { portOfDestination }),
+        ...(assignedToId !== undefined && { assignedToId: assignedToId || null }),
       },
     })
 

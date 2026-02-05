@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { requireAuth, canEditInvoice, canViewAllInquiries } from "@/lib/permissions"
+import { convertDecimalsToNumbers } from "@/lib/decimal"
 
 export async function GET(
   request: NextRequest,
@@ -54,7 +55,7 @@ export async function GET(
       }
     }
 
-    return NextResponse.json(containerInvoice)
+    return NextResponse.json(convertDecimalsToNumbers(containerInvoice))
   } catch (error) {
     console.error("Error fetching container invoice:", error)
     return NextResponse.json(
@@ -140,7 +141,7 @@ export async function PATCH(
         },
       })
 
-      return NextResponse.json(updated)
+      return NextResponse.json(convertDecimalsToNumbers(updated))
     } else {
       // Update without changing vehicles
       const updated = await prisma.containerInvoice.update({
@@ -163,7 +164,7 @@ export async function PATCH(
         },
       })
 
-      return NextResponse.json(updated)
+      return NextResponse.json(convertDecimalsToNumbers(updated))
     }
   } catch (error) {
     console.error("Error updating container invoice:", error)

@@ -154,7 +154,13 @@ export function InvoicesList() {
                         <div>{invoice.customer.name}</div>
                         <div>{vehicleDisplay}</div>
                         <div className="mt-1">
-                          {format(new Date(invoice.createdAt), "MMM dd, yyyy")}
+                          {invoice.createdAt &&
+                          !isNaN(new Date(invoice.createdAt).getTime())
+                            ? format(
+                                new Date(invoice.createdAt),
+                                "MMM dd, yyyy",
+                              )
+                            : "N/A"}
                         </div>
                       </div>
                     </div>

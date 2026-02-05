@@ -47,7 +47,7 @@ export default async function CostInvoicePage({
   // Check permissions
   const canViewAll = canViewAllInquiries(user.role);
   if (!canViewAll && invoice.createdById !== user.id) {
-    redirect("/dashboard/invoices");
+    redirect("/dashboard/financial-operations");
   }
 
   return <CostInvoiceEditor invoice={invoice} currentUser={user} />;

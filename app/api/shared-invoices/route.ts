@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { requireAuth, canViewAllInquiries } from "@/lib/permissions"
 import { Prisma } from "@prisma/client"
+import { convertDecimalsToNumbers } from "@/lib/decimal"
 
 // Generate shared invoice number: TYPE-YYYY-XXX
 async function generateSharedInvoiceNumber(
@@ -90,7 +91,7 @@ export async function GET(request: NextRequest) {
     const total = await prisma.sharedInvoice.count({ where })
 
     return NextResponse.json({
-      sharedInvoices,
+      sharedInvoices: convertDecimalsToNumbers(sharedInvoices),
       pagination: {
         page,
         limit,
@@ -217,7 +218,7 @@ export async function POST(request: NextRequest) {
     // This ensures costs are divided and available in each vehicle's cost invoice
     await applySharedInvoiceToCostInvoices(sharedInvoice.id)
 
-    return NextResponse.json(sharedInvoice, { status: 201 })
+    return NextResponse.json(convertDecimalsToNumbers(sharedInvoice), { status: 201 })
   } catch (error: any) {
     console.error("Error creating shared invoice:", error)
     
@@ -355,7 +356,7 @@ export async function PATCH(request: NextRequest) {
       await applySharedInvoiceToCostInvoices(id)
     }
 
-    return NextResponse.json(updated)
+    return NextResponse.json(convertDecimalsToNumbers(updated))
   } catch (error: any) {
     console.error("Error updating shared invoice:", error)
     return NextResponse.json(

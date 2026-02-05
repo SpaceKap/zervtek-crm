@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { requireAuth, canViewAllInquiries, canDeleteSharedInvoice } from "@/lib/permissions"
+import { convertDecimalsToNumbers } from "@/lib/decimal"
 
 export async function GET(
   request: NextRequest,
@@ -37,7 +38,7 @@ export async function GET(
       )
     }
 
-    return NextResponse.json(sharedInvoice)
+    return NextResponse.json(convertDecimalsToNumbers(sharedInvoice))
   } catch (error) {
     console.error("Error fetching shared invoice:", error)
     return NextResponse.json(

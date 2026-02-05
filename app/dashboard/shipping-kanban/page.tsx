@@ -1,0 +1,73 @@
+import { ShippingKanbanBoard } from "@/components/ShippingKanbanBoard";
+import { ShippingKanbanFilter } from "@/components/ShippingKanbanFilter";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import { redirect } from "next/navigation";
+import { canViewVehicles } from "@/lib/permissions";
+import { prisma } from "@/lib/prisma";
+import { UserRole } from "@prisma/client";
+
+export default async function ShippingKanbanPage() {
+  const session = await getServerSession(authOptions);
+  if (!session) {
+    redirect("/login");
+  }
+
+  if (!canViewVehicles(session.user.role)) {
+    redirect("/dashboard");
+  }
+
+  const isAdmin = session.user.role === UserRole.ADMIN;
+  const isManager = session.user.role === UserRole.MANAGER;
+  const isBackOffice = session.user.role === UserRole.BACK_OFFICE_STAFF;
+  const canFilter = isAdmin || isManager || isBackOffice;
+
+  // Get users for filter (excluding ACCOUNTANT role)
+  let users: Array<{ id: string; name: string | null; email: string }> = [];
+  if (canFilter) {
+    users = await prisma.user.findMany({
+      where: {
+        role: {
+          not: UserRole.ACCOUNTANT,
+        },
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+      },
+      orderBy: {
+        name: "asc",
+      },
+    });
+  }
+
+  return (
+    <div className="h-[calc(100vh-8rem)] flex flex-col">
+      {/* Header */}
+      <div className="mb-4">
+        <div className="flex items-center justify-between gap-4 flex-wrap">
+          <div className="flex items-center gap-3">
+            <span className="material-symbols-outlined text-4xl text-primary dark:text-[#D4AF37]">
+              local_shipping
+            </span>
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+                Shipping Pipeline
+              </h1>
+              <p className="text-muted-foreground mt-1">
+                Drag and drop vehicles between stages to update their status
+              </p>
+            </div>
+          </div>
+          {canFilter && <ShippingKanbanFilter users={users} />}
+        </div>
+      </div>
+
+      {/* Kanban Board */}
+      <div className="flex-1 min-h-0">
+        <ShippingKanbanBoard />
+      </div>
+    </div>
+  );
+}

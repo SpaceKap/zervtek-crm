@@ -52,7 +52,7 @@ export default async function ContainerInvoiceDetailPage({
       },
     });
     if (!hasAccess) {
-      redirect("/dashboard/invoices");
+      redirect("/dashboard/financial-operations");
     }
   }
 

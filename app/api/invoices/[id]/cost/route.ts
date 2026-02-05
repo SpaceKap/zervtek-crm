@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { requireAuth, canEditInvoice } from "@/lib/permissions"
+import { convertDecimalsToNumbers } from "@/lib/decimal"
 
 function calculateProfitMetrics(
   totalRevenue: number,
@@ -135,14 +136,16 @@ export async function GET(
       totalCost
     )
 
-    return NextResponse.json({
+    const response = {
       ...costInvoice,
       costItems: allCostItems,
       totalCost,
       profit: metrics.profit,
       margin: metrics.margin,
       roi: metrics.roi,
-    })
+    }
+    
+    return NextResponse.json(convertDecimalsToNumbers(response))
   } catch (error) {
     console.error("Error fetching cost invoice:", error)
     return NextResponse.json(
@@ -230,7 +233,7 @@ export async function POST(
           },
         })
 
-    return NextResponse.json(costInvoice)
+    return NextResponse.json(convertDecimalsToNumbers(costInvoice))
   } catch (error) {
     console.error("Error creating/updating cost invoice:", error)
     return NextResponse.json(

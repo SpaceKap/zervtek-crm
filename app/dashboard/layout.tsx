@@ -47,16 +47,30 @@ export default async function DashboardLayout({
                   <span className="material-symbols-outlined text-lg">
                     view_kanban
                   </span>
-                  Pipeline
+                  Sales Pipeline
                 </Link>
+                {(session.user.role === "MANAGER" ||
+                  session.user.role === "ADMIN" ||
+                  session.user.role === "BACK_OFFICE_STAFF" ||
+                  session.user.role === "ACCOUNTANT") && (
+                  <Link
+                    href="/dashboard/shipping-kanban"
+                    className="border-transparent text-gray-500 dark:text-[#A1A1A1] hover:border-gray-300 dark:hover:border-[#49454F] hover:text-gray-700 dark:hover:text-white inline-flex items-center gap-2 px-1 pt-1 border-b-2 text-sm font-medium transition-colors"
+                  >
+                    <span className="material-symbols-outlined text-lg">
+                      local_shipping
+                    </span>
+                    Shipping Pipeline
+                  </Link>
+                )}
                 <Link
-                  href="/dashboard/invoices"
+                  href="/dashboard/financial-operations"
                   className="border-transparent text-gray-500 dark:text-[#A1A1A1] hover:border-gray-300 dark:hover:border-[#49454F] hover:text-gray-700 dark:hover:text-white inline-flex items-center gap-2 px-1 pt-1 border-b-2 text-sm font-medium transition-colors"
                 >
                   <span className="material-symbols-outlined text-lg">
-                    receipt
+                    account_balance_wallet
                   </span>
-                  Invoices
+                  Financial Operations
                 </Link>
                 {(session.user.role === "MANAGER" ||
                   session.user.role === "ADMIN") && (
@@ -79,6 +93,17 @@ export default async function DashboardLayout({
                       settings
                     </span>
                     Admin
+                  </Link>
+                )}
+                {session.user.role === "ACCOUNTANT" && (
+                  <Link
+                    href="/dashboard/accountant"
+                    className="border-transparent text-gray-500 dark:text-[#A1A1A1] hover:border-gray-300 dark:hover:border-[#49454F] hover:text-gray-700 dark:hover:text-white inline-flex items-center gap-2 px-1 pt-1 border-b-2 text-sm font-medium transition-colors"
+                  >
+                    <span className="material-symbols-outlined text-lg">
+                      calculate
+                    </span>
+                    Accountant
                   </Link>
                 )}
               </div>

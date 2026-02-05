@@ -107,6 +107,12 @@ const COUNTRY_CODES = getUniquePhoneCodes();
 // Get all countries sorted alphabetically
 const COUNTRIES = getCountriesSorted();
 
+interface User {
+  id: string;
+  name: string | null;
+  email: string;
+}
+
 export function CustomerForm({
   customer,
   onClose,
@@ -120,6 +126,8 @@ export function CustomerForm({
   const [availableShippingRegions, setAvailableShippingRegions] = useState<
     string[]
   >([]);
+  const [users, setUsers] = useState<User[]>([]);
+  const [assignedToId, setAssignedToId] = useState<string>("");
 
   const {
     register,
@@ -150,9 +158,26 @@ export function CustomerForm({
     },
   });
 
+  // Fetch users (excluding ACCOUNTANT role)
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const response = await fetch("/api/users?excludeRole=ACCOUNTANT");
+        if (response.ok) {
+          const data = await response.json();
+          setUsers(data);
+        }
+      } catch (error) {
+        console.error("Error fetching users:", error);
+      }
+    };
+    fetchUsers();
+  }, []);
+
   // Parse existing customer data
   useEffect(() => {
     if (customer) {
+      setAssignedToId((customer as any).assignedToId || "");
       // Parse name into first and last
       const nameParts = (customer.name || "").split(" ");
       const firstName = nameParts[0] || "";
@@ -308,6 +333,7 @@ export function CustomerForm({
           ? data.address
           : data.shippingAddress || data.address,
         portOfDestination: data.portOfDestination || null,
+        assignedToId: assignedToId || null,
       };
 
       const response = await fetch(url, {
@@ -545,6 +571,34 @@ export function CustomerForm({
                           {errors.portOfDestination.message}
                         </p>
                       )}
+                    </div>
+
+                    {/* Person In Charge (PIC) */}
+                    <div className="space-y-1.5">
+                      <Label
+                        htmlFor="assignedToId"
+                        className="text-sm font-medium text-gray-700 dark:text-gray-300"
+                      >
+                        Person In Charge (PIC)
+                      </Label>
+                      <Select
+                        value={assignedToId || "none"}
+                        onValueChange={(value) =>
+                          setAssignedToId(value === "none" ? "" : value)
+                        }
+                      >
+                        <SelectTrigger className="h-10">
+                          <SelectValue placeholder="Select staff member" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">Not Assigned</SelectItem>
+                          {users.map((user) => (
+                            <SelectItem key={user.id} value={user.id}>
+                              {user.name || user.email}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                   </div>
                 </div>

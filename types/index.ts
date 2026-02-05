@@ -1,6 +1,6 @@
-import { UserRole, InquirySource, InquiryStatus } from '@prisma/client'
+import { UserRole, InquirySource, InquiryStatus, ShippingStage, BookingType, BookingStatus, TransactionType, TransactionDirection, DocumentCategory } from '@prisma/client'
 
-export type { UserRole, InquirySource, InquiryStatus }
+export type { UserRole, InquirySource, InquiryStatus, ShippingStage, BookingType, BookingStatus, TransactionType, TransactionDirection, DocumentCategory }
 
 export interface InquiryWithRelations {
   id: string

@@ -115,6 +115,8 @@ export function InvoiceForm({ invoice }: InvoiceFormProps = {}) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const inquiryId = searchParams.get("inquiryId");
+  const vehicleIdParam = searchParams.get("vehicleId");
+  const customerIdParam = searchParams.get("customerId");
   const [saving, setSaving] = useState(false);
   const [loadingInquiry, setLoadingInquiry] = useState(!!inquiryId);
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -208,6 +210,45 @@ export function InvoiceForm({ invoice }: InvoiceFormProps = {}) {
   useEffect(() => {
     fetchCustomers();
   }, []);
+
+  useEffect(() => {
+    if (inquiryId && customers.length > 0) {
+      fetchInquiryData(inquiryId);
+    }
+  }, [inquiryId, customers.length]);
+
+  // Handle vehicleId and customerId from URL params
+  useEffect(() => {
+    if (vehicleIdParam && vehicles.length > 0) {
+      const vehicle = vehicles.find((v) => v.id === vehicleIdParam);
+      if (vehicle) {
+        setValue("vehicleId", vehicleIdParam, { shouldValidate: true });
+        // Auto-add vehicle charge if vehicle is selected
+        const currentCharges = watch("charges");
+        const hasVehicleCharge = currentCharges.some(
+          (c: any) => c.chargeType === "VEHICLE"
+        );
+        if (!hasVehicleCharge) {
+          append({
+            chargeType: "VEHICLE",
+            description: "",
+            amount: vehicle.price
+              ? vehicle.price.toLocaleString("en-US")
+              : "",
+          });
+        }
+      }
+    }
+  }, [vehicleIdParam, vehicles.length, setValue, watch, append]);
+
+  useEffect(() => {
+    if (customerIdParam && customers.length > 0) {
+      const customer = customers.find((c) => c.id === customerIdParam);
+      if (customer) {
+        setValue("customerId", customerIdParam, { shouldValidate: true });
+      }
+    }
+  }, [customerIdParam, customers.length, setValue]);
 
   // Load invoice data for editing - ensure customers are loaded first
   useEffect(() => {

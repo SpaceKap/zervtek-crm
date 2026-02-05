@@ -3,24 +3,38 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { requireAuth } from "@/lib/permissions"
+import { VendorCategory } from "@prisma/client"
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     await requireAuth()
 
+    const searchParams = request.nextUrl.searchParams
+    const category = searchParams.get("category") as VendorCategory | null
+
+    const where: any = {}
+    
+    // If specific category is provided, use it
+    if (category) {
+      where.category = category
+    }
+
     // Optimize: Only fetch necessary fields
     const vendors = await prisma.vendor.findMany({
+      where,
       select: {
         id: true,
         name: true,
+        email: true,
+        category: true,
         createdAt: true,
       },
       orderBy: { name: "asc" },
     })
 
-    // Add cache headers for better performance (vendors don't change frequently)
+    // Return vendors without aggressive caching to ensure updates are visible immediately
     const response = NextResponse.json(vendors)
-    response.headers.set('Cache-Control', 'private, max-age=60, stale-while-revalidate=300')
+    response.headers.set('Cache-Control', 'no-cache, no-store, must-revalidate')
     return response
   } catch (error) {
     console.error("Error fetching vendors:", error)
@@ -36,7 +50,7 @@ export async function POST(request: NextRequest) {
     await requireAuth()
 
     const body = await request.json()
-    const { name } = body
+    const { name, email, category } = body
 
     if (!name) {
       return NextResponse.json(
@@ -45,8 +59,14 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Use provided category or default to DEALERSHIP
+    // Prisma will validate the enum value
     const vendor = await prisma.vendor.create({
-      data: { name },
+      data: { 
+        name,
+        email: email || null,
+        category: (category as VendorCategory) || VendorCategory.DEALERSHIP,
+      },
     })
 
     return NextResponse.json(vendor, { status: 201 })
@@ -58,8 +78,10 @@ export async function POST(request: NextRequest) {
       )
     }
     console.error("Error creating vendor:", error)
+    // Return more detailed error message
+    const errorMessage = error.message || "Failed to create vendor"
     return NextResponse.json(
-      { error: "Failed to create vendor" },
+      { error: errorMessage, details: error.code || "Unknown error" },
       { status: 500 }
     )
   }

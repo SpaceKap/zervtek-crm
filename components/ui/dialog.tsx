@@ -17,13 +17,24 @@ const Dialog = ({ open, onOpenChange, children }: DialogProps) => {
   React.useEffect(() => {
     if (open) {
       document.body.style.overflow = "hidden";
+      // Handle ESC key press
+      const handleEscape = (e: KeyboardEvent) => {
+        if (e.key === "Escape") {
+          onOpenChange(false);
+        }
+      };
+      document.addEventListener("keydown", handleEscape);
+      return () => {
+        document.removeEventListener("keydown", handleEscape);
+        document.body.style.overflow = "";
+      };
     } else {
       document.body.style.overflow = "";
     }
     return () => {
       document.body.style.overflow = "";
     };
-  }, [open]);
+  }, [open, onOpenChange]);
 
   if (!open) return null;
 
@@ -46,7 +57,7 @@ const DialogContent = React.forwardRef<HTMLDivElement, DialogContentProps>(
       <div
         ref={ref}
         className={cn(
-          "relative bg-white dark:bg-gray-800 rounded-lg shadow-lg max-w-lg w-full mx-4 max-h-[90vh] overflow-y-auto",
+          "relative bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-lg w-full mx-4 max-h-[90vh] overflow-y-auto",
           className,
         )}
         {...props}
@@ -63,7 +74,7 @@ const DialogHeader = ({
   ...props
 }: React.HTMLAttributes<HTMLDivElement>) => (
   <div
-    className={cn("flex flex-col space-y-1.5 p-6 pb-4", className)}
+    className={cn("flex flex-col p-6 pb-4 border-b border-border", className)}
     {...props}
   />
 );
@@ -117,7 +128,7 @@ const DialogFooter = ({
 }: React.HTMLAttributes<HTMLDivElement>) => (
   <div
     className={cn(
-      "flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 p-6 pt-4",
+      "flex flex-col-reverse sm:flex-row sm:justify-end gap-2 p-6 pt-4 border-t border-border bg-muted/30",
       className,
     )}
     {...props}
