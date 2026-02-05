@@ -103,7 +103,7 @@ export function VehicleCostsManager({
     return value.replace(/,/g, "");
   };
 
-  const fetchCosts = useCallback(async () => {
+  const fetchStageData = useCallback(async () => {
     try {
       const response = await fetch(`/api/vehicles/${vehicleId}/stages`);
       if (response.ok) {
@@ -129,9 +129,9 @@ export function VehicleCostsManager({
     } catch (error) {
       console.error("Error fetching stage data:", error);
     }
-  };
+  }, [vehicleId]);
 
-  const fetchCosts = async () => {
+  const fetchCosts = useCallback(async () => {
     try {
       const response = await fetch(
         `/api/vehicles/${vehicleId}/costs?stage=${currentStage}`,
@@ -145,7 +145,7 @@ export function VehicleCostsManager({
     } finally {
       setLoading(false);
     }
-  };
+  }, [vehicleId, currentStage]);
 
   const fetchVendors = async () => {
     try {
