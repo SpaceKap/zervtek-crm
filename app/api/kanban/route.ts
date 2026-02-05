@@ -47,20 +47,36 @@ export async function GET(request: NextRequest) {
     }> = [];
     
     try {
+      // Use raw query to bypass Prisma enum validation
       stages = await prisma.$queryRaw`
         SELECT id, name, "order", color, status, "createdAt", "updatedAt"
         FROM inquiry_pooler."KanbanStage"
         ORDER BY "order" ASC
       ` as any;
+      console.log(`[Kanban API] Raw query succeeded, found ${stages.length} stages`);
     } catch (error) {
-      // Fallback to regular query if raw query fails
-      console.error("[Kanban API] Raw query failed, trying regular query:", error);
-      const allStages = await prisma.kanbanStage.findMany({
-        orderBy: { order: "asc" },
-      });
-      // Filter out any stages with invalid statuses
-      const validStatuses = Object.values(InquiryStatus);
-      stages = allStages.filter(s => validStatuses.includes(s.status as InquiryStatus)) as any;
+      // If raw query fails, try to delete invalid stages first, then retry
+      console.error("[Kanban API] Raw query failed:", error);
+      try {
+        // Delete any stages with invalid statuses using raw SQL
+        const validStatuses = Object.values(InquiryStatus);
+        const statusList = validStatuses.map(s => `'${s}'`).join(',');
+        await prisma.$executeRawUnsafe(`
+          DELETE FROM inquiry_pooler."KanbanStage"
+          WHERE status NOT IN (${statusList})
+        `);
+        console.log("[Kanban API] Deleted invalid stages, retrying query");
+        // Retry raw query
+        stages = await prisma.$queryRaw`
+          SELECT id, name, "order", color, status, "createdAt", "updatedAt"
+          FROM inquiry_pooler."KanbanStage"
+          ORDER BY "order" ASC
+        ` as any;
+      } catch (retryError) {
+        console.error("[Kanban API] Retry also failed:", retryError);
+        // Last resort: return empty array and let the sync logic create stages
+        stages = [];
+      }
     }
 
     console.log(`[Kanban API] Found ${stages.length} existing stages`)
