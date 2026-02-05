@@ -82,9 +82,12 @@ export async function GET(request: NextRequest) {
       await prisma.kanbanStage.createMany({
         data: defaultStages,
       })
-      stages = await prisma.kanbanStage.findMany({
-        orderBy: { order: "asc" },
-      })
+      // Re-fetch using raw query to avoid enum validation issues
+      stages = await prisma.$queryRaw`
+        SELECT id, name, "order", color, status, "createdAt", "updatedAt"
+        FROM inquiry_pooler."KanbanStage"
+        ORDER BY "order" ASC
+      ` as any;
       console.log(`[Kanban API] Created ${stages.length} stages`)
     } else {
       // Sync existing stages with default values (upsert)
@@ -104,10 +107,12 @@ export async function GET(request: NextRequest) {
           console.error(`[Kanban API] Error upserting stage ${defaultStage.status}:`, error)
         }
       }
-      // Re-fetch stages after sync
-      stages = await prisma.kanbanStage.findMany({
-        orderBy: { order: "asc" },
-      })
+      // Re-fetch stages after sync using raw query
+      stages = await prisma.$queryRaw`
+        SELECT id, name, "order", color, status, "createdAt", "updatedAt"
+        FROM inquiry_pooler."KanbanStage"
+        ORDER BY "order" ASC
+      ` as any;
       console.log(`[Kanban API] After sync, found ${stages.length} stages`)
     }
 
