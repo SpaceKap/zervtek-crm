@@ -88,13 +88,77 @@ export function VehicleCostsManager({
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
+  // Helper function to safely parse dates
+  const safeDateToString = (date: Date | string | null | undefined): string => {
+    if (!date) return "";
+    try {
+      let dateObj: Date;
+      if (typeof date === "string") {
+        dateObj = new Date(date);
+      } else if (date instanceof Date) {
+        dateObj = date;
+      } else {
+        // Handle case where date might be an object - try to convert to string first
+        dateObj = new Date(String(date));
+      }
+      // Check if dateObj is valid and has getTime method
+      if (
+        !dateObj ||
+        typeof dateObj.getTime !== "function" ||
+        isNaN(dateObj.getTime())
+      ) {
+        return "";
+      }
+      return dateObj.toISOString().split("T")[0];
+    } catch (error) {
+      // Silently return empty string - don't log errors for invalid dates
+      return "";
+    }
+  };
+
   // Format number with commas
-  const formatAmount = (value: string) => {
+  const formatAmount = (value: string | number) => {
+    // Convert to string if it's a number
+    let stringValue =
+      typeof value === "number" ? value.toString() : String(value || "");
+
+    // Remove all commas first (in case they're already there)
+    stringValue = stringValue.replace(/,/g, "");
+
     // Remove all non-digit characters except decimal point
-    const numericValue = value.replace(/[^\d.]/g, "");
-    // Add commas for thousands
+    let numericValue = stringValue.replace(/[^\d.]/g, "");
+
+    // Handle empty string
+    if (!numericValue) return "";
+
+    // Ensure only one decimal point
+    const decimalIndex = numericValue.indexOf(".");
+    if (decimalIndex !== -1) {
+      numericValue =
+        numericValue.substring(0, decimalIndex + 1) +
+        numericValue.substring(decimalIndex + 1).replace(/\./g, "");
+    }
+
+    // Split by decimal point
     const parts = numericValue.split(".");
-    parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+
+    // Format the integer part with commas
+    if (parts[0]) {
+      // Use a simple approach: add commas from right to left every 3 digits
+      const integerPart = parts[0];
+      let formatted = "";
+      let count = 0;
+      for (let i = integerPart.length - 1; i >= 0; i--) {
+        formatted = integerPart[i] + formatted;
+        count++;
+        if (count % 3 === 0 && i > 0) {
+          formatted = "," + formatted;
+        }
+      }
+      parts[0] = formatted;
+    }
+
+    // Join parts back together
     return parts.join(".");
   };
 
@@ -121,16 +185,12 @@ export function VehicleCostsManager({
           setFormData((prev) => ({
             ...prev,
             purchasePaid: data.shippingStage.purchasePaid || false,
-            purchasePaymentDeadline: data.shippingStage.purchasePaymentDeadline
-              ? new Date(data.shippingStage.purchasePaymentDeadline)
-                  .toISOString()
-                  .split("T")[0]
-              : "",
-            purchasePaymentDate: data.shippingStage.purchasePaymentDate
-              ? new Date(data.shippingStage.purchasePaymentDate)
-                  .toISOString()
-                  .split("T")[0]
-              : "",
+            purchasePaymentDeadline: safeDateToString(
+              data.shippingStage.purchasePaymentDeadline,
+            ),
+            purchasePaymentDate: safeDateToString(
+              data.shippingStage.purchasePaymentDate,
+            ),
           }));
         }
       }
@@ -157,7 +217,9 @@ export function VehicleCostsManager({
 
   const fetchVendors = async () => {
     try {
-      const response = await fetch("/api/vendors");
+      // Filter vendors by current shipping stage
+      const url = `/api/vendors?stage=${currentStage}`;
+      const response = await fetch(url);
       if (response.ok) {
         const data = await response.json();
         setVendors(data);
@@ -166,7 +228,6 @@ export function VehicleCostsManager({
       console.error("Error fetching vendors:", error);
     }
   };
-
 
   const handleOpenDialog = (cost?: Cost) => {
     setError(null);
@@ -178,21 +239,13 @@ export function VehicleCostsManager({
         amount: formatAmount(cost.amount),
         currency: cost.currency,
         vendorId: cost.vendor.id,
-        paymentDeadline: cost.paymentDeadline
-          ? new Date(cost.paymentDeadline).toISOString().split("T")[0]
-          : "",
-        paymentDate: cost.paymentDate
-          ? new Date(cost.paymentDate).toISOString().split("T")[0]
-          : "",
+        paymentDeadline: safeDateToString(cost.paymentDeadline),
+        paymentDate: safeDateToString(cost.paymentDate),
         purchasePaid: stageData?.purchasePaid || false,
-        purchasePaymentDeadline: stageData?.purchasePaymentDeadline
-          ? new Date(stageData.purchasePaymentDeadline)
-              .toISOString()
-              .split("T")[0]
-          : "",
-        purchasePaymentDate: stageData?.purchasePaymentDate
-          ? new Date(stageData.purchasePaymentDate).toISOString().split("T")[0]
-          : "",
+        purchasePaymentDeadline: safeDateToString(
+          stageData?.purchasePaymentDeadline,
+        ),
+        purchasePaymentDate: safeDateToString(stageData?.purchasePaymentDate),
       });
     } else {
       setEditingCost(null);
@@ -205,14 +258,10 @@ export function VehicleCostsManager({
         paymentDeadline: "",
         paymentDate: "",
         purchasePaid: stageData?.purchasePaid || false,
-        purchasePaymentDeadline: stageData?.purchasePaymentDeadline
-          ? new Date(stageData.purchasePaymentDeadline)
-              .toISOString()
-              .split("T")[0]
-          : "",
-        purchasePaymentDate: stageData?.purchasePaymentDate
-          ? new Date(stageData.purchasePaymentDate).toISOString().split("T")[0]
-          : "",
+        purchasePaymentDeadline: safeDateToString(
+          stageData?.purchasePaymentDeadline,
+        ),
+        purchasePaymentDate: safeDateToString(stageData?.purchasePaymentDate),
       });
     }
     setDialogOpen(true);
@@ -220,7 +269,7 @@ export function VehicleCostsManager({
 
   const handleSaveCost = async () => {
     setError(null);
-    
+
     // Validation
     if (!formData.costType || !formData.vendorId || !formData.amount) {
       setError("Please fill in all required fields");
@@ -267,15 +316,12 @@ export function VehicleCostsManager({
       }
 
       if (costResponse?.ok && isPurchaseStage) {
-        // Update stage payment tracking
+        // Update stage vendor only (payment status removed from UI)
         const stageResponse = await fetch(`/api/vehicles/${vehicleId}/stages`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             purchaseVendorId: formData.vendorId,
-            purchasePaid: formData.purchasePaid,
-            purchasePaymentDeadline: formData.purchasePaymentDeadline || null,
-            purchasePaymentDate: formData.purchasePaymentDate || null,
           }),
         });
 
@@ -328,8 +374,13 @@ export function VehicleCostsManager({
   );
 
   const formatCurrency = (amount: string | number, currency: string) => {
-    const num = typeof amount === "string" ? parseFloat(amount) : amount;
-    return `${num.toLocaleString("en-US")} ${currency}`;
+    // Remove commas if present, then parse to number
+    const cleanAmount =
+      typeof amount === "string"
+        ? parseFloat(amount.replace(/,/g, ""))
+        : amount;
+    // Format with commas
+    return `${cleanAmount.toLocaleString("en-US")} ${currency}`;
   };
 
   if (loading) {
@@ -362,15 +413,21 @@ export function VehicleCostsManager({
               <div className="flex-1">
                 <div className="font-medium">{cost.costType}</div>
                 <div className="text-sm text-gray-600 dark:text-[#A1A1A1]">
-                  {cost.vendor.name} • {formatCurrency(cost.amount, cost.currency)}
+                  {cost.vendor.name} •{" "}
+                  {formatCurrency(cost.amount, cost.currency)}
                 </div>
                 {(cost.paymentDeadline || cost.paymentDate) && (
                   <div className="text-xs text-gray-500 dark:text-[#A1A1A1] mt-1 space-y-0.5">
                     {cost.paymentDeadline && (
-                      <div>Deadline: {new Date(cost.paymentDeadline).toLocaleDateString()}</div>
+                      <div>
+                        Deadline:{" "}
+                        {new Date(cost.paymentDeadline).toLocaleDateString()}
+                      </div>
                     )}
                     {cost.paymentDate && (
-                      <div>Paid: {new Date(cost.paymentDate).toLocaleDateString()}</div>
+                      <div>
+                        Paid: {new Date(cost.paymentDate).toLocaleDateString()}
+                      </div>
                     )}
                   </div>
                 )}
@@ -397,8 +454,8 @@ export function VehicleCostsManager({
       </div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader className="space-y-3">
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto p-0">
+          <DialogHeader className="space-y-3 px-6 pt-6 pb-4">
             <DialogTitle className="text-xl font-semibold">
               {editingCost ? "Edit" : "Add"}{" "}
               {isPurchaseStage ? "Purchase/Auction Fee" : "Cost"}
@@ -409,14 +466,14 @@ export function VehicleCostsManager({
                 : "Enter cost details for this stage. All fields marked with * are required."}
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-5 py-2">
+          <div className="space-y-5 px-6 py-2">
             {/* Cost Type - Only Auction/Purchase for purchase stage */}
             <div className="space-y-2">
               <Label htmlFor="costType" className="text-sm font-medium">
                 Fee Type <span className="text-destructive">*</span>
               </Label>
               <Select
-                value={formData.costType}
+                value={formData.costType || undefined}
                 onValueChange={(value) =>
                   setFormData((prev) => ({ ...prev, costType: value }))
                 }
@@ -442,7 +499,7 @@ export function VehicleCostsManager({
                 Vendor <span className="text-destructive">*</span>
               </Label>
               <Select
-                value={formData.vendorId}
+                value={formData.vendorId || undefined}
                 onValueChange={(value) =>
                   setFormData((prev) => ({ ...prev, vendorId: value }))
                 }
@@ -500,107 +557,54 @@ export function VehicleCostsManager({
               </div>
             </div>
 
-            {/* Payment tracking for all costs */}
-            <div className="space-y-4 pt-4 border-t border-border">
-              <h4 className="text-sm font-semibold text-foreground mb-3">
-                Payment Tracking
-              </h4>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="paymentDeadline" className="text-sm font-medium">
-                    Payment Deadline <span className="text-muted-foreground text-xs">(Optional)</span>
-                  </Label>
-                  <Input
-                    id="paymentDeadline"
-                    type="date"
-                    value={formData.paymentDeadline}
-                    onChange={(e) =>
-                      setFormData((prev) => ({
-                        ...prev,
-                        paymentDeadline: e.target.value,
-                      }))
-                    }
-                    className="h-11"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="paymentDate" className="text-sm font-medium">
-                    Payment Date <span className="text-muted-foreground text-xs">(Optional)</span>
-                  </Label>
-                  <Input
-                    id="paymentDate"
-                    type="date"
-                    value={formData.paymentDate}
-                    onChange={(e) =>
-                      setFormData((prev) => ({
-                        ...prev,
-                        paymentDate: e.target.value,
-                      }))
-                    }
-                    className="h-11"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Payment tracking for Purchase stage */}
-            {isPurchaseStage && (
+            {/* Payment tracking for all costs (hidden for purchase stage) */}
+            {!isPurchaseStage && (
               <div className="space-y-4 pt-4 border-t border-border">
                 <h4 className="text-sm font-semibold text-foreground mb-3">
-                  Purchase Payment Status
+                  Payment Tracking
                 </h4>
-                <div className="flex items-start space-x-3 p-3 rounded-md bg-muted/30 border border-border">
-                  <Checkbox
-                    id="purchasePaid"
-                    checked={formData.purchasePaid}
-                    onCheckedChange={(checked) =>
-                      setFormData((prev) => ({ ...prev, purchasePaid: !!checked }))
-                    }
-                    className="mt-0.5"
-                  />
-                  <div className="flex-1 space-y-1">
-                    <Label
-                      htmlFor="purchasePaid"
-                      className="text-sm font-medium cursor-pointer"
-                    >
-                      Payment Received
-                    </Label>
-                    <p className="text-xs text-muted-foreground">
-                      Mark when the purchase payment has been received
-                    </p>
-                  </div>
-                </div>
-
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="purchasePaymentDeadline" className="text-sm font-medium">
-                      Payment Deadline <span className="text-muted-foreground text-xs">(Optional)</span>
+                    <Label
+                      htmlFor="paymentDeadline"
+                      className="text-sm font-medium"
+                    >
+                      Payment Deadline{" "}
+                      <span className="text-muted-foreground text-xs">
+                        (Optional)
+                      </span>
                     </Label>
                     <Input
-                      id="purchasePaymentDeadline"
+                      id="paymentDeadline"
                       type="date"
-                      value={formData.purchasePaymentDeadline}
+                      value={formData.paymentDeadline}
                       onChange={(e) =>
                         setFormData((prev) => ({
                           ...prev,
-                          purchasePaymentDeadline: e.target.value,
+                          paymentDeadline: e.target.value,
                         }))
                       }
                       className="h-11"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="purchasePaymentDate" className="text-sm font-medium">
-                      Payment Date <span className="text-muted-foreground text-xs">(Optional)</span>
+                    <Label
+                      htmlFor="paymentDate"
+                      className="text-sm font-medium"
+                    >
+                      Payment Date{" "}
+                      <span className="text-muted-foreground text-xs">
+                        (Optional)
+                      </span>
                     </Label>
                     <Input
-                      id="purchasePaymentDate"
+                      id="paymentDate"
                       type="date"
-                      value={formData.purchasePaymentDate}
+                      value={formData.paymentDate}
                       onChange={(e) =>
                         setFormData((prev) => ({
                           ...prev,
-                          purchasePaymentDate: e.target.value,
+                          paymentDate: e.target.value,
                         }))
                       }
                       className="h-11"
@@ -620,7 +624,7 @@ export function VehicleCostsManager({
               </div>
             )}
           </div>
-          <DialogFooter className="gap-2 sm:gap-0">
+          <DialogFooter className="gap-2 sm:gap-0 px-6 pb-6 pt-4">
             <Button
               variant="outline"
               onClick={() => {
@@ -635,7 +639,10 @@ export function VehicleCostsManager({
             <Button
               onClick={handleSaveCost}
               disabled={
-                saving || !formData.costType || !formData.vendorId || !formData.amount
+                saving ||
+                !formData.costType ||
+                !formData.vendorId ||
+                !formData.amount
               }
               className="h-10 min-w-[120px]"
             >

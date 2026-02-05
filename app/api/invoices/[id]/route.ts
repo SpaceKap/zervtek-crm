@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { requireAuth, canEditInvoice, canViewAllInquiries, canDeleteInvoice } from "@/lib/permissions"
 import { InvoiceStatus } from "@prisma/client"
+import { convertDecimalsToNumbers } from "@/lib/decimal"
 
 export async function GET(
   request: NextRequest,
@@ -98,7 +99,9 @@ export async function GET(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
-    return NextResponse.json(invoice)
+    // Convert Decimal values to numbers
+    const convertedInvoice = convertDecimalsToNumbers(invoice)
+    return NextResponse.json(convertedInvoice)
   } catch (error) {
     console.error("Error fetching invoice:", error)
     return NextResponse.json(
@@ -234,10 +237,10 @@ export async function PATCH(
         },
       })
 
-      return NextResponse.json(invoiceWithCharges)
+      return NextResponse.json(convertDecimalsToNumbers(invoiceWithCharges))
     }
 
-    return NextResponse.json(updatedInvoice)
+    return NextResponse.json(convertDecimalsToNumbers(updatedInvoice))
   } catch (error) {
     console.error("Error updating invoice:", error)
     return NextResponse.json(

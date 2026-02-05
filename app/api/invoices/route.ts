@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { requireAuth, canCreateInvoice, canViewAllInquiries } from "@/lib/permissions"
 import { InvoiceStatus } from "@prisma/client"
+import { convertDecimalsToNumbers } from "@/lib/decimal"
 
 // Generate invoice number: INV-XXXXX (starting from INV-80001)
 async function generateInvoiceNumber(): Promise<string> {
@@ -166,7 +167,7 @@ export async function GET(request: NextRequest) {
     const total = await prisma.invoice.count({ where })
 
     return NextResponse.json({
-      invoices,
+      invoices: convertDecimalsToNumbers(invoices),
       pagination: {
         page,
         limit,
@@ -312,7 +313,7 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    return NextResponse.json(invoice, { status: 201 })
+    return NextResponse.json(convertDecimalsToNumbers(invoice), { status: 201 })
   } catch (error: any) {
     console.error("Error creating invoice:", error)
     // Provide more detailed error messages

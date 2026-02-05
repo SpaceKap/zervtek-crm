@@ -37,6 +37,12 @@ export default async function InvoiceDetailPage({
               sharedInvoice: true,
             },
           },
+          stageCosts: {
+            include: {
+              vendor: true,
+            },
+            orderBy: { createdAt: "asc" },
+          },
         },
       },
       createdBy: {
@@ -109,7 +115,7 @@ export default async function InvoiceDetailPage({
   // Check permissions
   const canViewAll = canViewAllInquiries(user.role);
   if (!canViewAll && invoice.createdById !== user.id) {
-    redirect("/dashboard/invoices");
+    redirect("/dashboard/financial-operations");
   }
 
   const canApprove = canApproveInvoice(user.role);

@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { requireAuth, canEditInvoice } from "@/lib/permissions"
+import { convertDecimalsToNumbers } from "@/lib/decimal"
 
 async function recalculateCostInvoice(costInvoiceId: string) {
   const costItems = await prisma.costItem.findMany({
@@ -114,7 +115,7 @@ export async function PATCH(
     // Recalculate cost invoice totals
     await recalculateCostInvoice(costItem.costInvoiceId)
 
-    return NextResponse.json(updatedItem)
+    return NextResponse.json(convertDecimalsToNumbers(updatedItem))
   } catch (error) {
     console.error("Error updating cost item:", error)
     return NextResponse.json(

@@ -2,9 +2,9 @@
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
   previewFeatures = ["multiSchema"]
-  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+  binaryTargets   = ["native", "linux-musl-openssl-3.0.x"]
 }
 
 datasource db {
@@ -18,6 +18,7 @@ enum UserRole {
   MANAGER
   ADMIN
   BACK_OFFICE_STAFF
+  ACCOUNTANT
 
   @@schema("inquiry_pooler")
 }
@@ -79,6 +80,96 @@ enum ChargeCategory {
   @@schema("inquiry_pooler")
 }
 
+enum ShippingStage {
+  PURCHASE
+  TRANSPORT
+  REPAIR
+  DOCUMENTS
+  BOOKING
+  SHIPPED
+  DHL
+
+  @@schema("inquiry_pooler")
+}
+
+enum BookingType {
+  RORO
+  CONTAINER
+
+  @@schema("inquiry_pooler")
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+
+  @@schema("inquiry_pooler")
+}
+
+enum TransactionType {
+  BANK_TRANSFER
+  PAYPAL
+  CASH
+  WISE
+
+  @@schema("inquiry_pooler")
+}
+
+enum TransactionDirection {
+  INCOMING
+  OUTGOING
+
+  @@schema("inquiry_pooler")
+}
+
+enum PurchaseSource {
+  AUCTION
+  DEALER
+
+  @@schema("inquiry_pooler")
+}
+
+enum DocumentCategory {
+  AUCTION_DETAILS
+  FINAL_BID
+  INVOICE
+  PHOTOS
+  ETD_ETA
+  EXPORT_CERTIFICATE
+  DEREGISTRATION_CERTIFICATE
+  INSURANCE_REFUND
+  SHIPPING_INSTRUCTIONS
+  SHIPPING_ORDER
+  BILL_OF_LADING
+  LETTER_OF_CREDIT
+  EXPORT_DECLARATION
+  RECYCLE_APPLICATION
+  DHL_TRACKING
+  SPARE_KEYS
+  MAINTENANCE_RECORDS
+  MANUALS
+  CATALOGUES
+  ACCESSORIES
+  RELEASED_BILL_OF_LADING
+  AUCTION_SHEET
+  OTHER
+
+  @@schema("inquiry_pooler")
+}
+
+enum VendorCategory {
+  DEALERSHIP // Dealership for vehicle purchases
+  AUCTION_HOUSE // Auction houses
+  TRANSPORT_VENDOR // For transport/inland transport fees
+  GARAGE // Garage for repair/storage
+  FREIGHT_VENDOR // Freight vendor (shipping agent/freight)
+  FORWARDING_VENDOR // For forwarding fees
+  FORWARDER // Forwarder
+  SHIPPING_AGENT // Shipping agent
+  YARD // Yard
+
+  @@schema("inquiry_pooler")
+}
 
 model User {
   id            String    @id @default(cuid())
@@ -90,11 +181,15 @@ model User {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  assignedInquiries Inquiry[] @relation("AssignedTo")
-  inquiryHistory    InquiryHistory[]
-  createdInvoices   Invoice[] @relation("CreatedBy")
-  approvedInvoices  Invoice[] @relation("ApprovedBy")
-  finalizedInvoices Invoice[] @relation("FinalizedBy")
+  assignedInquiries   Inquiry[]             @relation("AssignedTo")
+  assignedCustomers   Customer[]            @relation("CustomerAssignedTo")
+  inquiryHistory      InquiryHistory[]
+  createdInvoices     Invoice[]             @relation("CreatedBy")
+  approvedInvoices    Invoice[]             @relation("ApprovedBy")
+  finalizedInvoices   Invoice[]             @relation("FinalizedBy")
+  vehicleStageHistory VehicleStageHistory[]
+  createdVehicles     Vehicle[]             @relation("VehicleCreatedBy")
+  auditLogs           AuditLog[]
 
   accounts Account[]
   sessions Session[]
@@ -143,20 +238,20 @@ model VerificationToken {
 }
 
 model Inquiry {
-  id           String         @id @default(cuid())
+  id           String        @id @default(cuid())
   source       InquirySource
-  sourceId     String?        // Unique ID from the source system
+  sourceId     String? // Unique ID from the source system
   customerName String?
   email        String?
   phone        String?
-  message      String?        @db.Text
-  lookingFor   String?        @db.Text
-  status       InquiryStatus  @default(NEW)
+  message      String?       @db.Text
+  lookingFor   String?       @db.Text
+  status       InquiryStatus @default(NEW)
   assignedToId String?
   assignedAt   DateTime?
-  metadata     Json?          // Flexible field for additional data
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime       @updatedAt
+  metadata     Json? // Flexible field for additional data
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
 
   assignedTo User?            @relation("AssignedTo", fields: [assignedToId], references: [id], onDelete: SetNull)
   history    InquiryHistory[]
@@ -171,27 +266,27 @@ model Inquiry {
 }
 
 model KanbanStage {
-  id        String   @id @default(cuid())
-  name      String   @unique
-  order     Int      @default(0)
-  color     String?  @default("#3b82f6")
+  id        String        @id @default(cuid())
+  name      String        @unique
+  order     Int           @default(0)
+  color     String?       @default("#3b82f6")
   status    InquiryStatus @unique // Map to inquiry status
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
 
   @@index([order])
   @@schema("inquiry_pooler")
 }
 
 model InquiryHistory {
-  id            String   @id @default(cuid())
-  inquiryId     String
-  userId        String
-  action        String   // "ASSIGNED", "STATUS_CHANGED", "CONVERTED", etc.
+  id             String         @id @default(cuid())
+  inquiryId      String
+  userId         String
+  action         String // "ASSIGNED", "STATUS_CHANGED", "CONVERTED", etc.
   previousStatus InquiryStatus?
-  newStatus     InquiryStatus?
-  notes         String?  @db.Text
-  createdAt     DateTime @default(now())
+  newStatus      InquiryStatus?
+  notes          String?        @db.Text
+  createdAt      DateTime       @default(now())
 
   inquiry Inquiry @relation(fields: [inquiryId], references: [id], onDelete: Cascade)
   user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -203,80 +298,122 @@ model InquiryHistory {
 }
 
 model Customer {
-  id              String    @id @default(cuid())
-  name            String
-  email           String?
-  phone           String?
-  country         String?   // Country field separate from addresses
-  billingAddress  Json?     // { street, city, state, zip, country }
-  shippingAddress Json?     // { street, city, state, zip, country }
+  id                String   @id @default(cuid())
+  name              String
+  email             String?
+  phone             String?
+  country           String? // Country field separate from addresses
+  billingAddress    Json? // { street, city, state, zip, country }
+  shippingAddress   Json? // { street, city, state, zip, country }
   portOfDestination String? // Port of destination
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  notes             String?  @db.Text // Additional customer notes
+  assignedToId      String? // Person In Charge (PIC) - assigned staff member
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
-  invoices Invoice[]
+  assignedTo        User?                 @relation("CustomerAssignedTo", fields: [assignedToId], references: [id], onDelete: SetNull)
+  invoices          Invoice[]
   containerInvoices ContainerInvoice[]
+  vehicles          Vehicle[]
+  transactions      Transaction[]
+  vehicleLinks      CustomerVehicleLink[]
+  portalTokens      CustomerPortalToken[]
 
   @@index([email])
   @@index([name])
+  @@index([assignedToId])
   @@schema("inquiry_pooler")
 }
 
 model Vehicle {
-  id        String    @id @default(cuid())
-  vin       String    @unique
-  make      String?
-  model     String?
-  year      Int?
-  price     Decimal?  @db.Decimal(12, 2)
-  inquiryId String?
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  id                   String          @id @default(cuid())
+  stockNo              String?         @unique // Internal stock number (auto-generated if not provided)
+  vin                  String          @unique // VIN/Chassis number (same as chassisNo)
+  chassisNo            String? // Same as VIN (auto-populated)
+  make                 String?
+  model                String?
+  year                 Int?
+  price                Decimal?        @db.Decimal(12, 2)
+  inquiryId            String?
+  customerId           String?
+  currentShippingStage ShippingStage?  @default(PURCHASE)
+  isRegistered         Boolean? // null = unknown, true = registered, false = not registered
+  purchaseSource       PurchaseSource? // AUCTION or DEALER
+  auctionHouseId       String? // Vendor ID for auction house (when purchaseSource = AUCTION)
+  lotNo                String? // Lot number at auction
+  auctionSheetUrl      String? // URL to uploaded auction sheet image
+  purchaseVendorId     String? // Vendor ID for dealer purchase (when purchaseSource = DEALER)
+  purchasePhotoUrl     String? // URL to uploaded purchase photo (for dealer)
+  purchaseDate         DateTime? // Purchase date from auction/dealer
+  createdById          String? // User who created the vehicle
+  createdAt            DateTime        @default(now())
+  updatedAt            DateTime        @updatedAt
 
-  inquiry            Inquiry?              @relation(fields: [inquiryId], references: [id], onDelete: SetNull)
-  invoices           Invoice[]
-  sharedInvoiceVehicles SharedInvoiceVehicle[]
+  inquiry                  Inquiry?                  @relation(fields: [inquiryId], references: [id], onDelete: SetNull)
+  customer                 Customer?                 @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  createdBy                User?                     @relation("VehicleCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  auctionHouse             Vendor?                   @relation("AuctionHouse", fields: [auctionHouseId], references: [id], onDelete: SetNull)
+  purchaseVendor           Vendor?                   @relation("PurchaseVendor", fields: [purchaseVendorId], references: [id], onDelete: SetNull)
+  invoices                 Invoice[]
+  sharedInvoiceVehicles    SharedInvoiceVehicle[]
   containerInvoiceVehicles ContainerInvoiceVehicle[]
+  shippingStage            VehicleShippingStage?
+  documents                VehicleDocument[]
+  stageHistory             VehicleStageHistory[]
+  stageCosts               VehicleStageCost[]
+  transactions             Transaction[]
+  customerLinks            CustomerVehicleLink[]
+  stageChecklist           VehicleStageChecklist[]
+  auditLogs                AuditLog[]
+  costAllocations          CostAllocation[]
 
   @@index([vin])
+  @@index([stockNo])
+  @@index([chassisNo])
   @@index([make])
   @@index([model])
   @@index([inquiryId])
+  @@index([customerId])
+  @@index([currentShippingStage])
+  @@index([purchaseDate])
+  @@index([purchaseSource])
+  @@index([auctionHouseId])
+  @@index([purchaseVendorId])
   @@schema("inquiry_pooler")
 }
 
 model Invoice {
-  id            String        @id @default(cuid())
-  invoiceNumber String        @unique
-  customerId    String
-  vehicleId     String
-  createdById   String
-  approvedById  String?
-  finalizedById String?
-  status        InvoiceStatus @default(DRAFT)
-  finalizedAt   DateTime?
-  isLocked      Boolean       @default(false) // Lock flag for finalized invoices
-  issueDate     DateTime      @default(now())
-  dueDate       DateTime?
-  taxEnabled    Boolean       @default(false)
-  taxRate       Decimal       @default(10) @db.Decimal(5, 2)
-  notes         String?       @db.Text
-  isCIF         Boolean       @default(false)
-  customerUsesInJapan Boolean  @default(false)
-  metadata      Json?         // For storing additional vehicle IDs for container invoices
-  shareToken    String?       @unique // Unique token for public sharing
-  paymentStatus PaymentStatus @default(PENDING)
-  wisePaymentLink String?     @db.Text // Wise payment link: https://wise.com/pay/business/xxx
-  paidAt        DateTime?     // Timestamp when payment was received
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+  id                  String        @id @default(cuid())
+  invoiceNumber       String        @unique
+  customerId          String
+  vehicleId           String
+  createdById         String
+  approvedById        String?
+  finalizedById       String?
+  status              InvoiceStatus @default(DRAFT)
+  finalizedAt         DateTime?
+  isLocked            Boolean       @default(false) // Lock flag for finalized invoices
+  issueDate           DateTime      @default(now())
+  dueDate             DateTime?
+  taxEnabled          Boolean       @default(false)
+  taxRate             Decimal       @default(10) @db.Decimal(5, 2)
+  notes               String?       @db.Text
+  isCIF               Boolean       @default(false)
+  customerUsesInJapan Boolean       @default(false)
+  metadata            Json? // For storing additional vehicle IDs for container invoices
+  shareToken          String?       @unique // Unique token for public sharing
+  paymentStatus       PaymentStatus @default(PENDING)
+  wisePaymentLink     String?       @db.Text // Wise payment link: https://wise.com/pay/business/xxx
+  paidAt              DateTime? // Timestamp when payment was received
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
 
-  customer   Customer         @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  vehicle    Vehicle          @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
-  createdBy  User             @relation("CreatedBy", fields: [createdById], references: [id])
-  approvedBy User?            @relation("ApprovedBy", fields: [approvedById], references: [id], onDelete: SetNull)
+  customer    Customer        @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  vehicle     Vehicle         @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  createdBy   User            @relation("CreatedBy", fields: [createdById], references: [id])
+  approvedBy  User?           @relation("ApprovedBy", fields: [approvedById], references: [id], onDelete: SetNull)
   finalizedBy User?           @relation("FinalizedBy", fields: [finalizedById], references: [id], onDelete: SetNull)
-  charges    InvoiceCharge[]
+  charges     InvoiceCharge[]
   costInvoice CostInvoice?
 
   @@index([customerId])
@@ -297,8 +434,8 @@ model InvoiceCharge {
   chargeTypeId String?
   description  String
   amount       Decimal  @db.Decimal(12, 2)
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   invoice    Invoice     @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
   chargeType ChargeType? @relation(fields: [chargeTypeId], references: [id], onDelete: SetNull)
@@ -312,32 +449,32 @@ model InvoiceCharge {
 model CostInvoice {
   id           String   @id @default(cuid())
   invoiceId    String   @unique
-  totalCost    Decimal  @db.Decimal(12, 2) @default(0)
-  totalRevenue Decimal  @db.Decimal(12, 2) @default(0)
-  profit       Decimal  @db.Decimal(12, 2) @default(0)
-  margin       Decimal  @db.Decimal(10, 2) @default(0) // Percentage (can exceed 100%)
-  roi          Decimal  @db.Decimal(10, 2) @default(0) // Percentage (can exceed 100%)
+  totalCost    Decimal  @default(0) @db.Decimal(12, 2)
+  totalRevenue Decimal  @default(0) @db.Decimal(12, 2)
+  profit       Decimal  @default(0) @db.Decimal(12, 2)
+  margin       Decimal  @default(0) @db.Decimal(10, 2) // Percentage (can exceed 100%)
+  roi          Decimal  @default(0) @db.Decimal(10, 2) // Percentage (can exceed 100%)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  invoice    Invoice     @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
-  costItems  CostItem[]
+  invoice   Invoice    @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  costItems CostItem[]
 
   @@index([invoiceId])
   @@schema("inquiry_pooler")
 }
 
 model CostItem {
-  id             String    @id @default(cuid())
-  costInvoiceId  String
-  description    String
-  amount         Decimal   @db.Decimal(12, 2)
-  vendorId       String    // Required
-  paymentDate    DateTime? // Optional - set when payment is made
+  id              String    @id @default(cuid())
+  costInvoiceId   String
+  description     String
+  amount          Decimal   @db.Decimal(12, 2)
+  vendorId        String // Required
+  paymentDate     DateTime? // Optional - set when payment is made
   paymentDeadline DateTime // Required - deadline for payment
-  category       String?   // "Auction Fees", "Vehicle Purchase", "Inland Transport", "Forwarding", "Freight", etc.
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  category        String? // "Auction Fees", "Vehicle Purchase", "Inland Transport", "Forwarding", "Freight", etc.
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   costInvoice CostInvoice @relation(fields: [costInvoiceId], references: [id], onDelete: Cascade)
   vendor      Vendor      @relation(fields: [vendorId], references: [id], onDelete: Restrict)
@@ -364,29 +501,43 @@ model ChargeType {
 }
 
 model Vendor {
-  id        String    @id @default(cuid())
-  name      String    @unique
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  id        String         @id @default(cuid())
+  name      String         @unique
+  email     String? // Email for auto-sending documents (e.g., SI/EC to forwarder)
+  category  VendorCategory @default(DEALERSHIP)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
 
-  costItems CostItem[]
+  costItems              CostItem[]
+  vehicleStageCosts      VehicleStageCost[]
+  transactions           Transaction[]
+  generalCosts           GeneralCost[]
+  yards                  Yard[]                 @relation("YardVendor")
+  purchaseVehicles       VehicleShippingStage[] @relation("PurchaseVendor")
+  transportVehicles      VehicleShippingStage[] @relation("TransportVendor")
+  repairVehicles         VehicleShippingStage[] @relation("RepairVendor")
+  forwardingVehicles     VehicleShippingStage[] @relation("ForwardingVendor")
+  freightVehicles        VehicleShippingStage[] @relation("FreightVendor")
+  auctionHouseVehicles   Vehicle[]              @relation("AuctionHouse")
+  purchaseVendorVehicles Vehicle[]              @relation("PurchaseVendor")
 
   @@index([name])
+  @@index([category])
   @@schema("inquiry_pooler")
 }
 
 model SharedInvoice {
-  id             String   @id @default(cuid())
-  type           String
-  invoiceNumber  String   @unique
-  totalAmount    Decimal  @db.Decimal(12, 2)
-  date           DateTime? // Optional - payment date when payment is made
+  id              String    @id @default(cuid())
+  type            String
+  invoiceNumber   String    @unique
+  totalAmount     Decimal   @db.Decimal(12, 2)
+  date            DateTime? // Optional - payment date when payment is made
   paymentDeadline DateTime // Required - deadline for payment
-  metadata       Json?    // Store cost items with vendor information
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  metadata        Json? // Store cost items with vendor information
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
-  vehicles SharedInvoiceVehicle[]
+  vehicles          SharedInvoiceVehicle[]
   containerInvoices ContainerInvoice[]
 
   @@index([type])
@@ -413,37 +564,37 @@ model SharedInvoiceVehicle {
 }
 
 model CompanyInfo {
-  id        String   @id @default(cuid())
-  name      String
-  logo      String?  @db.Text // URL or base64 to logo (Text for long base64 strings)
-  address   Json?    // { street, city, state, zip, country }
-  phone     String?
-  email     String?
-  website   String?
-  taxId     String?
+  id           String   @id @default(cuid())
+  name         String
+  logo         String?  @db.Text // URL or base64 to logo (Text for long base64 strings)
+  address      Json? // { street, city, state, zip, country }
+  phone        String?
+  email        String?
+  website      String?
+  taxId        String?
   bankDetails1 Json? // { name, swiftCode, branchName, accountNo, bankAddress, accountName }
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   @@schema("inquiry_pooler")
 }
 
 model ContainerInvoice {
-  id            String   @id @default(cuid())
-  invoiceNumber String   @unique
-  customerId    String
+  id              String    @id @default(cuid())
+  invoiceNumber   String    @unique
+  customerId      String
   sharedInvoiceId String
-  totalAmount   Decimal  @db.Decimal(12, 2) // Customer-facing amount (with margin)
-  issueDate     DateTime @default(now())
-  dueDate       DateTime?
-  taxEnabled    Boolean  @default(false)
-  taxRate       Decimal  @default(10) @db.Decimal(5, 2)
-  notes         String?  @db.Text
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  totalAmount     Decimal   @db.Decimal(12, 2) // Customer-facing amount (with margin)
+  issueDate       DateTime  @default(now())
+  dueDate         DateTime?
+  taxEnabled      Boolean   @default(false)
+  taxRate         Decimal   @default(10) @db.Decimal(5, 2)
+  notes           String?   @db.Text
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
-  customer      Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  sharedInvoice SharedInvoice @relation(fields: [sharedInvoiceId], references: [id], onDelete: Cascade)
+  customer      Customer                  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  sharedInvoice SharedInvoice             @relation(fields: [sharedInvoiceId], references: [id], onDelete: Cascade)
   vehicles      ContainerInvoiceVehicle[]
 
   @@index([customerId])
@@ -452,10 +603,10 @@ model ContainerInvoice {
 }
 
 model ContainerInvoiceVehicle {
-  id               String   @id @default(cuid())
+  id                 String  @id @default(cuid())
   containerInvoiceId String
-  vehicleId        String
-  allocatedAmount  Decimal  @db.Decimal(12, 2) // Customer-facing amount per vehicle (with margin)
+  vehicleId          String
+  allocatedAmount    Decimal @db.Decimal(12, 2) // Customer-facing amount per vehicle (with margin)
 
   containerInvoice ContainerInvoice @relation(fields: [containerInvoiceId], references: [id], onDelete: Cascade)
   vehicle          Vehicle          @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
@@ -463,5 +614,360 @@ model ContainerInvoiceVehicle {
   @@unique([containerInvoiceId, vehicleId])
   @@index([containerInvoiceId])
   @@index([vehicleId])
+  @@schema("inquiry_pooler")
+}
+
+model Yard {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  vendorId  String? // Optional vendor relationship (yard vendor for inspections)
+  address   String? // Yard address
+  phone     String?
+  email     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  vendor   Vendor?                @relation("YardVendor", fields: [vendorId], references: [id], onDelete: SetNull)
+  vehicles VehicleShippingStage[]
+
+  @@index([name])
+  @@index([vendorId])
+  @@schema("inquiry_pooler")
+}
+
+model VehicleShippingStage {
+  id        String        @id @default(cuid())
+  vehicleId String        @unique
+  stage     ShippingStage @default(PURCHASE)
+
+  // Purchase stage
+  purchaseVendorId        String? // Vendor for auction/purchase fees
+  purchasePaid            Boolean   @default(false) // Whether purchase fees are paid
+  purchasePaymentDeadline DateTime? // Payment deadline for purchase fees
+  purchasePaymentDate     DateTime? // Actual payment date
+
+  // Transport stage
+  yardId            String? // Selected yard (yard vendor handles inspections)
+  transportArranged Boolean @default(false)
+  yardNotified      Boolean @default(false)
+  photosRequested   Boolean @default(false)
+  transportVendorId String? // Vendor for transport fees
+
+  // Payment stage
+  totalCharges  Decimal @default(0) @db.Decimal(12, 2)
+  totalReceived Decimal @default(0) @db.Decimal(12, 2)
+
+  // Repair stage
+  repairSkipped  Boolean @default(false)
+  repairVendorId String? // Vendor for repair/storage fees
+
+  // Documents stage
+  numberPlatesReceived        Boolean? // null = not applicable, true/false = registered vehicle
+  deregistrationComplete      Boolean? // null = not applicable
+  exportCertificateUploaded   Boolean  @default(false) // NOT SKIPPABLE
+  deregistrationSentToAuction Boolean? // null = not applicable
+  insuranceRefundClaimed      Boolean? // null = not applicable
+
+  // Accessories received
+  spareKeysReceived          Boolean @default(false)
+  maintenanceRecordsReceived Boolean @default(false)
+  manualsReceived            Boolean @default(false)
+  cataloguesReceived         Boolean @default(false)
+  accessoriesReceived        Boolean @default(false)
+  otherItemsReceived         Boolean @default(false)
+
+  // Booking stage
+  bookingType      BookingType?
+  freightVendorId  String? // Vendor for freight costs (shipping agent/freight)
+  bookingRequested Boolean        @default(false)
+  bookingStatus    BookingStatus?
+  bookingNumber    String?
+  pod              String? // Port of Destination
+  pol              String? // Port of Loading
+  vesselName       String?
+  voyageNo         String?
+  etd              DateTime? // Estimated Time of Departure
+  eta              DateTime? // Estimated Time of Arrival
+  notes            String?        @db.Text
+
+  // Container-specific fields
+  containerNumber String?
+  containerSize   String?
+  sealNumber      String?
+  unitsInside     Int? // Number of vehicles in container
+
+  // Booking documentation tasks
+  siEcSentToForwarder   Boolean @default(false)
+  shippingOrderReceived Boolean @default(false)
+
+  // Shipped stage
+  forwardingVendorId        String? // Vendor for forwarding fees
+  blCopyUploaded            Boolean @default(false)
+  blDetailsConfirmed        Boolean @default(false)
+  blPaid                    Boolean @default(false)
+  lcCopyUploaded            Boolean @default(false) // For Sri Lanka
+  exportDeclarationUploaded Boolean @default(false)
+  recycleApplied            Boolean @default(false)
+  blReleaseNotice           Boolean @default(false) // 2 weeks before destination
+  blReleased                Boolean @default(false)
+
+  // DHL stage
+  dhlTracking String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  vehicle          Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  yard             Yard?   @relation(fields: [yardId], references: [id], onDelete: SetNull)
+  purchaseVendor   Vendor? @relation("PurchaseVendor", fields: [purchaseVendorId], references: [id], onDelete: SetNull)
+  transportVendor  Vendor? @relation("TransportVendor", fields: [transportVendorId], references: [id], onDelete: SetNull)
+  repairVendor     Vendor? @relation("RepairVendor", fields: [repairVendorId], references: [id], onDelete: SetNull)
+  forwardingVendor Vendor? @relation("ForwardingVendor", fields: [forwardingVendorId], references: [id], onDelete: SetNull)
+  freightVendor    Vendor? @relation("FreightVendor", fields: [freightVendorId], references: [id], onDelete: SetNull)
+
+  @@index([vehicleId])
+  @@index([stage])
+  @@index([yardId])
+  @@schema("inquiry_pooler")
+}
+
+model VehicleStageCost {
+  id              String         @id @default(cuid())
+  vehicleId       String? // Nullable if shared cost
+  stage           ShippingStage?
+  costType        String // "Auction Fees", "Purchase Fees", "Transport Fees", "Inspection Fees", "Repair Fees", "Storage Fees", "Forwarding Fees", "Freight Costs"
+  amount          Decimal        @db.Decimal(12, 2)
+  vendorId        String // Required for all costs
+  currency        String         @default("JPY")
+  paymentDeadline DateTime? // Payment deadline for this cost
+  paymentDate     DateTime? // Actual payment date
+  invoiceId       String? // Link to invoice record
+  isShared        Boolean        @default(false) // If true, use cost_allocations
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  vehicle     Vehicle?         @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  vendor      Vendor           @relation(fields: [vendorId], references: [id], onDelete: Restrict)
+  allocations CostAllocation[]
+
+  @@index([vehicleId])
+  @@index([stage])
+  @@index([vendorId])
+  @@index([isShared])
+  @@schema("inquiry_pooler")
+}
+
+model VehicleDocument {
+  id                  String           @id @default(cuid())
+  vehicleId           String
+  stage               ShippingStage? // null = general document library
+  category            DocumentCategory
+  name                String
+  fileUrl             String           @db.Text
+  fileType            String? // MIME type
+  fileSize            Int? // Size in bytes
+  description         String?          @db.Text
+  uploadedById        String? // User who uploaded
+  visibleToCustomer   Boolean          @default(false) // Whether customer can see this in portal
+  paperlessDocumentId String? // Paperless-ngx document ID if integrated
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+
+  vehicle Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+
+  @@index([vehicleId])
+  @@index([stage])
+  @@index([category])
+  @@index([visibleToCustomer])
+  @@index([paperlessDocumentId])
+  @@schema("inquiry_pooler")
+}
+
+model VehicleStageHistory {
+  id            String         @id @default(cuid())
+  vehicleId     String
+  userId        String
+  previousStage ShippingStage?
+  newStage      ShippingStage
+  action        String // Description of what changed
+  notes         String?        @db.Text
+  metadata      Json? // Additional data about the change
+  createdAt     DateTime       @default(now())
+
+  vehicle Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([vehicleId])
+  @@index([userId])
+  @@index([createdAt])
+  @@index([newStage])
+  @@schema("inquiry_pooler")
+}
+
+model Transaction {
+  id              String               @id @default(cuid())
+  direction       TransactionDirection
+  type            TransactionType
+  amount          Decimal              @db.Decimal(12, 2)
+  currency        String               @default("JPY")
+  date            DateTime // Transaction date
+  description     String?              @db.Text
+  vendorId        String? // For outgoing transactions
+  customerId      String? // For incoming payments from customers
+  vehicleId       String? // If related to a vehicle
+  invoiceId       String? // If related to an invoice
+  invoiceUrl      String? // Link to attached invoice/receipt
+  documentId      String? // Link to VehicleDocument if attached
+  referenceNumber String? // Bank reference, transaction ID, etc.
+  notes           String?              @db.Text
+  createdById     String? // User who created the transaction
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  vendor   Vendor?   @relation(fields: [vendorId], references: [id], onDelete: SetNull)
+  customer Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  vehicle  Vehicle?  @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
+
+  @@index([direction])
+  @@index([type])
+  @@index([date])
+  @@index([vendorId])
+  @@index([customerId])
+  @@index([vehicleId])
+  @@index([invoiceId])
+  @@schema("inquiry_pooler")
+}
+
+model CostAllocation {
+  id               String   @id @default(cuid())
+  costItemId       String
+  vehicleId        String
+  allocatedAmount  Decimal  @db.Decimal(12, 2) // Amount allocated to this vehicle
+  allocatedPercent Decimal? @db.Decimal(5, 2) // Percentage if using percent-based allocation
+  createdAt        DateTime @default(now())
+
+  costItem VehicleStageCost @relation(fields: [costItemId], references: [id], onDelete: Cascade)
+  vehicle  Vehicle          @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+
+  @@unique([costItemId, vehicleId])
+  @@index([costItemId])
+  @@index([vehicleId])
+  @@schema("inquiry_pooler")
+}
+
+model GeneralCost {
+  id          String   @id @default(cuid())
+  description String // e.g., "Electricity", "Rent", "Fuel", etc.
+  amount      Decimal  @db.Decimal(12, 2)
+  currency    String   @default("JPY")
+  date        DateTime // Cost date
+  vendorId    String? // Optional vendor (e.g., utility company, landlord)
+  invoiceUrl  String? // Link to invoice/receipt
+  documentId  String? // Link to VehicleDocument if attached
+  notes       String?  @db.Text
+  createdById String? // User who created the cost
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  vendor Vendor? @relation(fields: [vendorId], references: [id], onDelete: SetNull)
+
+  @@index([date])
+  @@index([vendorId])
+  @@schema("inquiry_pooler")
+}
+
+model CustomerVehicleLink {
+  id         String   @id @default(cuid())
+  customerId String
+  vehicleId  String
+  role       String   @default("buyer") // buyer, co-buyer, etc.
+  createdAt  DateTime @default(now())
+
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  vehicle  Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+
+  @@unique([customerId, vehicleId])
+  @@index([customerId])
+  @@index([vehicleId])
+  @@schema("inquiry_pooler")
+}
+
+model CustomerPortalToken {
+  id         String    @id @default(cuid())
+  customerId String
+  token      String    @unique
+  expiresAt  DateTime? // Optional expiration
+  revokedAt  DateTime? // If revoked before expiration
+  createdAt  DateTime  @default(now())
+
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([customerId])
+  @@index([token])
+  @@index([expiresAt])
+  @@schema("inquiry_pooler")
+}
+
+model StageRequirement {
+  id              String        @id @default(cuid())
+  stage           ShippingStage
+  requirementKey  String // e.g., "Need auction invoice", "Need export cert"
+  requirementType String // doc, checkbox, text, date, number
+  isRequired      Boolean       @default(false)
+  order           Int           @default(0) // Display order
+  description     String?       @db.Text
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  checklistItems VehicleStageChecklist[]
+
+  @@index([stage])
+  @@index([isRequired])
+  @@schema("inquiry_pooler")
+}
+
+model VehicleStageChecklist {
+  id            String    @id @default(cuid())
+  vehicleId     String
+  requirementId String
+  status        String    @default("pending") // pending, done, skipped
+  valueText     String?   @db.Text
+  valueDate     DateTime?
+  valueNumber   Decimal?  @db.Decimal(12, 2)
+  updatedById   String? // User who updated
+  updatedAt     DateTime  @default(now())
+
+  vehicle     Vehicle          @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  requirement StageRequirement @relation(fields: [requirementId], references: [id], onDelete: Cascade)
+
+  @@unique([vehicleId, requirementId])
+  @@index([vehicleId])
+  @@index([requirementId])
+  @@index([status])
+  @@schema("inquiry_pooler")
+}
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  actorUserId String
+  entityType  String // vehicle, invoice, cost_item, document, customer, transaction
+  entityId    String
+  action      String // create, update, delete, stage_change, etc.
+  beforeJson  Json? // State before change
+  afterJson   Json? // State after change
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+
+  actor     User     @relation(fields: [actorUserId], references: [id], onDelete: Cascade)
+  Vehicle   Vehicle? @relation(fields: [vehicleId], references: [id])
+  vehicleId String?
+
+  @@index([actorUserId])
+  @@index([entityType])
+  @@index([entityId])
+  @@index([action])
+  @@index([createdAt])
+  @@index([entityType, entityId])
   @@schema("inquiry_pooler")
 }

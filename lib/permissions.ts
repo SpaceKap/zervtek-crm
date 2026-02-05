@@ -28,7 +28,7 @@ export async function requireManager() {
 }
 
 export function canViewAllInquiries(userRole: UserRole): boolean {
-  return userRole === UserRole.MANAGER || userRole === UserRole.ADMIN
+  return userRole === UserRole.MANAGER || userRole === UserRole.ADMIN || userRole === UserRole.ACCOUNTANT
 }
 
 export function canAssignInquiry(userRole: UserRole): boolean {
@@ -86,4 +86,37 @@ export function canDeleteInvoice(userRole: UserRole): boolean {
 
 export function canDeleteSharedInvoice(userRole: UserRole): boolean {
   return userRole === UserRole.ADMIN
+}
+
+export function canViewVehicles(userRole: UserRole): boolean {
+  return (
+    userRole === UserRole.MANAGER ||
+    userRole === UserRole.ADMIN ||
+    userRole === UserRole.BACK_OFFICE_STAFF ||
+    userRole === UserRole.ACCOUNTANT
+  )
+}
+
+export function canViewTransactions(userRole: UserRole): boolean {
+  return (
+    userRole === UserRole.MANAGER ||
+    userRole === UserRole.ADMIN ||
+    userRole === UserRole.ACCOUNTANT
+  )
+}
+
+export function canManageTransactions(userRole: UserRole): boolean {
+  return (
+    userRole === UserRole.MANAGER ||
+    userRole === UserRole.ADMIN ||
+    userRole === UserRole.ACCOUNTANT
+  )
+}
+
+export function canManageVehicleStages(userRole: UserRole): boolean {
+  return (
+    userRole === UserRole.MANAGER ||
+    userRole === UserRole.ADMIN ||
+    userRole === UserRole.BACK_OFFICE_STAFF
+  )
 }

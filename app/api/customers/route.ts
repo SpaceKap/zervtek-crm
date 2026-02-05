@@ -16,6 +16,8 @@ export async function GET(request: NextRequest) {
           OR: [
             { name: { contains: search, mode: "insensitive" as const } },
             { email: { contains: search, mode: "insensitive" as const } },
+            { phone: { contains: search, mode: "insensitive" as const } },
+            { country: { contains: search, mode: "insensitive" as const } },
           ],
         }
       : {}
@@ -24,7 +26,22 @@ export async function GET(request: NextRequest) {
     const customers = await prisma.customer.findMany({
       where,
       orderBy: { name: "asc" },
-      take: 50,
+      include: {
+        assignedTo: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+        _count: {
+          select: {
+            invoices: true,
+            vehicles: true,
+            transactions: true,
+          },
+        },
+      },
     })
 
     return NextResponse.json(customers)
@@ -50,6 +67,7 @@ export async function POST(request: NextRequest) {
       billingAddress,
       shippingAddress,
       portOfDestination,
+      assignedToId,
     } = body
 
     if (!name) {
@@ -68,6 +86,7 @@ export async function POST(request: NextRequest) {
         billingAddress: billingAddress || null,
         shippingAddress: shippingAddress || null,
         portOfDestination: portOfDestination || null,
+        assignedToId: assignedToId || null,
       },
     })
 

@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { requireAuth, canEditInvoice } from "@/lib/permissions"
+import { convertDecimalsToNumbers } from "@/lib/decimal"
 
 export async function GET(
   request: NextRequest,
@@ -30,7 +31,7 @@ export async function GET(
       orderBy: { createdAt: "asc" },
     })
 
-    return NextResponse.json(costItems)
+    return NextResponse.json(convertDecimalsToNumbers(costItems))
   } catch (error) {
     console.error("Error fetching cost items:", error)
     return NextResponse.json(
@@ -122,7 +123,7 @@ export async function POST(
     // Recalculate cost invoice totals
     await recalculateCostInvoice(costInvoice.id)
 
-    return NextResponse.json(costItem, { status: 201 })
+    return NextResponse.json(convertDecimalsToNumbers(costItem), { status: 201 })
   } catch (error) {
     console.error("Error creating cost item:", error)
     return NextResponse.json(

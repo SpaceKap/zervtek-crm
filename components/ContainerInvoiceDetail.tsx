@@ -93,7 +93,7 @@ export function ContainerInvoiceDetail({
             </span>
             Download PDF
           </Button>
-          <Link href="/dashboard/invoices">
+          <Link href="/dashboard/financial-operations">
             <Button variant="outline">Back to Invoices</Button>
           </Link>
         </div>

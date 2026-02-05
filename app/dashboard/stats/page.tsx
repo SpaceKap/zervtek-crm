@@ -11,7 +11,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { TransactionsTab } from "@/components/TransactionsTab";
+import { InvoicesAndTransactionsTab } from "@/components/InvoicesAndTransactionsTab";
 import { FailedLeadsTab } from "@/components/FailedLeadsTab";
 import { InquiryTypeStats } from "@/components/InquiryTypeStats";
 
@@ -513,7 +513,7 @@ export default async function StatsPage() {
 
         {canViewTransactions && (
           <TabsContent value="transactions" className="mt-6">
-            <TransactionsTab />
+            <InvoicesAndTransactionsTab />
           </TabsContent>
         )}
 
