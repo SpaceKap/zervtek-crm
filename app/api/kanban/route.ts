@@ -34,10 +34,34 @@ export async function GET(request: NextRequest) {
       targetUserId = null
     }
 
-    // Get all kanban stages
-    let stages = await prisma.kanbanStage.findMany({
-      orderBy: { order: "asc" },
-    })
+    // Get all kanban stages - use raw query to avoid enum validation issues
+    // We'll filter invalid stages manually
+    let stages: Array<{
+      id: string;
+      name: string;
+      order: number;
+      color: string | null;
+      status: string;
+      createdAt: Date;
+      updatedAt: Date;
+    }> = [];
+    
+    try {
+      stages = await prisma.$queryRaw`
+        SELECT id, name, "order", color, status, "createdAt", "updatedAt"
+        FROM inquiry_pooler."KanbanStage"
+        ORDER BY "order" ASC
+      ` as any;
+    } catch (error) {
+      // Fallback to regular query if raw query fails
+      console.error("[Kanban API] Raw query failed, trying regular query:", error);
+      const allStages = await prisma.kanbanStage.findMany({
+        orderBy: { order: "asc" },
+      });
+      // Filter out any stages with invalid statuses
+      const validStatuses = Object.values(InquiryStatus);
+      stages = allStages.filter(s => validStatuses.includes(s.status as InquiryStatus)) as any;
+    }
 
     console.log(`[Kanban API] Found ${stages.length} existing stages`)
 
@@ -139,17 +163,23 @@ export async function GET(request: NextRequest) {
     }, {} as Record<InquiryStatus, typeof inquiries>)
 
     // Filter out any stages with invalid statuses (not in InquiryStatus enum)
-    const validStatuses = Object.values(InquiryStatus);
-    const validStages = stages.filter((stage) => validStatuses.includes(stage.status));
+    const validStatuses = Object.values(InquiryStatus) as string[];
+    const validStages = stages.filter((stage) => {
+      const isValid = validStatuses.includes(stage.status);
+      if (!isValid) {
+        console.log(`[Kanban API] Filtering out invalid stage: ${stage.name} (${stage.status})`);
+      }
+      return isValid;
+    });
     
-    // Map stages with their inquiries
+    // Map stages with their inquiries, ensuring status is cast correctly
     const boardData = validStages.map((stage) => ({
       id: stage.id,
       name: stage.name,
       order: stage.order,
       color: stage.color,
-      status: stage.status,
-      inquiries: inquiriesByStatus[stage.status] || [],
+      status: stage.status as InquiryStatus,
+      inquiries: inquiriesByStatus[stage.status as InquiryStatus] || [],
     }))
     
     console.log(`[Kanban API] Filtered to ${validStages.length} valid stages (removed ${stages.length - validStages.length} invalid)`);
