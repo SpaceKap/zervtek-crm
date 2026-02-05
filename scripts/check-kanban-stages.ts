@@ -1,34 +1,26 @@
 import { PrismaClient } from "@prisma/client";
 import { InquiryStatus } from "@prisma/client";
 
-// Log DATABASE_URL (without password) for debugging
-const dbUrl = process.env.DATABASE_URL;
-if (dbUrl) {
-  const maskedUrl = dbUrl.replace(/:[^:@]+@/, ":****@");
-  console.log(`Using DATABASE_URL: ${maskedUrl}`);
-  
-  // Check if it's trying to use Docker hostname
-  if (dbUrl.includes("postgres:5432") && !dbUrl.includes("localhost")) {
-    console.warn("\n⚠️  WARNING: DATABASE_URL appears to use Docker hostname 'postgres:5432'");
-    console.warn("   This script runs on the host, not in Docker.");
-    console.warn("   Please ensure DATABASE_URL points to your actual database server.");
-    console.warn("   For local database: postgresql://user:pass@localhost:5432/dbname");
-    console.warn("   For Supabase: postgresql://user:pass@db.xxx.supabase.co:5432/postgres\n");
-  }
-} else {
-  console.error("ERROR: DATABASE_URL not found in environment variables!");
-  console.error("Please ensure .env file exists and contains DATABASE_URL");
-  console.error("\nTo fix:");
-  console.error("1. Check that .env file exists in the project root");
-  console.error("2. Ensure DATABASE_URL is set correctly");
-  console.error("3. If running outside Docker, use localhost instead of 'postgres' hostname");
-  process.exit(1);
+// Fix DATABASE_URL if running outside Docker (postgres hostname won't resolve)
+let databaseUrl = process.env.DATABASE_URL || "";
+if (databaseUrl.includes("@postgres:5432")) {
+  // Replace Docker service name with localhost for direct script execution
+  databaseUrl = databaseUrl.replace("@postgres:5432", "@localhost:5432");
+  console.log("Note: Using localhost instead of Docker service name for database connection");
+  console.log(`Connecting to: ${databaseUrl.replace(/:[^:@]+@/, ":****@")}`); // Hide password in logs
 }
 
-// Use the same Prisma client initialization as the app
-const prisma = new PrismaClient({
-  log: process.env.NODE_ENV === "development" ? ["query", "error", "warn"] : ["error"],
-});
+const prisma = new PrismaClient(
+  databaseUrl && databaseUrl !== process.env.DATABASE_URL
+    ? {
+        datasources: {
+          db: {
+            url: databaseUrl,
+          },
+        },
+      }
+    : undefined
+);
 
 async function checkKanbanStages() {
   try {
