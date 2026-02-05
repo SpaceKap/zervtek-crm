@@ -11,6 +11,7 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
+  DialogClose,
 } from "@/components/ui/dialog";
 
 interface InquiryCardProps {
@@ -447,17 +448,68 @@ export function InquiryCard({
       
       {/* Message Dialog */}
       <Dialog open={showMessageDialog} onOpenChange={setShowMessageDialog}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Message</DialogTitle>
-            <DialogDescription>
-              {inquiry.customerName || inquiry.email || "Unknown Customer"}
+        <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col p-0">
+          <DialogClose
+            onClose={() => setShowMessageDialog(false)}
+            className="absolute right-4 top-4 z-10"
+          />
+          <DialogHeader className="flex-shrink-0 px-6 pt-6 pb-4 border-b border-gray-200 dark:border-[#2C2C2C]">
+            <DialogTitle className="text-xl font-semibold text-gray-900 dark:text-white mb-3">
+              Message
+            </DialogTitle>
+            <DialogDescription className="space-y-2">
+              {inquiry.customerName && (
+                <div className="flex items-center gap-2">
+                  <span className="material-symbols-outlined text-base text-gray-500 dark:text-gray-400">
+                    person
+                  </span>
+                  <span className="font-medium text-gray-700 dark:text-gray-300">
+                    {inquiry.customerName}
+                  </span>
+                </div>
+              )}
+              {inquiry.email && (
+                <div className="flex items-center gap-2">
+                  <span className="material-symbols-outlined text-base text-gray-500 dark:text-gray-400">
+                    email
+                  </span>
+                  <span className="text-sm text-gray-600 dark:text-gray-400">
+                    {inquiry.email}
+                  </span>
+                </div>
+              )}
+              {inquiry.phone && (
+                <div className="flex items-center gap-2">
+                  <span className="material-symbols-outlined text-base text-gray-500 dark:text-gray-400">
+                    phone
+                  </span>
+                  <span className="text-sm text-gray-600 dark:text-gray-400">
+                    {inquiry.phone}
+                  </span>
+                </div>
+              )}
+              {!inquiry.customerName && !inquiry.email && (
+                <span className="text-sm text-gray-500 dark:text-gray-400">
+                  Unknown Customer
+                </span>
+              )}
             </DialogDescription>
           </DialogHeader>
-          <div className="mt-4">
-            <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap break-words">
-              {inquiry.message}
-            </p>
+          <div className="flex-1 overflow-y-auto px-6 py-6">
+            <div className="bg-gray-50 dark:bg-[#1E1E1E] rounded-lg p-5 border border-gray-200 dark:border-[#2C2C2C]">
+              <p className="text-sm leading-relaxed text-gray-800 dark:text-gray-200 whitespace-pre-wrap break-words">
+                {inquiry.message}
+              </p>
+            </div>
+          </div>
+          <div className="flex-shrink-0 px-6 py-4 border-t border-gray-200 dark:border-[#2C2C2C] flex justify-end">
+            <Button
+              onClick={() => setShowMessageDialog(false)}
+              variant="outline"
+              className="min-w-[100px]"
+            >
+              Close
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
