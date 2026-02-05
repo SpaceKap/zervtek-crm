@@ -1,5 +1,36 @@
-import { prisma } from "../lib/prisma";
+import { PrismaClient } from "@prisma/client";
 import { InquiryStatus } from "@prisma/client";
+
+// Load environment variables (tsx automatically loads .env, but we'll be explicit)
+if (typeof require !== "undefined") {
+  try {
+    require("dotenv").config();
+  } catch (e) {
+    // dotenv not available, try alternative
+    try {
+      const { config } = require("dotenv");
+      config();
+    } catch (e2) {
+      // Ignore if dotenv is not available
+    }
+  }
+}
+
+// Log DATABASE_URL (without password) for debugging
+const dbUrl = process.env.DATABASE_URL;
+if (dbUrl) {
+  const maskedUrl = dbUrl.replace(/:[^:@]+@/, ":****@");
+  console.log(`Using DATABASE_URL: ${maskedUrl}`);
+} else {
+  console.error("ERROR: DATABASE_URL not found in environment variables!");
+  console.error("Please ensure .env file exists and contains DATABASE_URL");
+  process.exit(1);
+}
+
+// Use the same Prisma client initialization as the app
+const prisma = new PrismaClient({
+  log: process.env.NODE_ENV === "development" ? ["query", "error", "warn"] : ["error"],
+});
 
 async function checkKanbanStages() {
   try {
