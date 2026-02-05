@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import { SortableInquiryCard } from "./SortableInquiryCard";
 import { InquiryStatus, InquirySource } from "@prisma/client";
 import { useDroppable } from "@dnd-kit/core";
@@ -39,7 +40,7 @@ interface KanbanColumnProps {
   isAdmin?: boolean;
 }
 
-export function KanbanColumn({
+export const KanbanColumn = memo(function KanbanColumn({
   id,
   title,
   color,
@@ -154,4 +155,4 @@ export function KanbanColumn({
       </div>
     </div>
   );
-}
+});

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { KanbanColumn } from "./KanbanColumn";
 import { InquiryStatus, InquirySource } from "@prisma/client";
 import { useRouter } from "next/navigation";
@@ -228,16 +228,21 @@ export function KanbanBoard({
 
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
-    setActiveId(null);
-
-    if (!over) return;
+    
+    if (!over) {
+      setActiveId(null);
+      return;
+    }
 
     const inquiryId = active.id as string;
     const targetStageId = over.id as string;
 
     // Find the target stage
     const targetStage = stages.find((stage) => stage.id === targetStageId);
-    if (!targetStage) return;
+    if (!targetStage) {
+      setActiveId(null);
+      return;
+    }
 
     // Find the inquiry and source stage
     let sourceStage: Stage | undefined;
@@ -250,33 +255,46 @@ export function KanbanBoard({
       })
       .find((inq) => inq.id === inquiryId);
     
-    if (!inquiry || !sourceStage) return;
+    if (!inquiry || !sourceStage) {
+      setActiveId(null);
+      return;
+    }
 
     // Don't update if already in the same stage
-    if (inquiry.status === targetStage.status) return;
+    if (inquiry.status === targetStage.status) {
+      setActiveId(null);
+      return;
+    }
 
-    // Optimistic update: Update UI immediately
-    const updatedStages = stages.map((stage) => {
-      if (stage.id === sourceStage!.id) {
-        // Remove from source stage
-        return {
-          ...stage,
-          inquiries: stage.inquiries.filter((inq) => inq.id !== inquiryId),
-        };
-      }
-      if (stage.id === targetStage.id) {
-        // Add to target stage with updated status
-        return {
-          ...stage,
-          inquiries: [
-            ...stage.inquiries,
-            { ...inquiry, status: targetStage.status },
-          ],
-        };
-      }
-      return stage;
+    // Store original state for potential revert
+    const originalStages = stages;
+
+    // Optimistic update: Update UI immediately (use functional update to avoid stale closure)
+    setStages((prevStages) => {
+      return prevStages.map((stage) => {
+        if (stage.id === sourceStage!.id) {
+          // Remove from source stage
+          return {
+            ...stage,
+            inquiries: stage.inquiries.filter((inq) => inq.id !== inquiryId),
+          };
+        }
+        if (stage.id === targetStage.id) {
+          // Add to target stage with updated status
+          return {
+            ...stage,
+            inquiries: [
+              ...stage.inquiries,
+              { ...inquiry, status: targetStage.status },
+            ],
+          };
+        }
+        return stage;
+      });
     });
-    setStages(updatedStages);
+
+    // Clear active ID immediately after optimistic update
+    setActiveId(null);
 
     // Sync with server in the background
     try {
@@ -293,16 +311,15 @@ export function KanbanBoard({
         // Revert on error
         const error = await response.json();
         console.error("Failed to update inquiry status:", error);
-        // Revert to previous state
-        setStages(stages);
+        // Revert to original state
+        setStages(originalStages);
         alert(error.error || "Failed to update inquiry status");
       }
-      // On success, silently sync in background (optional - optimistic update already done)
-      // fetchBoard();
+      // On success, no need to refresh - optimistic update already done
     } catch (error) {
       console.error("Error updating inquiry status:", error);
-      // Revert to previous state
-      setStages(stages);
+      // Revert to original state
+      setStages(originalStages);
       alert("Failed to update inquiry status");
     }
   };
@@ -356,7 +373,7 @@ export function KanbanBoard({
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
-      <div className="flex gap-4 h-full overflow-x-auto overflow-y-hidden pb-4">
+      <div className="flex gap-4 h-full overflow-x-auto overflow-y-hidden pb-4 scrollbar-hide" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
         <SortableContext
           items={allInquiryIds}
           strategy={verticalListSortingStrategy}
