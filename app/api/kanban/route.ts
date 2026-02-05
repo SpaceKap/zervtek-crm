@@ -39,22 +39,39 @@ export async function GET(request: NextRequest) {
       orderBy: { order: "asc" },
     })
 
+    // Define default stages
+    const defaultStages = [
+      { name: "New", order: 0, status: InquiryStatus.NEW, color: "#3b82f6" },
+      { name: "Contacted", order: 1, status: InquiryStatus.CONTACTED, color: "#8b5cf6" },
+      { name: "Qualified", order: 2, status: InquiryStatus.QUALIFIED, color: "#10b981" },
+      { name: "Deposit", order: 3, status: InquiryStatus.DEPOSIT, color: "#f59e0b" },
+      { name: "Closed Won", order: 4, status: InquiryStatus.CLOSED_WON, color: "#22c55e" },
+      { name: "Closed Lost", order: 5, status: InquiryStatus.CLOSED_LOST, color: "#6b7280" },
+      { name: "Recurring", order: 6, status: InquiryStatus.RECURRING, color: "#06b6d4" },
+    ]
+
     // If no stages exist, create default ones
     if (stages.length === 0) {
-      const defaultStages = [
-        { name: "New", order: 0, status: InquiryStatus.NEW, color: "#3b82f6" },
-        { name: "Contacted", order: 1, status: InquiryStatus.CONTACTED, color: "#8b5cf6" },
-        { name: "Qualified", order: 2, status: InquiryStatus.QUALIFIED, color: "#10b981" },
-        { name: "Deposit", order: 3, status: InquiryStatus.DEPOSIT, color: "#f59e0b" },
-        { name: "Closed Won", order: 4, status: InquiryStatus.CLOSED_WON, color: "#22c55e" },
-        { name: "Closed Lost", order: 5, status: InquiryStatus.CLOSED_LOST, color: "#6b7280" },
-        { name: "Recurring", order: 6, status: InquiryStatus.RECURRING, color: "#06b6d4" },
-      ]
-
       await prisma.kanbanStage.createMany({
         data: defaultStages,
       })
-
+      stages = await prisma.kanbanStage.findMany({
+        orderBy: { order: "asc" },
+      })
+    } else {
+      // Sync existing stages with default values (upsert)
+      for (const defaultStage of defaultStages) {
+        await prisma.kanbanStage.upsert({
+          where: { status: defaultStage.status },
+          update: {
+            name: defaultStage.name,
+            order: defaultStage.order,
+            color: defaultStage.color,
+          },
+          create: defaultStage,
+        })
+      }
+      // Re-fetch stages after sync
       stages = await prisma.kanbanStage.findMany({
         orderBy: { order: "asc" },
       })

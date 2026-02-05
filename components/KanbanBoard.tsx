@@ -126,9 +126,14 @@ export function KanbanBoard({
       if (response.ok) {
         const data = await response.json();
         setStages(data.stages || []);
+      } else {
+        const errorData = await response.json().catch(() => ({ error: "Unknown error" }));
+        console.error("Error fetching kanban board:", errorData);
+        setStages([]);
       }
     } catch (error) {
       console.error("Error fetching kanban board:", error);
+      setStages([]);
     } finally {
       setLoading(false);
     }
