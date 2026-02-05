@@ -1,7 +1,5 @@
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "../lib/prisma";
 import { InquiryStatus } from "@prisma/client";
-
-const prisma = new PrismaClient();
 
 async function checkKanbanStages() {
   try {
