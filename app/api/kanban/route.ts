@@ -138,8 +138,12 @@ export async function GET(request: NextRequest) {
       return acc
     }, {} as Record<InquiryStatus, typeof inquiries>)
 
+    // Filter out any stages with invalid statuses (not in InquiryStatus enum)
+    const validStatuses = Object.values(InquiryStatus);
+    const validStages = stages.filter((stage) => validStatuses.includes(stage.status));
+    
     // Map stages with their inquiries
-    const boardData = stages.map((stage) => ({
+    const boardData = validStages.map((stage) => ({
       id: stage.id,
       name: stage.name,
       order: stage.order,
@@ -147,6 +151,8 @@ export async function GET(request: NextRequest) {
       status: stage.status,
       inquiries: inquiriesByStatus[stage.status] || [],
     }))
+    
+    console.log(`[Kanban API] Filtered to ${validStages.length} valid stages (removed ${stages.length - validStages.length} invalid)`);
 
     console.log(`[Kanban API] Returning ${boardData.length} stages with ${inquiries.length} total inquiries`)
     

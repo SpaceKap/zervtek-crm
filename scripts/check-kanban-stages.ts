@@ -70,8 +70,26 @@ async function checkKanbanStages() {
       { name: "Recurring", order: 6, status: InquiryStatus.RECURRING, color: "#06b6d4" },
     ];
     
-    if (stages.length === 0) {
-      console.log("\nNo stages found. Creating default stages...");
+    // Get list of valid statuses
+    const validStatuses = expectedStages.map(s => s.status);
+    
+    // Delete any stages with invalid statuses
+    const invalidStages = stages.filter(s => !validStatuses.includes(s.status));
+    if (invalidStages.length > 0) {
+      console.log(`\nFound ${invalidStages.length} invalid stage(s) to remove:`);
+      invalidStages.forEach(stage => {
+        console.log(`  - ${stage.name} (${stage.status})`);
+      });
+      for (const invalidStage of invalidStages) {
+        await prisma.kanbanStage.delete({
+          where: { id: invalidStage.id },
+        });
+      }
+      console.log("Invalid stages removed!");
+    }
+    
+    if (stages.length === 0 || stages.length === invalidStages.length) {
+      console.log("\nNo valid stages found. Creating default stages...");
       await prisma.kanbanStage.createMany({
         data: expectedStages,
       });
