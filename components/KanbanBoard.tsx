@@ -88,7 +88,7 @@ export function KanbanBoard({
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        distance: 8,
+        distance: 5, // Reduced from 8 for more responsive dragging
       },
     }),
   );
@@ -239,15 +239,46 @@ export function KanbanBoard({
     const targetStage = stages.find((stage) => stage.id === targetStageId);
     if (!targetStage) return;
 
-    // Find the inquiry
+    // Find the inquiry and source stage
+    let sourceStage: Stage | undefined;
     const inquiry = stages
-      .flatMap((stage) => stage.inquiries)
+      .flatMap((stage) => {
+        if (stage.inquiries.some((inq) => inq.id === inquiryId)) {
+          sourceStage = stage;
+        }
+        return stage.inquiries;
+      })
       .find((inq) => inq.id === inquiryId);
-    if (!inquiry) return;
+    
+    if (!inquiry || !sourceStage) return;
 
     // Don't update if already in the same stage
     if (inquiry.status === targetStage.status) return;
 
+    // Optimistic update: Update UI immediately
+    const updatedStages = stages.map((stage) => {
+      if (stage.id === sourceStage!.id) {
+        // Remove from source stage
+        return {
+          ...stage,
+          inquiries: stage.inquiries.filter((inq) => inq.id !== inquiryId),
+        };
+      }
+      if (stage.id === targetStage.id) {
+        // Add to target stage with updated status
+        return {
+          ...stage,
+          inquiries: [
+            ...stage.inquiries,
+            { ...inquiry, status: targetStage.status },
+          ],
+        };
+      }
+      return stage;
+    });
+    setStages(updatedStages);
+
+    // Sync with server in the background
     try {
       const response = await fetch("/api/kanban", {
         method: "PATCH",
@@ -258,17 +289,21 @@ export function KanbanBoard({
         }),
       });
 
-      if (response.ok) {
-        fetchBoard();
-      } else {
+      if (!response.ok) {
+        // Revert on error
         const error = await response.json();
+        console.error("Failed to update inquiry status:", error);
+        // Revert to previous state
+        setStages(stages);
         alert(error.error || "Failed to update inquiry status");
-        fetchBoard(); // Refresh to revert UI
       }
+      // On success, silently sync in background (optional - optimistic update already done)
+      // fetchBoard();
     } catch (error) {
       console.error("Error updating inquiry status:", error);
+      // Revert to previous state
+      setStages(stages);
       alert("Failed to update inquiry status");
-      fetchBoard(); // Refresh to revert UI
     }
   };
 
@@ -356,17 +391,22 @@ export function KanbanBoard({
       </div>
       <DragOverlay>
         {activeId ? (
-          <div className="opacity-50">
+          <div className="rotate-3 shadow-2xl">
             {(() => {
               const inquiry = stages
                 .flatMap((stage) => stage.inquiries)
                 .find((inq) => inq.id === activeId);
               if (!inquiry) return null;
               return (
-                <div className="bg-white dark:bg-[#1E1E1E] border border-gray-200 dark:border-[#2C2C2C] rounded-lg p-4 shadow-lg">
-                  <div className="font-semibold text-sm">
+                <div className="bg-white dark:bg-[#1E1E1E] border-2 border-primary dark:border-[#D4AF37] rounded-lg p-4 shadow-xl w-[320px]">
+                  <div className="font-semibold text-sm mb-1">
                     {inquiry.customerName || inquiry.email || "Unknown Customer"}
                   </div>
+                  {inquiry.email && (
+                    <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                      {inquiry.email}
+                    </div>
+                  )}
                 </div>
               );
             })()}

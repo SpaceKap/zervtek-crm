@@ -59,6 +59,11 @@ export function KanbanColumn({
     id: id,
   });
 
+  // Smooth transition for drop zone highlight
+  const dropZoneClass = isOver
+    ? "bg-blue-50 dark:bg-blue-900/20 border-blue-300 dark:border-blue-700"
+    : "";
+
   // Get color dot based on status
   const getStatusDot = () => {
     const statusColors: Record<string, string> = {
@@ -76,7 +81,7 @@ export function KanbanColumn({
   };
 
   return (
-    <div className="flex flex-col h-full min-w-[360px] max-w-[400px] bg-gray-50 dark:bg-[#1E1E1E] rounded-lg flex-shrink-0 border border-gray-200 dark:border-[#2C2C2C]">
+    <div className={`flex flex-col h-full min-w-[360px] max-w-[400px] bg-gray-50 dark:bg-[#1E1E1E] rounded-lg flex-shrink-0 border-2 transition-colors duration-200 ${dropZoneClass || "border-gray-200 dark:border-[#2C2C2C]"}`}>
       {/* Column Header */}
       <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-[#2C2C2C] bg-white dark:bg-[#1E1E1E] rounded-t-lg flex-shrink-0">
         <div className="flex items-center gap-2">
@@ -112,9 +117,7 @@ export function KanbanColumn({
       {/* Column Content */}
       <div
         ref={setNodeRef}
-        className={`flex-1 p-3 space-y-3 overflow-y-auto overflow-x-hidden transition-colors ${
-          isOver ? "bg-blue-50 dark:bg-blue-900/10" : ""
-        }`}
+        className="flex-1 p-3 space-y-3 overflow-y-auto overflow-x-hidden min-h-[200px] transition-colors duration-200"
       >
         {inquiries.map((inquiry) => (
           <SortableInquiryCard

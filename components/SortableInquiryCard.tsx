@@ -59,8 +59,9 @@ export function SortableInquiryCard({
 
   const style = {
     transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
+    transition: isDragging ? "none" : transition, // Disable transition during drag
+    opacity: isDragging ? 0.4 : 1,
+    cursor: isDragging ? "grabbing" : "grab",
   };
 
   return (
