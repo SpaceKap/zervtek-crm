@@ -42,7 +42,7 @@ export default function GeneralCostsPage() {
     amount: "",
     currency: "JPY",
     date: new Date().toISOString().split("T")[0],
-    vendorId: "",
+    vendorId: "__none__",
     invoiceUrl: "",
     notes: "",
   });
@@ -102,7 +102,7 @@ export default function GeneralCostsPage() {
         amount: "",
         currency: "JPY",
         date: new Date().toISOString().split("T")[0],
-        vendorId: "",
+        vendorId: "__none__",
         invoiceUrl: "",
         notes: "",
       });
@@ -131,7 +131,7 @@ export default function GeneralCostsPage() {
           amount: parseFloat(formData.amount),
           currency: formData.currency,
           date: formData.date,
-          vendorId: formData.vendorId || null,
+          vendorId: formData.vendorId === "__none__" ? null : formData.vendorId || null,
           invoiceUrl: formData.invoiceUrl || null,
           notes: formData.notes || null,
         }),
