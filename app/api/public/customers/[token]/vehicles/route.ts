@@ -24,13 +24,30 @@ export async function GET(
 
     const vehicles = await prisma.vehicle.findMany({
       where: { customerId: customer.id },
-      include: {
+      select: {
+        id: true,
+        make: true,
+        model: true,
+        year: true,
+        vin: true,
+        stockNo: true,
+        currentShippingStage: true,
         shippingStage: {
           include: {
             yard: true,
           },
         },
         documents: {
+          where: {
+            visibleToCustomer: true, // Only show documents visible to customer
+          },
+          select: {
+            id: true,
+            name: true,
+            category: true,
+            fileUrl: true,
+            createdAt: true,
+          },
           orderBy: { createdAt: "desc" },
         },
         invoices: {
