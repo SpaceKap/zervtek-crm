@@ -11,7 +11,6 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 
 export default function PublicCustomerPortalPage() {
   const params = useParams();
@@ -56,12 +55,18 @@ export default function PublicCustomerPortalPage() {
   };
 
   const stageColors: Record<string, string> = {
-    PURCHASE: "bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 border-blue-200 dark:border-blue-800",
-    TRANSPORT: "bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300 border-purple-200 dark:border-purple-800",
-    REPAIR: "bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-300 border-orange-200 dark:border-orange-800",
-    DOCUMENTS: "bg-indigo-100 dark:bg-indigo-900/30 text-indigo-800 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800",
-    BOOKING: "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300 border-yellow-200 dark:border-yellow-800",
-    SHIPPED: "bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 border-green-200 dark:border-green-800",
+    PURCHASE:
+      "bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 border-blue-200 dark:border-blue-800",
+    TRANSPORT:
+      "bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300 border-purple-200 dark:border-purple-800",
+    REPAIR:
+      "bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-300 border-orange-200 dark:border-orange-800",
+    DOCUMENTS:
+      "bg-indigo-100 dark:bg-indigo-900/30 text-indigo-800 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800",
+    BOOKING:
+      "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300 border-yellow-200 dark:border-yellow-800",
+    SHIPPED:
+      "bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 border-green-200 dark:border-green-800",
     DHL: "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800",
   };
 
@@ -85,7 +90,6 @@ export default function PublicCustomerPortalPage() {
     const iconMap: Record<string, string> = {
       INVOICE: "receipt",
       PHOTOS: "photo_library",
-      ETD_ETA: "schedule",
       EXPORT_CERTIFICATE: "verified",
       DEREGISTRATION_CERTIFICATE: "description",
       BILL_OF_LADING: "description",
@@ -173,7 +177,8 @@ export default function PublicCustomerPortalPage() {
                 No Vehicles Yet
               </h3>
               <p className="text-gray-600 dark:text-gray-400">
-                Your vehicles will appear here once they are added to the system.
+                Your vehicles will appear here once they are added to the
+                system.
               </p>
             </CardContent>
           </Card>
@@ -387,11 +392,15 @@ export default function PublicCustomerPortalPage() {
                         ) : (
                           <div className="space-y-3">
                             {vehicle.invoices.map((invoice: any) => {
-                              const totalAmount = invoice.charges?.reduce(
-                                (sum: number, charge: any) =>
-                                  sum + parseFloat(charge.amount?.toString() || "0"),
-                                0
-                              ) || 0;
+                              const totalAmount =
+                                invoice.charges?.reduce(
+                                  (sum: number, charge: any) =>
+                                    sum +
+                                    parseFloat(
+                                      charge.amount?.toString() || "0",
+                                    ),
+                                  0,
+                                ) || 0;
                               const isPaid = invoice.paymentStatus === "PAID";
                               const isOverdue =
                                 invoice.paymentStatus === "OVERDUE";
@@ -413,7 +422,7 @@ export default function PublicCustomerPortalPage() {
                                           Issued:{" "}
                                           {format(
                                             new Date(invoice.issueDate),
-                                            "MMM dd, yyyy"
+                                            "MMM dd, yyyy",
                                           )}
                                         </p>
                                       )}
@@ -422,7 +431,7 @@ export default function PublicCustomerPortalPage() {
                                           Due:{" "}
                                           {format(
                                             new Date(invoice.dueDate),
-                                            "MMM dd, yyyy"
+                                            "MMM dd, yyyy",
                                           )}
                                         </p>
                                       )}
@@ -432,18 +441,18 @@ export default function PublicCustomerPortalPage() {
                                         isPaid
                                           ? "bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 border-green-200 dark:border-green-800"
                                           : isOverdue
-                                          ? "bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300 border-red-200 dark:border-red-800"
-                                          : "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300 border-yellow-200 dark:border-yellow-800"
+                                            ? "bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300 border-red-200 dark:border-red-800"
+                                            : "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300 border-yellow-200 dark:border-yellow-800"
                                       } border`}
                                     >
                                       {invoice.paymentStatus === "PAID"
                                         ? "Paid"
                                         : invoice.paymentStatus ===
-                                          "PARTIALLY_PAID"
-                                        ? "Partial"
-                                        : invoice.paymentStatus === "OVERDUE"
-                                        ? "Overdue"
-                                        : "Pending"}
+                                            "PARTIALLY_PAID"
+                                          ? "Partial"
+                                          : invoice.paymentStatus === "OVERDUE"
+                                            ? "Overdue"
+                                            : "Pending"}
                                     </Badge>
                                   </div>
                                   {totalAmount > 0 && (
