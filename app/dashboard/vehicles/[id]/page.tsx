@@ -23,6 +23,7 @@ import { VehicleStageForms } from "@/components/VehicleStageForms";
 import { VehicleDocumentsManager } from "@/components/VehicleDocumentsManager";
 import { VehiclePaymentTracker } from "@/components/VehiclePaymentTracker";
 import { VehicleStageHistory } from "@/components/VehicleStageHistory";
+import { VehicleExpensesManager } from "@/components/VehicleExpensesManager";
 import { StageNavigation } from "@/components/StageNavigation";
 import { Label } from "@/components/ui/label";
 import Link from "next/link";
@@ -112,8 +113,12 @@ export default function VehicleDetailPage() {
   const [vehicle, setVehicle] = useState<Vehicle | null>(null);
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [yards, setYards] = useState<Yard[]>([]);
+  const [customers, setCustomers] = useState<
+    Array<{ id: string; name: string; email: string | null }>
+  >([]);
   const [loading, setLoading] = useState(true);
   const [savingStage, setSavingStage] = useState(false);
+  const [savingCustomer, setSavingCustomer] = useState(false);
   const [viewingStage, setViewingStage] = useState<ShippingStage | null>(null);
 
   useEffect(() => {
@@ -121,8 +126,46 @@ export default function VehicleDetailPage() {
       fetchVehicle();
       fetchVendors();
       fetchYards();
+      fetchCustomers();
     }
   }, [vehicleId]);
+
+  const fetchCustomers = async () => {
+    try {
+      const response = await fetch("/api/customers");
+      if (response.ok) {
+        const data = await response.json();
+        setCustomers(
+          data.map((c: any) => ({ id: c.id, name: c.name, email: c.email })),
+        );
+      }
+    } catch (error) {
+      console.error("Error fetching customers:", error);
+    }
+  };
+
+  const handleAssignCustomer = async (customerId: string) => {
+    try {
+      setSavingCustomer(true);
+      const finalCustomerId = customerId === "__none__" ? null : customerId;
+      const response = await fetch(`/api/vehicles/${vehicleId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ customerId: finalCustomerId }),
+      });
+      if (response.ok) {
+        await fetchVehicle();
+      } else {
+        const error = await response.json();
+        alert(error.error || "Failed to assign customer");
+      }
+    } catch (error) {
+      console.error("Error assigning customer:", error);
+      alert("Failed to assign customer");
+    } finally {
+      setSavingCustomer(false);
+    }
+  };
 
   // Refetch vendors when viewing stage changes
   useEffect(() => {
@@ -469,27 +512,75 @@ export default function VehicleDetailPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {vehicle.customer ? (
-                <>
-                  <div>
-                    <Label className="text-xs text-gray-500 dark:text-[#A1A1A1]">
-                      Customer
-                    </Label>
-                    <p className="text-sm font-medium text-gray-900 dark:text-white mt-1">
-                      {vehicle.customer.name}
-                    </p>
-                    {vehicle.customer.email && (
-                      <p className="text-xs text-gray-500 dark:text-[#A1A1A1] mt-1">
-                        {vehicle.customer.email}
+              <div>
+                <Label className="text-xs text-gray-500 dark:text-[#A1A1A1]">
+                  Customer
+                </Label>
+                {vehicle.customer ? (
+                  <div className="mt-1 space-y-2">
+                    <Link
+                      href={`/dashboard/customers/${vehicle.customer.id}`}
+                      className="block group"
+                    >
+                      <p className="text-sm font-medium text-gray-900 dark:text-white group-hover:text-primary dark:group-hover:text-[#D4AF37] transition-colors">
+                        {vehicle.customer.name}
                       </p>
-                    )}
+                      {vehicle.customer.email && (
+                        <p className="text-xs text-gray-500 dark:text-[#A1A1A1] mt-1">
+                          {vehicle.customer.email}
+                        </p>
+                      )}
+                      {vehicle.customer.phone && (
+                        <p className="text-xs text-gray-500 dark:text-[#A1A1A1]">
+                          {vehicle.customer.phone}
+                        </p>
+                      )}
+                    </Link>
+                    <Select
+                      value={vehicle.customer.id}
+                      onValueChange={handleAssignCustomer}
+                      disabled={savingCustomer}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">None (Remove customer)</SelectItem>
+                        {customers.map((customer) => (
+                          <SelectItem key={customer.id} value={customer.id}>
+                            {customer.name}{" "}
+                            {customer.email ? `(${customer.email})` : ""}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
-                </>
-              ) : (
-                <p className="text-sm text-gray-500 dark:text-[#A1A1A1]">
-                  No customer assigned
-                </p>
-              )}
+                ) : (
+                  <div className="space-y-2">
+                    <p className="text-sm text-gray-500 dark:text-[#A1A1A1]">
+                      No customer assigned
+                    </p>
+                    <Select
+                      value="__none__"
+                      onValueChange={handleAssignCustomer}
+                      disabled={savingCustomer}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Assign a customer..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">None</SelectItem>
+                        {customers.map((customer) => (
+                          <SelectItem key={customer.id} value={customer.id}>
+                            {customer.name}{" "}
+                            {customer.email ? `(${customer.email})` : ""}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+              </div>
               {vehicle.shippingStage?.yard && (
                 <div>
                   <Label className="text-xs text-gray-500 dark:text-[#A1A1A1]">
@@ -533,10 +624,21 @@ export default function VehicleDetailPage() {
                       </Button>
                     </Link>
                   ))}
+                  <Link
+                    href={`/dashboard/invoices/new?vehicleId=${vehicle.id}${vehicle.customer ? `&customerId=${vehicle.customer.id}` : ""}`}
+                    className="block mt-2"
+                  >
+                    <Button variant="outline" className="w-full">
+                      <span className="material-symbols-outlined text-lg mr-2">
+                        add
+                      </span>
+                      Create Another Invoice
+                    </Button>
+                  </Link>
                 </div>
-              ) : vehicle.customer ? (
+              ) : (
                 <Link
-                  href={`/dashboard/invoices/new?vehicleId=${vehicle.id}&customerId=${vehicle.customer.id}`}
+                  href={`/dashboard/invoices/new?vehicleId=${vehicle.id}${vehicle.customer ? `&customerId=${vehicle.customer.id}` : ""}`}
                   className="block"
                 >
                   <Button className="w-full">
@@ -546,11 +648,28 @@ export default function VehicleDetailPage() {
                     Create Invoice
                   </Button>
                 </Link>
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  Assign a customer to create an invoice
-                </p>
               )}
+            </CardContent>
+          </Card>
+
+          {/* Expenses Card */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <span className="material-symbols-outlined text-xl">
+                  receipt_long
+                </span>
+                Expenses
+              </CardTitle>
+              <CardDescription>
+                Track all expenses for this vehicle
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <VehicleExpensesManager
+                vehicleId={vehicleId}
+                onUpdate={fetchVehicle}
+              />
             </CardContent>
           </Card>
 

@@ -91,7 +91,7 @@ export default function GeneralCostsPage() {
         amount: cost.amount,
         currency: cost.currency,
         date: cost.date.split("T")[0],
-        vendorId: cost.vendor?.id || "",
+        vendorId: cost.vendor?.id || "__none__",
         invoiceUrl: cost.invoiceUrl || "",
         notes: cost.notes || "",
       });

@@ -54,7 +54,16 @@ export default function VehiclesPage() {
       const response = await fetch(`/api/vehicles?${params}`);
       if (response.ok) {
         const data = await response.json();
+        console.log(`[Vehicles Page] Fetched ${data.length} vehicles`);
         setVehicles(data);
+      } else {
+        const errorData = await response
+          .json()
+          .catch(() => ({ error: "Unknown error" }));
+        console.error("[Vehicles Page] API error:", response.status, errorData);
+        alert(
+          `Failed to fetch vehicles: ${errorData.error || errorData.details || "Unknown error"}`,
+        );
       }
     } catch (error) {
       console.error("Error fetching vehicles:", error);
