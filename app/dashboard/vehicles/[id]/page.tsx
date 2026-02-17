@@ -19,6 +19,14 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { VehicleStageForms } from "@/components/VehicleStageForms";
@@ -65,13 +73,19 @@ interface Vehicle {
     id: string;
     name: string;
     email: string | null;
-    phone: string | null;
+    phone?: string | null;
   } | null;
   shippingStage: any;
   stageHistory: any[];
   invoices?: Array<{
     id: string;
     invoiceNumber: string;
+    costInvoice?: {
+      totalCost: any;
+      totalRevenue: any;
+      profit: any;
+      costItems?: Array<{ description: string; amount: any; category: string | null }>;
+    } | null;
   }>;
   _count?: {
     documents: number;
@@ -126,6 +140,10 @@ export default function VehicleDetailPage() {
   const [savingStage, setSavingStage] = useState(false);
   const [viewingStage, setViewingStage] = useState<ShippingStage | null>(null);
   const [activeTab, setActiveTab] = useState("overview");
+  const [assignCustomerOpen, setAssignCustomerOpen] = useState(false);
+  const [customers, setCustomers] = useState<{ id: string; name: string; email: string | null }[]>([]);
+  const [assigningCustomerId, setAssigningCustomerId] = useState("");
+  const [assigningLoading, setAssigningLoading] = useState(false);
 
   const fetchVendors = useCallback(async () => {
     try {
@@ -183,6 +201,39 @@ export default function VehicleDetailPage() {
       fetchVendors();
     }
   }, [viewingStage, vehicle, fetchVendors]);
+
+  useEffect(() => {
+    if (assignCustomerOpen) {
+      fetch("/api/customers")
+        .then((r) => r.ok && r.json())
+        .then((data) => Array.isArray(data) && setCustomers(data))
+        .catch(() => {});
+    }
+  }, [assignCustomerOpen]);
+
+  const handleAssignCustomer = async () => {
+    if (!assigningCustomerId) return;
+    try {
+      setAssigningLoading(true);
+      const res = await fetch(`/api/vehicles/${vehicleId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ customerId: assigningCustomerId }),
+      });
+      if (res.ok) {
+        setAssignCustomerOpen(false);
+        setAssigningCustomerId("");
+        fetchVehicle();
+      } else {
+        const err = await res.json();
+        alert(err.error || "Failed to assign customer");
+      }
+    } catch (e) {
+      alert("Failed to assign customer");
+    } finally {
+      setAssigningLoading(false);
+    }
+  };
 
   const handleStageChange = async (newStage: ShippingStage) => {
     try {
@@ -325,7 +376,7 @@ export default function VehicleDetailPage() {
                         : "Not Registered"}
                   </span>
                 </div>
-                {vehicle.customer && (
+                {vehicle.customer ? (
                   <Link
                     href={`/dashboard/customers/${vehicle.customer.id}`}
                     className="inline-flex items-center gap-1.5 mt-3 text-amber-400 hover:text-amber-300 transition-colors text-sm font-medium"
@@ -335,6 +386,18 @@ export default function VehicleDetailPage() {
                     </span>
                     {vehicle.customer.name}
                   </Link>
+                ) : (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="mt-3 gap-1.5 border-amber-500/50 text-amber-400 hover:bg-amber-500/10 hover:text-amber-300"
+                    onClick={() => setAssignCustomerOpen(true)}
+                  >
+                    <span className="material-symbols-outlined text-base">
+                      person_add
+                    </span>
+                    Assign Customer
+                  </Button>
                 )}
               </div>
             </div>
@@ -534,7 +597,6 @@ export default function VehicleDetailPage() {
             aria-label="Vehicle details"
           >
             {[
-              { id: "overview", label: "Overview", icon: "dashboard" },
               { id: "expenses", label: "Expenses", icon: "receipt_long" },
               { id: "payments", label: "Payments", icon: "payments" },
               { id: "documents", label: "Documents", icon: "folder" },
@@ -653,23 +715,63 @@ export default function VehicleDetailPage() {
                       Invoices
                     </h3>
                     {vehicle.invoices && vehicle.invoices.length > 0 ? (
-                      <ul className="space-y-2">
-                        {vehicle.invoices.map((invoice) => (
-                          <li key={invoice.id}>
-                            <Link
-                              href={`/dashboard/invoices/${invoice.id}`}
-                              className="flex items-center justify-between gap-3 rounded-lg px-3 py-2.5 border bg-background hover:bg-muted/50 transition-colors group"
-                            >
-                              <span className="font-medium text-sm">
-                                {invoice.invoiceNumber}
-                              </span>
-                              <span className="material-symbols-outlined text-muted-foreground text-lg group-hover:text-primary transition-colors">
-                                arrow_forward
-                              </span>
-                            </Link>
-                          </li>
-                        ))}
-                      </ul>
+                      <div className="space-y-4">
+                        <ul className="space-y-2">
+                          {vehicle.invoices.map((invoice) => (
+                            <li key={invoice.id}>
+                              <Link
+                                href={`/dashboard/invoices/${invoice.id}`}
+                                className="flex items-center justify-between gap-3 rounded-lg px-3 py-2.5 border bg-background hover:bg-muted/50 transition-colors group"
+                              >
+                                <span className="font-medium text-sm">
+                                  {invoice.invoiceNumber}
+                                </span>
+                                <span className="material-symbols-outlined text-muted-foreground text-lg group-hover:text-primary transition-colors">
+                                  arrow_forward
+                                </span>
+                              </Link>
+                            </li>
+                          ))}
+                        </ul>
+                        {(() => {
+                          const invoicesWithCosts = vehicle.invoices?.filter(
+                            (inv) => inv.costInvoice && (parseFloat(inv.costInvoice.totalRevenue?.toString() || "0") > 0 || parseFloat(inv.costInvoice.totalCost?.toString() || "0") > 0)
+                          ) || [];
+                          if (invoicesWithCosts.length === 0) return null;
+                          const totalRevenue = invoicesWithCosts.reduce(
+                            (s, inv) => s + parseFloat(inv.costInvoice?.totalRevenue?.toString() || "0"),
+                            0
+                          );
+                          const totalCost = invoicesWithCosts.reduce(
+                            (s, inv) => s + parseFloat(inv.costInvoice?.totalCost?.toString() || "0"),
+                            0
+                          );
+                          const totalProfit = invoicesWithCosts.reduce(
+                            (s, inv) => s + parseFloat(inv.costInvoice?.profit?.toString() || "0"),
+                            0
+                          );
+                          const fmt = (n: number) =>
+                            new Intl.NumberFormat("ja-JP", { style: "currency", currency: "JPY", maximumFractionDigits: 0 }).format(n);
+                          return (
+                            <div className="pt-4 border-t space-y-1 text-sm">
+                              <div className="flex justify-between text-muted-foreground">
+                                <span>Revenue</span>
+                                <span>{fmt(totalRevenue)}</span>
+                              </div>
+                              <div className="flex justify-between text-muted-foreground">
+                                <span>Costs</span>
+                                <span>{fmt(totalCost)}</span>
+                              </div>
+                              <div className="flex justify-between font-medium">
+                                <span>Profit</span>
+                                <span className={totalProfit >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}>
+                                  {fmt(totalProfit)}
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        })()}
+                      </div>
                     ) : (
                       <div className="flex flex-col items-center justify-center py-8 text-center">
                         <span className="material-symbols-outlined text-3xl text-muted-foreground/50 mb-2">
@@ -717,6 +819,55 @@ export default function VehicleDetailPage() {
           </div>
         </Tabs>
       </div>
+
+      {/* Assign Customer Dialog */}
+      <Dialog open={assignCustomerOpen} onOpenChange={setAssignCustomerOpen}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <span className="material-symbols-outlined text-xl">person_add</span>
+              Assign Customer
+            </DialogTitle>
+            <DialogDescription>
+              Select a customer to assign to this vehicle
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Select
+              value={assigningCustomerId}
+              onValueChange={setAssigningCustomerId}
+              disabled={assigningLoading}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Select customer..." />
+              </SelectTrigger>
+              <SelectContent>
+                {customers.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.name}
+                    {c.email ? ` (${c.email})` : ""}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setAssignCustomerOpen(false)}
+              disabled={assigningLoading}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleAssignCustomer}
+              disabled={!assigningCustomerId || assigningLoading}
+            >
+              {assigningLoading ? "Assigning..." : "Assign"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

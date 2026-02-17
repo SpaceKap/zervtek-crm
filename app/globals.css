@@ -56,6 +56,35 @@
   body {
     @apply bg-background text-foreground;
     font-feature-settings: "rlig" 1, "calt" 1;
+    font-family: var(--font-inter), sans-serif;
+  }
+
+  code,
+  pre,
+  kbd,
+  samp {
+    font-family: var(--font-jetbrains-mono), monospace;
+  }
+
+  /* Apply JetBrains Mono to numbers */
+  /* Table cells - commonly contain numbers */
+  td,
+  th {
+    font-family: var(--font-jetbrains-mono), monospace;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Number inputs */
+  input[type="number"],
+  input[type="tel"] {
+    font-family: var(--font-jetbrains-mono), monospace;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Elements with data-number attribute */
+  [data-number] {
+    font-family: var(--font-jetbrains-mono), monospace;
+    font-variant-numeric: tabular-nums;
   }
 
   .material-symbols-outlined {
@@ -198,5 +227,13 @@
   .scrollbar-modern-vertical::-webkit-scrollbar-thumb:active {
     background: hsl(var(--muted-foreground) / 0.7);
     background-clip: padding-box;
+  }
+}
+
+@layer utilities {
+  /* Utility class for numbers - use class="font-mono-numbers" on any element */
+  .font-mono-numbers {
+    font-family: var(--font-jetbrains-mono), monospace;
+    font-variant-numeric: tabular-nums;
   }
 }

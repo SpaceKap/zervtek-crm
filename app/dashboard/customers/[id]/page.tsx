@@ -527,7 +527,7 @@ export default function CustomerDetailPage() {
               <div className="text-sm text-gray-600 dark:text-[#A1A1A1]">
                 Total Paid
               </div>
-              <div className="text-2xl font-bold text-green-600 dark:text-green-400">
+              <div className="text-2xl font-bold text-green-600 dark:text-green-400 font-mono-numbers">
                 {formatCurrency(totalPaid)}
               </div>
             </div>
@@ -535,7 +535,7 @@ export default function CustomerDetailPage() {
               <div className="text-sm text-gray-600 dark:text-[#A1A1A1]">
                 Outstanding
               </div>
-              <div className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">
+              <div className="text-2xl font-bold text-yellow-600 dark:text-yellow-400 font-mono-numbers">
                 {formatCurrency(totalOutstanding)}
               </div>
             </div>

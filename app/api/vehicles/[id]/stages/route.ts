@@ -16,7 +16,7 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const vehicle = await prisma.vehicle.findUnique({
+    let vehicle = await prisma.vehicle.findUnique({
       where: { id: params.id },
       include: {
         inquiry: {
@@ -31,12 +31,29 @@ export async function GET(
             id: true,
             name: true,
             email: true,
+            phone: true,
           },
         },
         invoices: {
           select: {
             id: true,
             invoiceNumber: true,
+            customerId: true,
+            costInvoice: {
+              select: {
+                totalCost: true,
+                totalRevenue: true,
+                profit: true,
+                costItems: {
+                  select: {
+                    id: true,
+                    description: true,
+                    amount: true,
+                    category: true,
+                  },
+                },
+              },
+            },
           },
           orderBy: { createdAt: "desc" },
         },
@@ -105,6 +122,28 @@ export async function GET(
         { error: "Vehicle not found" },
         { status: 404 }
       )
+    }
+
+    // Sync customer from invoice when vehicle has no customer but invoices do
+    if (!vehicle.customerId && vehicle.invoices?.length) {
+      const invoiceWithCustomer = vehicle.invoices.find(
+        (inv: { customerId: string | null }) => inv.customerId
+      )
+      if (invoiceWithCustomer?.customerId) {
+        await prisma.vehicle.update({
+          where: { id: params.id },
+          data: { customerId: invoiceWithCustomer.customerId },
+        })
+        const syncedCustomer = await prisma.customer.findUnique({
+          where: { id: invoiceWithCustomer.customerId },
+          select: { id: true, name: true, email: true, phone: true },
+        })
+        vehicle = {
+          ...vehicle,
+          customerId: invoiceWithCustomer.customerId,
+          customer: syncedCustomer,
+        }
+      }
     }
 
     return NextResponse.json(convertDecimalsToNumbers(vehicle))

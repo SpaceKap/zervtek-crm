@@ -609,7 +609,7 @@ export function InvoiceDetail({
                     <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                       Total Revenue
                     </p>
-                    <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
+                    <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1 font-mono-numbers">
                       ¥{revenue.toLocaleString()}
                     </p>
                   </div>
@@ -629,7 +629,7 @@ export function InvoiceDetail({
                     <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                       Total Cost
                     </p>
-                    <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
+                    <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1 font-mono-numbers">
                       ¥{totalCost.toLocaleString()}
                     </p>
                   </div>
@@ -652,7 +652,7 @@ export function InvoiceDetail({
                       {profit >= 0 ? "Profit" : "Loss"}
                     </p>
                     <p
-                      className={`text-2xl font-bold mt-1 ${profit >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}
+                      className={`text-2xl font-bold mt-1 font-mono-numbers ${profit >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}
                     >
                       {profit >= 0 ? "+" : ""}¥
                       {Math.abs(profit).toLocaleString()}
@@ -678,7 +678,7 @@ export function InvoiceDetail({
                     <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                       Margin
                     </p>
-                    <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
+                    <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1 font-mono-numbers">
                       {margin.toFixed(1)}%
                     </p>
                   </div>
@@ -1250,11 +1250,10 @@ export function InvoiceDetail({
                             )}
                           </td>
                           <td className="py-3 px-4 text-right align-top w-32">
-                            <p className="font-semibold text-gray-900 dark:text-white whitespace-nowrap">
+                            <p className="font-semibold text-gray-900 dark:text-white whitespace-nowrap font-mono-numbers">
                               {isChargeSubtracting(charge)
                                 ? `-¥${parseFloat(charge.amount.toString()).toLocaleString()}`
-                                : `¥${parseFloat(charge.amount.toString()).toLocaleString()}`
-                              }
+                                : `¥${parseFloat(charge.amount.toString()).toLocaleString()}`}
                             </p>
                           </td>
                           {canEditCharges && (
@@ -1321,7 +1320,7 @@ export function InvoiceDetail({
                           </p>
                         </td>
                         <td className="py-4 px-4 text-right w-32">
-                          <p className="text-base font-bold text-gray-900 dark:text-white whitespace-nowrap">
+                          <p className="text-base font-bold text-gray-900 dark:text-white whitespace-nowrap font-mono-numbers">
                             ¥{totalCharges.toLocaleString()}
                           </p>
                         </td>
@@ -1444,24 +1443,22 @@ export function InvoiceDetail({
                                 <div className="flex flex-col gap-1">
                                   {item.paymentDeadline &&
                                     !isNaN(
-                                      new Date(
-                                        item.paymentDeadline,
-                                      ).getTime(),
+                                      new Date(item.paymentDeadline).getTime(),
                                     ) && (
-                                    <div className="text-sm text-gray-700 dark:text-gray-300">
-                                      <span className="font-medium">
-                                        Deadline:
-                                      </span>{" "}
-                                      {format(
-                                        new Date(item.paymentDeadline),
-                                        "MMM dd, yyyy",
-                                      )}
-                                    </div>
-                                  )}
+                                      <div className="text-sm text-gray-700 dark:text-gray-300">
+                                        <span className="font-medium">
+                                          Deadline:
+                                        </span>{" "}
+                                        {format(
+                                          new Date(item.paymentDeadline),
+                                          "MMM dd, yyyy",
+                                        )}
+                                      </div>
+                                    )}
                                   {item.paymentDate &&
-                                    !isNaN(
-                                      new Date(item.paymentDate).getTime(),
-                                    ) ? (
+                                  !isNaN(
+                                    new Date(item.paymentDate).getTime(),
+                                  ) ? (
                                     <div className="text-sm text-gray-700 dark:text-gray-300">
                                       <span className="font-medium">Paid:</span>{" "}
                                       {format(
@@ -1517,9 +1514,11 @@ export function InvoiceDetail({
                             <td className="py-3 px-4 text-right align-top w-32">
                               <p className="font-semibold text-gray-900 dark:text-white whitespace-nowrap">
                                 ¥
-                                {parseFloat(
-                                  item.amount.toString(),
-                                ).toLocaleString()}
+                                <span className="font-mono-numbers">
+                                  {parseFloat(
+                                    item.amount.toString(),
+                                  ).toLocaleString()}
+                                </span>
                               </p>
                             </td>
                             {canEdit && (

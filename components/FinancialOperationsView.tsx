@@ -1280,13 +1280,13 @@ export function FinancialOperationsView({
                             ? "Total Incoming"
                             : "Total Expenses"}
                         </div>
-                        <div className="text-2xl font-bold">
+                        <div className="text-2xl font-bold font-mono-numbers">
                           {transactionTab === "INCOMING"
                             ? incomingTotal.toLocaleString()
                             : outgoingTotal.toLocaleString()}{" "}
                           JPY
                         </div>
-                        <div className="text-xs text-muted-foreground mt-1">
+                        <div className="text-xs text-muted-foreground mt-1 font-mono-numbers">
                           {filteredAndSortedTransactions.length} transaction
                           {filteredAndSortedTransactions.length !== 1
                             ? "s"
@@ -1303,7 +1303,7 @@ export function FinancialOperationsView({
                               </span>
                               Paid
                             </div>
-                            <div className="text-2xl font-bold text-green-700 dark:text-green-300">
+                            <div className="text-2xl font-bold text-green-700 dark:text-green-300 font-mono-numbers">
                               {paidCount}
                             </div>
                             <div className="text-xs text-muted-foreground mt-1">
@@ -1318,7 +1318,7 @@ export function FinancialOperationsView({
                               </span>
                               Pending
                             </div>
-                            <div className="text-2xl font-bold text-yellow-700 dark:text-yellow-300">
+                            <div className="text-2xl font-bold text-yellow-700 dark:text-yellow-300 font-mono-numbers">
                               {pendingCount}
                             </div>
                             <div className="text-xs text-muted-foreground mt-1">
@@ -1333,7 +1333,7 @@ export function FinancialOperationsView({
                               </span>
                               Overdue
                             </div>
-                            <div className="text-2xl font-bold text-red-700 dark:text-red-300">
+                            <div className="text-2xl font-bold text-red-700 dark:text-red-300 font-mono-numbers">
                               {overdueCount}
                             </div>
                             <div className="text-xs text-muted-foreground mt-1">
@@ -1352,7 +1352,7 @@ export function FinancialOperationsView({
                               </span>
                               Paid
                             </div>
-                            <div className="text-2xl font-bold text-green-700 dark:text-green-300">
+                            <div className="text-2xl font-bold text-green-700 dark:text-green-300 font-mono-numbers">
                               {paidCount}
                             </div>
                             <div className="text-xs text-muted-foreground mt-1">
@@ -1367,7 +1367,7 @@ export function FinancialOperationsView({
                               </span>
                               Pending
                             </div>
-                            <div className="text-2xl font-bold text-yellow-700 dark:text-yellow-300">
+                            <div className="text-2xl font-bold text-yellow-700 dark:text-yellow-300 font-mono-numbers">
                               {pendingCount}
                             </div>
                             <div className="text-xs text-muted-foreground mt-1">
@@ -1383,7 +1383,7 @@ export function FinancialOperationsView({
                               Net Amount
                             </div>
                             <div
-                              className={`text-2xl font-bold ${netAmount >= 0 ? "text-green-700 dark:text-green-300" : "text-red-700 dark:text-red-300"}`}
+                              className={`text-2xl font-bold font-mono-numbers ${netAmount >= 0 ? "text-green-700 dark:text-green-300" : "text-red-700 dark:text-red-300"}`}
                             >
                               {netAmount >= 0 ? "+" : ""}
                               {netAmount.toLocaleString()} JPY

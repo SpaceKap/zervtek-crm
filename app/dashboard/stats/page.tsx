@@ -225,7 +225,7 @@ export default async function StatsPage() {
               </CardHeader>
               <CardContent>
                 <div className="flex items-baseline gap-2">
-                  <span className="text-3xl font-bold text-gray-900 dark:text-white">
+                  <span className="text-3xl font-bold text-gray-900 dark:text-white font-mono-numbers">
                     {aggregateStats.totalStaff}
                   </span>
                   <span className="text-sm text-gray-500 dark:text-[#A1A1A1]">
@@ -250,14 +250,14 @@ export default async function StatsPage() {
               </CardHeader>
               <CardContent>
                 <div className="flex items-baseline gap-2">
-                  <span className="text-3xl font-bold text-gray-900 dark:text-white">
+                  <span className="text-3xl font-bold text-gray-900 dark:text-white font-mono-numbers">
                     {aggregateStats.totalInquiries.toLocaleString()}
                   </span>
                   <span className="text-sm text-gray-500 dark:text-[#A1A1A1]">
                     inquiries
                   </span>
                 </div>
-                <p className="text-xs text-gray-500 dark:text-[#A1A1A1] mt-2">
+                <p className="text-xs text-gray-500 dark:text-[#A1A1A1] mt-2 font-mono-numbers">
                   {aggregateStats.totalActiveInquiries} active
                 </p>
               </CardContent>
@@ -278,7 +278,7 @@ export default async function StatsPage() {
               </CardHeader>
               <CardContent>
                 <div className="flex items-baseline gap-2">
-                  <span className="text-3xl font-bold text-gray-900 dark:text-white">
+                  <span className="text-3xl font-bold text-gray-900 dark:text-white font-mono-numbers">
                     {aggregateStats.totalConverted.toLocaleString()}
                   </span>
                   <span className="text-sm text-gray-500 dark:text-[#A1A1A1]">
@@ -311,7 +311,7 @@ export default async function StatsPage() {
               </CardHeader>
               <CardContent>
                 <div className="flex items-baseline gap-1">
-                  <span className="text-3xl font-bold text-gray-900 dark:text-white">
+                  <span className="text-3xl font-bold text-gray-900 dark:text-white font-mono-numbers">
                     {aggregateConversionRate}
                   </span>
                   <span className="text-lg text-gray-500 dark:text-[#A1A1A1]">
@@ -380,7 +380,7 @@ export default async function StatsPage() {
                             </CardDescription>
                           </div>
                           <div className="flex items-center gap-1 px-2 py-1 rounded-md bg-primary/10 dark:bg-[#D4AF37]/20">
-                            <span className="text-xs font-semibold text-primary dark:text-[#D4AF37]">
+                            <span className="text-xs font-semibold text-primary dark:text-[#D4AF37] font-mono-numbers">
                               {stats.conversionRate}%
                             </span>
                           </div>
@@ -393,7 +393,7 @@ export default async function StatsPage() {
                             <p className="text-xs font-medium text-gray-500 dark:text-[#A1A1A1] uppercase tracking-wide">
                               Total
                             </p>
-                            <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                            <p className="text-2xl font-bold text-gray-900 dark:text-white font-mono-numbers">
                               {stats.totalInquiries}
                             </p>
                           </div>
@@ -401,7 +401,7 @@ export default async function StatsPage() {
                             <p className="text-xs font-medium text-gray-500 dark:text-[#A1A1A1] uppercase tracking-wide">
                               Active
                             </p>
-                            <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                            <p className="text-2xl font-bold text-blue-600 dark:text-blue-400 font-mono-numbers">
                               {stats.activeInquiries}
                             </p>
                           </div>
@@ -409,7 +409,7 @@ export default async function StatsPage() {
                             <p className="text-xs font-medium text-gray-500 dark:text-[#A1A1A1] uppercase tracking-wide">
                               Converted
                             </p>
-                            <p className="text-2xl font-bold text-green-600 dark:text-green-400">
+                            <p className="text-2xl font-bold text-green-600 dark:text-green-400 font-mono-numbers">
                               {stats.convertedInquiries}
                             </p>
                           </div>
@@ -417,7 +417,7 @@ export default async function StatsPage() {
                             <p className="text-xs font-medium text-gray-500 dark:text-[#A1A1A1] uppercase tracking-wide">
                               Rate
                             </p>
-                            <p className="text-2xl font-bold text-purple-600 dark:text-[#D4AF37]">
+                            <p className="text-2xl font-bold text-purple-600 dark:text-[#D4AF37] font-mono-numbers">
                               {stats.conversionRate}%
                             </p>
                           </div>
@@ -429,7 +429,7 @@ export default async function StatsPage() {
                             <span className="text-gray-600 dark:text-[#A1A1A1] font-medium">
                               Conversion Progress
                             </span>
-                            <span className="text-gray-900 dark:text-white font-semibold">
+                            <span className="text-gray-900 dark:text-white font-semibold font-mono-numbers">
                               {stats.conversionRate}%
                             </span>
                           </div>
@@ -472,7 +472,7 @@ export default async function StatsPage() {
                                             }
                                           </span>
                                         </div>
-                                        <span className="text-gray-900 dark:text-white font-semibold">
+                                        <span className="text-gray-900 dark:text-white font-semibold font-mono-numbers">
                                           {count}
                                         </span>
                                       </div>
