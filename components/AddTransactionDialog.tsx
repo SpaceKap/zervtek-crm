@@ -69,6 +69,7 @@ interface InvoiceOption {
   invoiceNumber: string;
   status: string;
   paymentStatus: string;
+  customer?: { id: string; name: string; email: string | null } | null;
   vehicle?: { id: string; vin: string; make: string | null; model: string | null; year: number | null } | null;
 }
 
