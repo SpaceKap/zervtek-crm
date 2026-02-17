@@ -26,7 +26,7 @@ export async function GET(
           },
         },
         invoices: {
-          where: { status: "FINALIZED" },
+          where: { status: { in: ["APPROVED", "FINALIZED"] } },
           select: {
             id: true,
             invoiceNumber: true,
@@ -111,14 +111,23 @@ export async function GET(
     const profit = totalRevenue - totalCost
     const margin = totalRevenue > 0 ? (profit / totalRevenue) * 100 : 0
 
-    // Legacy fields for backward compatibility
-    const totalCharges = vehicle.shippingStage?.totalCharges 
-      ? parseFloat(vehicle.shippingStage.totalCharges.toString()) 
-      : 0
-    const totalReceived = vehicle.shippingStage?.totalReceived 
-      ? parseFloat(vehicle.shippingStage.totalReceived.toString()) 
-      : 0
-    const balanceDue = totalCharges - totalReceived
+    // totalCharges = invoice revenue; totalReceived = sum of incoming transactions linked to vehicle's invoices
+    const totalCharges = totalRevenue
+    const invoiceIds = vehicle.invoices.map((inv) => inv.id)
+    const incomingTx = invoiceIds.length > 0
+      ? await prisma.transaction.findMany({
+          where: {
+            direction: "INCOMING",
+            invoiceId: { in: invoiceIds },
+          },
+          select: { amount: true },
+        })
+      : []
+    const totalReceived = incomingTx.reduce(
+      (sum, t) => sum + parseFloat(t.amount.toString()),
+      0,
+    )
+    const balanceDue = Math.max(0, totalCharges - totalReceived)
 
     return NextResponse.json({
       totalRevenue: totalRevenue.toString(),

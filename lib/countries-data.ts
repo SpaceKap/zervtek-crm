@@ -269,10 +269,11 @@ export function getFlagEmoji(alpha2: string): string {
   return String.fromCodePoint(0x1f1e6 + a, 0x1f1e6 + b);
 }
 
-/** Phone code option for picker: code, flag, and display label */
+/** Phone code option for picker: code, flag, alpha2 (for SVG/PNG flags), and display label */
 export interface PhoneCodeOption {
   code: string;
   flag: string;
+  alpha2: string;
   label: string;
   countryName: string;
 }
@@ -309,6 +310,7 @@ export function getCountriesForPhonePicker(): PhoneCodeOption[] {
     return {
       code,
       flag: getFlagEmoji(displayAlpha2),
+      alpha2: displayAlpha2,
       label: `${code} ${displayCountry}`,
       countryName: displayCountry, // For sorting by country name
     };

@@ -711,13 +711,16 @@ export function FinancialOperationsView({
     (t) => !t.isInvoice && isOverdue(t),
   ).length;
 
+  // INCOMING transactions are payments received - count as Paid; OUTGOING use paymentDate
   const paidCount = transactions.filter((t) => {
     if (t.isInvoice) return false;
+    if (t.direction === "INCOMING") return true; // Recording incoming payment = money received
     return !!t.paymentDate;
   }).length;
 
   const pendingCount = transactions.filter((t) => {
     if (t.isInvoice) return false;
+    if (t.direction === "INCOMING") return false; // Incoming payments are always "paid"
     return !t.paymentDate;
   }).length;
 
@@ -811,13 +814,21 @@ export function FinancialOperationsView({
       if (paymentStatusFilter !== "all") {
         if (paymentStatusFilter === "paid") {
           if (t.isInvoice && t.paymentStatus !== "paid") return false;
-          if (!t.isInvoice && !t.paymentDate) return false;
+          if (!t.isInvoice) {
+            // INCOMING transactions are payments received = paid
+            if (t.direction === "INCOMING") return true;
+            if (!t.paymentDate) return false;
+          }
         } else if (paymentStatusFilter === "pending") {
           if (t.isInvoice && t.paymentStatus === "paid") return false;
-          if (!t.isInvoice && t.paymentDate) return false;
+          if (!t.isInvoice) {
+            if (t.direction === "INCOMING") return false; // Incoming = paid
+            if (t.paymentDate) return false;
+          }
         } else if (paymentStatusFilter === "overdue") {
           if (t.isInvoice && t.paymentStatus !== "overdue") return false;
           if (!t.isInvoice) {
+            if (t.direction === "INCOMING") return false; // Incoming payments not overdue
             if (t.paymentDate) return false;
             if (!t.paymentDeadline) return false;
             if (new Date(t.paymentDeadline) >= new Date()) return false;

@@ -227,20 +227,23 @@ export function AddTransactionDialog({
     defaultInvoiceId,
   ]);
 
-  // Fetch customer invoices when customerId changes (for INCOMING)
+  // Fetch unpaid invoices for INCOMING payments (by vehicle when on vehicle page, or all)
   useEffect(() => {
-    if (formData.direction === "INCOMING" && formData.customerId) {
-      fetch(`/api/invoices?customer=${formData.customerId}`)
+    if (formData.direction === "INCOMING") {
+      const params = new URLSearchParams();
+      params.set("paymentStatus", "PENDING,PARTIALLY_PAID");
+      if (defaultVehicleId) params.set("vehicleId", defaultVehicleId);
+      else if (formData.customerId) params.set("customer", formData.customerId);
+      fetch(`/api/invoices?${params}`)
         .then((res) => res.json())
         .then((data) => {
-          const list = data?.invoices ?? [];
-          setCustomerInvoices(list.filter((inv: any) => inv.paymentStatus === "PENDING" || inv.paymentStatus === "PARTIALLY_PAID"));
+          setCustomerInvoices(data?.invoices ?? []);
         })
         .catch(() => setCustomerInvoices([]));
     } else {
       setCustomerInvoices([]);
     }
-  }, [formData.customerId, formData.direction]);
+  }, [formData.direction, formData.customerId, defaultVehicleId]);
 
   const fetchVendors = async () => {
     try {
@@ -673,7 +676,42 @@ export function AddTransactionDialog({
               <>
                 <div>
                   <Label className="text-sm font-medium">
-                    Customer (Optional)
+                    Link to Invoice
+                  </Label>
+                  <Select
+                    value={formData.invoiceId || undefined}
+                    onValueChange={(value) => {
+                      const inv = customerInvoices.find((i) => i.id === value);
+                      setFormData({
+                        ...formData,
+                        invoiceId: value || "",
+                        customerId: inv?.customer?.id ? inv.customer.id : formData.customerId,
+                        vehicleId: inv?.vehicle?.id ? inv.vehicle.id : formData.vehicleId,
+                      });
+                    }}
+                  >
+                    <SelectTrigger className="mt-1.5">
+                      <SelectValue placeholder="Select invoice to link payment (INV-0xxxx)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {customerInvoices.map((inv) => (
+                        <SelectItem key={inv.id} value={inv.id}>
+                          {inv.invoiceNumber}
+                          {inv.vehicle && ` - ${inv.vehicle.make} ${inv.vehicle.model} ${inv.vehicle.year}`}
+                          {` (${inv.paymentStatus})`}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {customerInvoices.length === 0 && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      No unpaid invoices found{defaultVehicleId ? " for this vehicle" : ""}.
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <Label className="text-sm font-medium">
+                    Customer (Optional - auto-filled from invoice)
                   </Label>
                   <Select
                     value={formData.customerId || undefined}
@@ -686,7 +724,7 @@ export function AddTransactionDialog({
                     }
                   >
                     <SelectTrigger className="mt-1.5">
-                      <SelectValue placeholder="Select customer (optional)" />
+                      <SelectValue placeholder="Filter by customer (optional)" />
                     </SelectTrigger>
                     <SelectContent>
                       {customers.map((customer) => (
@@ -698,37 +736,6 @@ export function AddTransactionDialog({
                     </SelectContent>
                   </Select>
                 </div>
-                {formData.customerId && customerInvoices.length > 0 && (
-                  <div>
-                    <Label className="text-sm font-medium">
-                      Link to Invoice (Optional)
-                    </Label>
-                    <Select
-                      value={formData.invoiceId || undefined}
-                      onValueChange={(value) => {
-                        const inv = customerInvoices.find((i) => i.id === value);
-                        setFormData({
-                          ...formData,
-                          invoiceId: value || "",
-                          vehicleId: inv?.vehicle?.id ? inv.vehicle.id : formData.vehicleId,
-                        });
-                      }}
-                    >
-                      <SelectTrigger className="mt-1.5">
-                        <SelectValue placeholder="Select invoice to link payment" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {customerInvoices.map((inv) => (
-                          <SelectItem key={inv.id} value={inv.id}>
-                            {inv.invoiceNumber}
-                            {inv.vehicle && ` - ${inv.vehicle.make} ${inv.vehicle.model} ${inv.vehicle.year}`}
-                            {` (${inv.paymentStatus})`}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
               </>
             )}
 
@@ -895,35 +902,37 @@ export function AddTransactionDialog({
               </div>
             )}
 
-            <div>
-              <Label className="text-sm font-medium">
-                Vehicle {defaultVehicleId ? "(Pre-selected)" : "(Optional)"}
-              </Label>
-              <Select
-                value={formData.vehicleId || undefined}
-                onValueChange={(value) =>
-                  setFormData({ ...formData, vehicleId: value || "" })
-                }
-                disabled={!!defaultVehicleId}
-              >
-                <SelectTrigger className="mt-1.5">
-                  <SelectValue placeholder="Select vehicle (optional)" />
-                </SelectTrigger>
-                <SelectContent>
-                  {vehicles.map((vehicle) => (
-                    <SelectItem key={vehicle.id} value={vehicle.id}>
-                      {vehicle.vin} - {vehicle.make} {vehicle.model}{" "}
-                      {vehicle.year}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {defaultVehicleId && (
-                <p className="text-xs text-muted-foreground mt-1">
-                  Vehicle is pre-selected for this transaction
-                </p>
-              )}
-            </div>
+            {formData.direction === "OUTGOING" && (
+              <div>
+                <Label className="text-sm font-medium">
+                  Vehicle {defaultVehicleId ? "(Pre-selected)" : "(Optional)"}
+                </Label>
+                <Select
+                  value={formData.vehicleId || undefined}
+                  onValueChange={(value) =>
+                    setFormData({ ...formData, vehicleId: value || "" })
+                  }
+                  disabled={!!defaultVehicleId}
+                >
+                  <SelectTrigger className="mt-1.5">
+                    <SelectValue placeholder="Select vehicle (optional)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {vehicles.map((vehicle) => (
+                      <SelectItem key={vehicle.id} value={vehicle.id}>
+                        {vehicle.vin} - {vehicle.make} {vehicle.model}{" "}
+                        {vehicle.year}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {defaultVehicleId && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Vehicle is pre-selected for this transaction
+                  </p>
+                )}
+              </div>
+            )}
 
             {formData.direction === "OUTGOING" && (
               <div>

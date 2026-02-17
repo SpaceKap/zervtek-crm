@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { getChargesSubtotal } from "@/lib/charge-utils";
 import { Button } from "./ui/button";
 import { AddTransactionDialog } from "./AddTransactionDialog";
@@ -79,7 +80,7 @@ export function VehiclePaymentTracker({
   return (
     <div className="space-y-6">
       {/* Statistics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         <Card className="border-l-4 border-l-blue-500">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
@@ -168,6 +169,46 @@ export function VehiclePaymentTracker({
             </div>
           </CardContent>
         </Card>
+
+        <Card className="border-l-4 border-l-emerald-500">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                  Payments Received
+                </p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
+                  ¥{parseFloat(paymentData.totalReceived || "0").toLocaleString()}
+                </p>
+              </div>
+              <div className="h-12 w-12 rounded-lg bg-emerald-100 dark:bg-emerald-900/20 flex items-center justify-center">
+                <span className="material-symbols-outlined text-emerald-600 dark:text-emerald-400">
+                  check_circle
+                </span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-l-4 border-l-amber-500">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                  Payment Due
+                </p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
+                  ¥{parseFloat(paymentData.balanceDue || "0").toLocaleString()}
+                </p>
+              </div>
+              <div className="h-12 w-12 rounded-lg bg-amber-100 dark:bg-amber-900/20 flex items-center justify-center">
+                <span className="material-symbols-outlined text-amber-600 dark:text-amber-400">
+                  schedule
+                </span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Add Payment Button */}
@@ -191,17 +232,22 @@ export function VehiclePaymentTracker({
                 key={invoice.id}
                 className="p-4 bg-gray-50 dark:bg-[#2C2C2C] rounded-lg border border-gray-200 dark:border-gray-800"
               >
-                <div className="flex justify-between items-start">
-                  <div>
+                <div className="flex justify-between items-start gap-3">
+                  <div className="min-w-0 flex-1">
                     <div className="font-medium">{invoice.invoiceNumber}</div>
                     <div className="text-sm text-gray-600 dark:text-[#A1A1A1]">
                       Status: {invoice.paymentStatus.replace("_", " ")}
                     </div>
                   </div>
-                  <div className="text-right">
+                  <div className="text-right shrink-0 flex items-center gap-2">
                     <div className="font-medium">
                       ¥{invoiceTotal.toLocaleString()}
                     </div>
+                    <Link href={`/dashboard/invoices/${invoice.id}`}>
+                      <Button variant="outline" size="sm">
+                        View Invoice
+                      </Button>
+                    </Link>
                   </div>
                 </div>
               </div>

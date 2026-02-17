@@ -76,6 +76,11 @@ export async function GET(request: NextRequest) {
             model: true,
           },
         },
+        invoice: {
+          select: {
+            invoiceNumber: true,
+          },
+        },
       },
       orderBy: { date: "desc" },
       take: 500,
@@ -385,9 +390,10 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    // Normalize dates for regular transactions from database
+    // Normalize dates for regular transactions from database; include invoiceNumber from linked invoice
     const normalizedTransactions = transactions.map((t: any) => ({
       ...t,
+      invoiceNumber: t.invoice?.invoiceNumber ?? t.invoiceNumber ?? null,
       date: t.date instanceof Date ? t.date.toISOString() : (typeof t.date === 'string' ? t.date : new Date(t.date).toISOString()),
       createdAt: t.createdAt instanceof Date ? t.createdAt.toISOString() : (typeof t.createdAt === 'string' ? t.createdAt : new Date(t.createdAt).toISOString()),
       updatedAt: t.updatedAt instanceof Date ? t.updatedAt.toISOString() : (typeof t.updatedAt === 'string' ? t.updatedAt : new Date(t.updatedAt).toISOString()),

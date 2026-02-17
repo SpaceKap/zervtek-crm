@@ -16,14 +16,10 @@ import {
   DialogDescription,
   DialogClose,
 } from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { CountryCodeSelect } from "@/components/CountryCodeSelect";
 import { getCountriesForPhonePicker } from "@/lib/countries-data";
+
+const PHONE_CODE_OPTIONS = getCountriesForPhonePicker();
 
 interface User {
   id: string;
@@ -196,37 +192,17 @@ export function AddInquiryDialog({
           <div>
             <Label htmlFor="phone">Phone</Label>
             <div className="flex gap-2">
-              <Select
+              <CountryCodeSelect
                 value={watch("phoneCountryCode") || ""}
                 onValueChange={(value) =>
                   setValue("phoneCountryCode", value, {
                     shouldValidate: true,
                   })
                 }
-              >
-                <SelectTrigger className="w-[180px] min-w-[180px]">
-                  <SelectValue placeholder="Select country code" />
-                </SelectTrigger>
-                <SelectContent className="max-h-[320px]">
-                  {getCountriesForPhonePicker().map((opt) => (
-                    <SelectItem
-                      key={opt.code}
-                      value={opt.code}
-                      className="py-2"
-                    >
-                      <span className="flex items-center gap-2">
-                        <span
-                          className="text-lg leading-none"
-                          aria-hidden
-                        >
-                          {opt.flag}
-                        </span>
-                        <span>{opt.label}</span>
-                      </span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                options={PHONE_CODE_OPTIONS}
+                placeholder="Select country code"
+                className="w-[180px] min-w-[180px] h-10"
+              />
               <Input
                 id="phoneNumber"
                 type="tel"

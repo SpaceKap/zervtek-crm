@@ -87,6 +87,8 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const status = searchParams.get("status")
     const customerId = searchParams.get("customer")
+    const vehicleId = searchParams.get("vehicleId")
+    const paymentStatusParam = searchParams.get("paymentStatus") // e.g. "PENDING,PARTIALLY_PAID"
 
     const canViewAll = canViewAllInquiries(user.role)
 
@@ -96,6 +98,16 @@ export async function GET(request: NextRequest) {
     }
     if (customerId) {
       where.customerId = customerId
+    }
+    if (vehicleId) {
+      where.vehicleId = vehicleId
+    }
+    if (paymentStatusParam) {
+      const statuses = paymentStatusParam.split(",").map((s) => s.trim())
+      if (statuses.length > 0) {
+        where.paymentStatus = { in: statuses }
+        where.status = { in: ["APPROVED", "FINALIZED"] } // Only invoices ready for payment
+      }
     }
     if (!canViewAll) {
       // Staff (SALES) can only see invoices they created
