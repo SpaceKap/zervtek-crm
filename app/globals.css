@@ -59,6 +59,7 @@
     font-family: var(--font-inter), sans-serif;
   }
 
+  /* JetBrains Mono for code – clear, readable monospace */
   code,
   pre,
   kbd,
@@ -66,22 +67,14 @@
     font-family: var(--font-jetbrains-mono), monospace;
   }
 
-  /* Apply JetBrains Mono to numbers */
-  /* Table cells - commonly contain numbers */
-  td,
-  th {
-    font-family: var(--font-jetbrains-mono), monospace;
-    font-variant-numeric: tabular-nums;
-  }
-
-  /* Number inputs */
+  /* JetBrains Mono for number inputs – aligns digits nicely */
   input[type="number"],
   input[type="tel"] {
     font-family: var(--font-jetbrains-mono), monospace;
     font-variant-numeric: tabular-nums;
   }
 
-  /* Elements with data-number attribute */
+  /* JetBrains Mono for explicit number display */
   [data-number] {
     font-family: var(--font-jetbrains-mono), monospace;
     font-variant-numeric: tabular-nums;
@@ -231,7 +224,7 @@
 }
 
 @layer utilities {
-  /* Utility class for numbers - use class="font-mono-numbers" on any element */
+  /* JetBrains Mono for currency/amounts – tabular numerals for alignment */
   .font-mono-numbers {
     font-family: var(--font-jetbrains-mono), monospace;
     font-variant-numeric: tabular-nums;
