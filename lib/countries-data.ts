@@ -274,6 +274,7 @@ export interface PhoneCodeOption {
   code: string;
   flag: string;
   label: string;
+  countryName: string;
 }
 
 /** Priority codes to show first; preferred display country when code is shared */
@@ -308,20 +309,13 @@ export function getCountriesForPhonePicker(): PhoneCodeOption[] {
     return {
       code,
       flag: getFlagEmoji(displayAlpha2),
-      label:
-        countries.length > 1
-          ? `${code} ${displayCountry} (+${countries.length - 1} more)`
-          : `${code} ${displayCountry}`,
+      label: `${code} ${displayCountry}`,
+      countryName: displayCountry, // For sorting by country name
     };
   });
+  // Sort alphabetically by country name
   return options.sort((a, b) => {
-    const aPri = priorityCodes.indexOf(a.code);
-    const bPri = priorityCodes.indexOf(b.code);
-    if (aPri >= 0 && bPri >= 0) return aPri - bPri;
-    if (aPri >= 0) return -1;
-    if (bPri >= 0) return 1;
-    if (a.code.length !== b.code.length) return a.code.length - b.code.length;
-    return a.code.localeCompare(b.code);
+    return a.countryName.localeCompare(b.countryName);
   });
 }
 

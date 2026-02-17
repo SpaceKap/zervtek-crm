@@ -197,6 +197,78 @@ export async function GET(
   }
 }
 
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const customer = await prisma.customer.findUnique({
+      where: { id: params.id },
+    });
+
+    if (!customer) {
+      return NextResponse.json(
+        { error: "Customer not found" },
+        { status: 404 }
+      );
+    }
+
+    const body = await request.json();
+    const {
+      name,
+      email,
+      phone,
+      country,
+      billingAddress,
+      shippingAddress,
+      portOfDestination,
+      assignedToId,
+    } = body;
+
+    const updateData: any = {};
+    if (name !== undefined) updateData.name = String(name);
+    if (email !== undefined) updateData.email = email || null;
+    if (phone !== undefined) updateData.phone = phone || null;
+    if (country !== undefined) updateData.country = country || null;
+    if (billingAddress !== undefined) updateData.billingAddress = billingAddress || null;
+    if (shippingAddress !== undefined) updateData.shippingAddress = shippingAddress || null;
+    if (portOfDestination !== undefined) updateData.portOfDestination = portOfDestination || null;
+    if (assignedToId !== undefined) updateData.assignedToId = assignedToId || null;
+
+    const updatedCustomer = await prisma.customer.update({
+      where: { id: params.id },
+      data: updateData as any,
+      include: {
+        assignedTo: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+      },
+    });
+
+    return NextResponse.json(updatedCustomer);
+  } catch (error: any) {
+    console.error("[Customer API] Error updating customer:", error);
+    return NextResponse.json(
+      {
+        error: "Failed to update customer",
+        details: process.env.NODE_ENV === "development"
+          ? (error?.message || String(error))
+          : "An error occurred while updating customer",
+      },
+      { status: 500 }
+    );
+  }
+}
+
 export async function DELETE(
   request: NextRequest,
   { params }: { params: { id: string } }

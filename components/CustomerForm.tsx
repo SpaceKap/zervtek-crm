@@ -27,6 +27,7 @@ import {
   getPhoneCodeForCountry,
   getUniquePhoneCodes,
 } from "@/lib/countries-data";
+import { CountryCodeSelect } from "@/components/CountryCodeSelect";
 import { getRegionsForCountry, getRegionLabel } from "@/lib/address-data";
 import {
   validatePostalCode,
@@ -577,37 +578,17 @@ export function CustomerForm({
                       </Label>
                       <div className="flex gap-3">
                         <div className="min-w-[200px]">
-                          <Select
+                          <CountryCodeSelect
                             value={watch("phoneCountryCode") || ""}
                             onValueChange={(value) => {
                               setValue("phoneCountryCode", value, {
                                 shouldValidate: true,
                               });
                             }}
-                          >
-                            <SelectTrigger className="h-10 w-full">
-                              <SelectValue placeholder="Select country code" />
-                            </SelectTrigger>
-                            <SelectContent className="max-h-[320px]">
-                              {PHONE_CODE_OPTIONS.map((opt) => (
-                                <SelectItem
-                                  key={opt.code}
-                                  value={opt.code}
-                                  className="py-2"
-                                >
-                                  <span className="flex items-center gap-2">
-                                    <span
-                                      className="text-lg leading-none"
-                                      aria-hidden
-                                    >
-                                      {opt.flag}
-                                    </span>
-                                    <span>{opt.label}</span>
-                                  </span>
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                            options={PHONE_CODE_OPTIONS}
+                            placeholder="Select country code"
+                            className="h-10 w-full"
+                          />
                           {errors.phoneCountryCode && (
                             <p className="text-xs text-red-500 dark:text-red-400 mt-1">
                               {errors.phoneCountryCode.message}

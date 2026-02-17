@@ -1,200 +1,214 @@
-# VPS Deployment Guide
+# Deployment Guide
 
-This guide explains how to deploy the CRM application to your VPS at `crm.zervtek.com`.
+## Quick Deploy (Docker - Recommended)
 
-## Prerequisites
-
-- VPS with Docker and Docker Compose installed
-- Caddy reverse proxy already configured
-- Git access to the repository
-- Domain `crm.zervtek.com` pointing to your VPS IP
-
-## Initial Setup
-
-### 1. Clone Repository on VPS
+### 1. Pull Latest Changes
 
 ```bash
-cd ~
-git clone <your-repo-url> inquiry-pooler
-cd inquiry-pooler
+cd ~/inquiry-pooler  # or your project directory
+git pull origin main
 ```
 
-### 2. Set Up Environment Variables
+### 2. Rebuild and Deploy
 
 ```bash
-# Copy the example file
-cp .env.example .env
-
-# Edit the .env file with your actual values
-nano .env
-```
-
-**Required environment variables:**
-
-- `DATABASE_URL`: Use `postgresql://postgres:YOUR_PASSWORD@crm-db:5432/inquiry_pooler?schema=inquiry_pooler`
-- `POSTGRES_PASSWORD`: Strong password for PostgreSQL
-- `NEXTAUTH_URL`: `https://crm.zervtek.com`
-- `NEXTAUTH_SECRET`: Generate with `openssl rand -base64 32`
-- `GOOGLE_CLIENT_ID`: Your Google OAuth client ID
-- `GOOGLE_CLIENT_SECRET`: Your Google OAuth client secret
-
-### 3. Update Caddyfile
-
-Add the following block to your Caddyfile (inside the Caddy container):
-
-```bash
-docker exec -it caddy cat /etc/caddy/Caddyfile
-```
-
-Add this configuration:
-
-```caddy
-crm.zervtek.com {
-	reverse_proxy inquiry-pooler:3000
-}
-```
-
-Then reload Caddy:
-
-```bash
-docker exec caddy caddy reload --config /etc/caddy/Caddyfile
-```
-
-Or restart Caddy:
-
-```bash
-docker restart caddy
-```
-
-### 4. Initial Deployment
-
-```bash
-# Make deploy script executable
-chmod +x deploy.sh
-
-# Run initial deployment
-./deploy.sh
-```
-
-The script will:
-
-1. Pull latest changes from Git
-2. Build Docker images
-3. Start containers
-4. Run database migrations
-
-### 5. Verify Deployment
-
-- Check container status: `docker-compose ps`
-- Check application logs: `docker-compose logs -f inquiry-pooler`
-- Visit `https://crm.zervtek.com` in your browser
-
-## Future Deployments
-
-For future updates, simply run:
-
-```bash
-./deploy.sh
-```
-
-This will pull the latest changes and redeploy automatically.
-
-## Manual Commands
-
-### View Logs
-
-```bash
-# All services
-docker-compose logs -f
-
-# Specific service
-docker-compose logs -f inquiry-pooler
-docker-compose logs -f crm-db
-```
-
-### Stop Services
-
-```bash
+# Stop existing containers
 docker-compose down
+
+# Rebuild and start (this will pull latest code and rebuild)
+docker-compose up -d --build
+
+# View logs to ensure everything started correctly
+docker-compose logs -f inquiry-pooler
 ```
 
-### Start Services
+### 3. Run Database Migrations (if schema changed)
 
 ```bash
-docker-compose up -d
+# If Prisma schema was updated, run migrations
+docker-compose exec inquiry-pooler npx prisma db push
+# OR
+docker-compose exec inquiry-pooler npx prisma migrate deploy
 ```
 
-### Run Database Migrations Manually
+### 4. Verify Deployment
 
 ```bash
-docker-compose exec inquiry-pooler npm run db:push
+# Check container status
+docker-compose ps
+
+# Check logs for errors
+docker-compose logs inquiry-pooler | tail -50
+
+# Test the application
+curl http://localhost:3000/api/health  # if you have a health endpoint
 ```
 
-### Access Database
+---
+
+## Alternative: Quick Restart (No Rebuild)
+
+If you only need to restart without rebuilding:
 
 ```bash
-docker-compose exec crm-db psql -U postgres -d inquiry_pooler
+cd ~/inquiry-pooler
+git pull origin main
+docker-compose restart inquiry-pooler
 ```
 
-### Rebuild After Code Changes
+**Note:** This only works if no dependencies or build configuration changed.
+
+---
+
+## Alternative: PM2 Deployment (Non-Docker)
+
+### 1. Pull Latest Changes
 
 ```bash
-docker-compose build --no-cache
-docker-compose up -d
+cd ~/inquiry-pooler
+git pull origin main
 ```
+
+### 2. Install Dependencies (if package.json changed)
+
+```bash
+npm install
+```
+
+### 3. Generate Prisma Client
+
+```bash
+npm run db:generate
+```
+
+### 4. Run Database Migrations
+
+```bash
+npm run db:push
+# OR
+npm run db:migrate
+```
+
+### 5. Build Application
+
+```bash
+npm run build
+```
+
+### 6. Restart with PM2
+
+```bash
+# Stop existing process
+pm2 stop inquiry-pooler
+
+# Start with new build
+pm2 start npm --name "inquiry-pooler" -- start
+
+# Or restart if already running
+pm2 restart inquiry-pooler
+
+# View logs
+pm2 logs inquiry-pooler
+```
+
+---
+
+## Deployment Checklist
+
+Before deploying, ensure:
+
+- [ ] All environment variables are set in `.env` file (or Docker environment)
+- [ ] Database is accessible and migrations are up to date
+- [ ] Build completes without errors (`npm run build`)
+- [ ] No TypeScript errors
+- [ ] Database schema is synced (`npx prisma db push` or `npx prisma migrate deploy`)
+
+---
 
 ## Troubleshooting
 
-### Container Won't Start
-
-1. Check logs: `docker-compose logs inquiry-pooler`
-2. Verify environment variables: `docker-compose config`
-3. Check database connection: `docker-compose exec inquiry-pooler npx prisma db push`
-
-### Database Connection Issues
-
-1. Verify `DATABASE_URL` uses `crm-db` as hostname (not `localhost`)
-2. Check database is healthy: `docker-compose ps crm-db`
-3. Check database logs: `docker-compose logs crm-db`
-
-### Caddy Not Routing
-
-1. Verify Caddyfile includes the `crm.zervtek.com` block
-2. Check Caddy logs: `docker logs caddy`
-3. Reload Caddy: `docker exec caddy caddy reload --config /etc/caddy/Caddyfile`
-
-### Prisma Migration Issues
+### Container won't start
 
 ```bash
-# Generate Prisma client
-docker-compose exec inquiry-pooler npx prisma generate
+# Check logs
+docker-compose logs inquiry-pooler
 
-# Push schema to database
-docker-compose exec inquiry-pooler npm run db:push
+# Check if database is running
+docker-compose ps postgres
+
+# Rebuild from scratch
+docker-compose down
+docker-compose up -d --build
 ```
 
-## Network Configuration
-
-The application uses the `caddy_proxy` network to communicate with Caddy. This network should already exist from your other services. If it doesn't exist, create it:
+### Database connection errors
 
 ```bash
-docker network create caddy_proxy
+# Verify DATABASE_URL in .env matches docker-compose.yml
+# Check database is healthy
+docker-compose exec postgres pg_isready -U postgres
+
+# Run migrations manually
+docker-compose exec inquiry-pooler npx prisma db push
 ```
 
-## Backup Database
+### Build errors
 
 ```bash
-# Create backup
-docker-compose exec crm-db pg_dump -U postgres inquiry_pooler > backup_$(date +%Y%m%d_%H%M%S).sql
+# Clean build cache
+rm -rf .next node_modules/.cache
 
-# Restore backup
-docker-compose exec -T crm-db psql -U postgres inquiry_pooler < backup_file.sql
+# Rebuild
+docker-compose up -d --build
 ```
 
-## Security Notes
+---
 
-- Never commit `.env` file to Git
-- Use strong passwords for `POSTGRES_PASSWORD` and `NEXTAUTH_SECRET`
-- Keep Docker and system packages updated
-- Regularly backup your database
-- Monitor application logs for errors
+## Environment Variables Required
+
+Make sure these are set in your `.env` file or Docker environment:
+
+```env
+DATABASE_URL="postgresql://user:password@postgres:5432/inquiry_pooler"
+NEXTAUTH_URL="https://your-domain.com"
+NEXTAUTH_SECRET="your-secret-key"
+GOOGLE_CLIENT_ID="your-google-client-id"
+GOOGLE_CLIENT_SECRET="your-google-client-secret"
+```
+
+---
+
+## Post-Deployment Verification
+
+1. **Check Application Health**
+   - Visit your domain and verify login works
+   - Test key features (dashboard, kanban, inquiries)
+
+2. **Check Logs**
+   ```bash
+   docker-compose logs -f inquiry-pooler
+   ```
+
+3. **Monitor Performance**
+   - Check container resource usage: `docker stats`
+   - Monitor application logs for errors
+
+---
+
+## Rollback (if needed)
+
+If deployment fails and you need to rollback:
+
+```bash
+# Find previous working commit
+git log --oneline
+
+# Checkout previous commit
+git checkout <previous-commit-hash>
+
+# Rebuild and deploy
+docker-compose down
+docker-compose up -d --build
+```
+
+Or restore from a previous Docker image if you've tagged versions.
