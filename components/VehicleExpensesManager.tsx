@@ -147,10 +147,16 @@ export function VehicleExpensesManager({
         currency: expense.currency,
         vendorId: expense.vendorId,
         paymentDeadline: expense.paymentDeadline
-          ? format(new Date(expense.paymentDeadline), "yyyy-MM-dd")
+          ? (() => {
+              const d = new Date(expense.paymentDeadline!);
+              return isNaN(d.getTime()) ? "" : format(d, "yyyy-MM-dd");
+            })()
           : "",
         paymentDate: expense.paymentDate
-          ? format(new Date(expense.paymentDate), "yyyy-MM-dd")
+          ? (() => {
+              const d = new Date(expense.paymentDate!);
+              return isNaN(d.getTime()) ? "" : format(d, "yyyy-MM-dd");
+            })()
           : "",
       });
     } else {
@@ -288,11 +294,18 @@ export function VehicleExpensesManager({
     return `${cleanAmount.toLocaleString("en-US")} ${currency}`;
   };
 
+  const safeFormatDate = (d: string | Date | null | undefined) => {
+    if (!d) return "";
+    const date = new Date(d);
+    return isNaN(date.getTime()) ? "" : format(date, "MMM dd, yyyy");
+  };
+
   const isPaid = (expense: Expense) => !!expense.paymentDate;
   const isOverdue = (expense: Expense) => {
     if (expense.paymentDate) return false;
     if (!expense.paymentDeadline) return false;
-    return new Date(expense.paymentDeadline) < new Date();
+    const d = new Date(expense.paymentDeadline);
+    return !isNaN(d.getTime()) && d < new Date();
   };
 
   if (loading) {
@@ -350,19 +363,16 @@ export function VehicleExpensesManager({
                 </div>
                 {(expense.paymentDeadline || expense.paymentDate) && (
                   <div className="text-xs text-gray-500 dark:text-[#A1A1A1] mt-1 space-y-0.5">
-                    {expense.paymentDeadline && (
+                    {expense.paymentDeadline && safeFormatDate(expense.paymentDeadline) && (
                       <div>
                         Deadline:{" "}
-                        {format(
-                          new Date(expense.paymentDeadline),
-                          "MMM dd, yyyy",
-                        )}
+                        {safeFormatDate(expense.paymentDeadline)}
                       </div>
                     )}
-                    {expense.paymentDate && (
+                    {expense.paymentDate && safeFormatDate(expense.paymentDate) && (
                       <div>
                         Paid:{" "}
-                        {format(new Date(expense.paymentDate), "MMM dd, yyyy")}
+                        {safeFormatDate(expense.paymentDate)}
                       </div>
                     )}
                   </div>

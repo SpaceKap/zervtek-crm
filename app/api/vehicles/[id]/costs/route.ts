@@ -60,10 +60,20 @@ export async function GET(
           currency: "JPY",
           vendorId: item.vendorId,
           vendor: item.vendor,
-          paymentDeadline: item.paymentDeadline,
-          paymentDate: item.paymentDate,
+          paymentDeadline: item.paymentDeadline
+            ? (item.paymentDeadline instanceof Date
+                ? item.paymentDeadline.toISOString()
+                : String(item.paymentDeadline))
+            : null,
+          paymentDate: item.paymentDate
+            ? (item.paymentDate instanceof Date
+                ? item.paymentDate.toISOString()
+                : String(item.paymentDate))
+            : null,
           stage: null,
-          createdAt: item.createdAt,
+          createdAt: item.createdAt instanceof Date
+            ? item.createdAt.toISOString()
+            : String(item.createdAt),
           source: "invoice" as const,
           costItemId: item.id,
           invoiceId: inv.id,
@@ -72,7 +82,13 @@ export async function GET(
       }
     }
 
-    // Map VehicleStageCost to same shape, add source
+    // Map VehicleStageCost to same shape, add source (serialize dates for JSON)
+    const toDateStr = (d: Date | string | null | undefined) =>
+      d
+        ? d instanceof Date
+          ? d.toISOString()
+          : String(d)
+        : null
     const stageCostsFormatted = vehicleStageCosts.map((c) => ({
       id: c.id,
       costType: c.costType,
@@ -80,16 +96,19 @@ export async function GET(
       currency: c.currency,
       vendorId: c.vendorId,
       vendor: c.vendor,
-      paymentDeadline: c.paymentDeadline,
-      paymentDate: c.paymentDate,
+      paymentDeadline: toDateStr(c.paymentDeadline),
+      paymentDate: toDateStr(c.paymentDate),
       stage: c.stage,
-      createdAt: c.createdAt,
+      createdAt: toDateStr(c.createdAt),
       source: "vehicle" as const,
     }))
 
     const combined = [...invoiceCostItems, ...stageCostsFormatted].sort(
-      (a, b) =>
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      (a, b) => {
+        const ta = a.createdAt ? new Date(a.createdAt).getTime() : 0
+        const tb = b.createdAt ? new Date(b.createdAt).getTime() : 0
+        return tb - ta
+      }
     )
 
     return NextResponse.json(convertDecimalsToNumbers(combined))

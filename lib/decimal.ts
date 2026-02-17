@@ -26,6 +26,11 @@ export function convertDecimalsToNumbers<T>(obj: T): T {
     return obj.map(convertDecimalsToNumbers) as T;
   }
 
+  // Preserve Date objects (convert to ISO string for JSON safety)
+  if (obj instanceof Date) {
+    return obj.toISOString() as T;
+  }
+
   // Handle objects
   if (typeof obj === "object") {
     const converted: any = {};
