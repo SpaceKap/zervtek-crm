@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { canManageVehicleStages } from "@/lib/permissions"
 import { ShippingStage } from "@prisma/client"
+import { convertDecimalsToNumbers } from "@/lib/decimal"
 
 export async function GET(
   request: NextRequest,
@@ -23,7 +24,7 @@ export async function GET(
       where.stage = stage
     }
 
-    const costs = await prisma.vehicleStageCost.findMany({
+    const vehicleStageCosts = await prisma.vehicleStageCost.findMany({
       where,
       include: {
         vendor: true,
@@ -31,7 +32,67 @@ export async function GET(
       orderBy: { createdAt: "desc" },
     })
 
-    return NextResponse.json(costs)
+    // Also fetch CostItems from invoices linked to this vehicle
+    const invoicesWithCosts = await prisma.invoice.findMany({
+      where: { vehicleId: params.id },
+      include: {
+        costInvoice: {
+          include: {
+            costItems: {
+              include: {
+                vendor: true,
+              },
+              orderBy: { createdAt: "asc" },
+            },
+          },
+        },
+      },
+    })
+
+    const invoiceCostItems: any[] = []
+    for (const inv of invoicesWithCosts) {
+      if (!inv.costInvoice?.costItems?.length) continue
+      for (const item of inv.costInvoice.costItems) {
+        invoiceCostItems.push({
+          id: `invoice-cost-${item.id}`,
+          costType: item.category || item.description,
+          amount: item.amount,
+          currency: "JPY",
+          vendorId: item.vendorId,
+          vendor: item.vendor,
+          paymentDeadline: item.paymentDeadline,
+          paymentDate: item.paymentDate,
+          stage: null,
+          createdAt: item.createdAt,
+          source: "invoice" as const,
+          costItemId: item.id,
+          invoiceId: inv.id,
+          invoiceNumber: inv.invoiceNumber,
+        })
+      }
+    }
+
+    // Map VehicleStageCost to same shape, add source
+    const stageCostsFormatted = vehicleStageCosts.map((c) => ({
+      id: c.id,
+      costType: c.costType,
+      amount: c.amount,
+      currency: c.currency,
+      vendorId: c.vendorId,
+      vendor: c.vendor,
+      paymentDeadline: c.paymentDeadline,
+      paymentDate: c.paymentDate,
+      stage: c.stage,
+      createdAt: c.createdAt,
+      source: "vehicle" as const,
+    }))
+
+    const combined = [...invoiceCostItems, ...stageCostsFormatted].sort(
+      (a, b) =>
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    )
+
+    return NextResponse.json(convertDecimalsToNumbers(combined))
   } catch (error) {
     console.error("Error fetching costs:", error)
     return NextResponse.json(

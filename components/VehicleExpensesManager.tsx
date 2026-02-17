@@ -28,6 +28,7 @@ import {
 } from "./ui/dialog";
 import { Badge } from "./ui/badge";
 import { format } from "date-fns";
+import Link from "next/link";
 import { VendorForm } from "./VendorForm";
 import { Checkbox } from "./ui/checkbox";
 import { DatePicker } from "@/components/ui/date-picker";
@@ -48,6 +49,10 @@ interface Expense {
   paymentDate: string | null;
   stage: string | null;
   createdAt: string;
+  source?: "vehicle" | "invoice";
+  invoiceId?: string;
+  invoiceNumber?: string;
+  costItemId?: string;
 }
 
 interface VehicleExpensesManagerProps {
@@ -132,6 +137,7 @@ export function VehicleExpensesManager({
   };
 
   const handleOpenDialog = (expense?: Expense) => {
+    if (expense?.source === "invoice") return; // Invoice costs are read-only here
     setError(null);
     if (expense) {
       setEditingExpense(expense);
@@ -248,7 +254,8 @@ export function VehicleExpensesManager({
     }
   };
 
-  const handleDeleteExpense = async (expenseId: string) => {
+  const handleDeleteExpense = async (expenseId: string, expense?: Expense) => {
+    if (expense?.source === "invoice") return; // Invoice costs are managed in the invoice
     if (!confirm("Are you sure you want to delete this expense?")) return;
 
     try {
@@ -318,6 +325,11 @@ export function VehicleExpensesManager({
               <div className="flex-1">
                 <div className="flex items-center gap-2">
                   <div className="font-medium">{expense.costType}</div>
+                  {expense.source === "invoice" && expense.invoiceNumber && (
+                    <Badge variant="outline" className="text-xs">
+                      {expense.invoiceNumber}
+                    </Badge>
+                  )}
                   {isPaid(expense) ? (
                     <Badge className="bg-green-100 text-green-700 border-green-300 dark:bg-green-900/20 dark:text-green-300 dark:border-green-700">
                       Paid
@@ -357,29 +369,40 @@ export function VehicleExpensesManager({
                 )}
               </div>
               <div className="flex items-center gap-2">
-                <Checkbox
-                  checked={isPaid(expense)}
-                  onCheckedChange={(checked) =>
-                    handleMarkPaid(expense.id, !!checked)
-                  }
-                />
-                <span className="text-xs text-gray-500 dark:text-[#A1A1A1]">
-                  Mark paid
-                </span>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => handleOpenDialog(expense)}
-                >
-                  Edit
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => handleDeleteExpense(expense.id)}
-                >
-                  Delete
-                </Button>
+                {expense.source !== "invoice" && (
+                  <>
+                    <Checkbox
+                      checked={isPaid(expense)}
+                      onCheckedChange={(checked) =>
+                        handleMarkPaid(expense.id, !!checked)
+                      }
+                    />
+                    <span className="text-xs text-gray-500 dark:text-[#A1A1A1]">
+                      Mark paid
+                    </span>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleOpenDialog(expense)}
+                    >
+                      Edit
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleDeleteExpense(expense.id, expense)}
+                    >
+                      Delete
+                    </Button>
+                  </>
+                )}
+                {expense.source === "invoice" && expense.invoiceId && (
+                  <Link href={`/dashboard/invoices/${expense.invoiceId}/cost`}>
+                    <Button size="sm" variant="ghost">
+                      Edit in Invoice
+                    </Button>
+                  </Link>
+                )}
               </div>
             </div>
           ))

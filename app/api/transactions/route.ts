@@ -217,6 +217,66 @@ export async function GET(request: NextRequest) {
       }
     })
 
+    // Also fetch CostItems from invoice cost breakdown (expenses)
+    let costItemsAsTransactions: any[] = []
+    if (!direction || direction === "OUTGOING") {
+      const costItemsInvoiceWhere: any = {
+        vehicleId: vehicleId || { not: null },
+        costInvoice: { isNot: null },
+      }
+      const invoicesWithCostItems = await prisma.invoice.findMany({
+        where: costItemsInvoiceWhere,
+        include: {
+          vehicle: { select: { id: true, vin: true, make: true, model: true, year: true } },
+          customer: { select: { id: true, name: true, email: true } },
+          costInvoice: {
+            include: {
+              costItems: { include: { vendor: true } },
+            },
+          },
+        },
+      })
+      for (const inv of invoicesWithCostItems) {
+        if (!inv.costInvoice?.costItems?.length) continue
+        for (const item of inv.costInvoice.costItems) {
+          if (vendorId && item.vendorId !== vendorId) continue
+          const dateValue = item.paymentDate || item.createdAt
+          const itemDate = new Date(dateValue)
+          if (startDate && itemDate < new Date(startDate)) continue
+          if (endDate && itemDate > new Date(endDate)) continue
+          const dateStr = dateValue instanceof Date ? dateValue.toISOString() : new Date(dateValue).toISOString()
+          costItemsAsTransactions.push({
+            id: `cost-item-${item.id}`,
+            direction: "OUTGOING" as TransactionDirection,
+            type: "BANK_TRANSFER" as TransactionType,
+            amount: item.amount,
+            currency: "JPY",
+            date: dateStr,
+            description: item.category || item.description,
+            vendorId: item.vendorId,
+            customerId: inv.customerId,
+            vehicleId: inv.vehicleId,
+            invoiceId: inv.id,
+            invoiceNumber: inv.invoiceNumber,
+            invoiceUrl: null,
+            documentId: null,
+            referenceNumber: null,
+            notes: null,
+            createdById: null,
+            createdAt: item.createdAt instanceof Date ? item.createdAt.toISOString() : new Date(item.createdAt).toISOString(),
+            updatedAt: item.updatedAt instanceof Date ? item.updatedAt.toISOString() : new Date(item.updatedAt).toISOString(),
+            vendor: item.vendor,
+            customer: inv.customer,
+            vehicle: inv.vehicle,
+            isCostItem: true,
+            costItemId: item.id,
+            paymentDeadline: item.paymentDeadline ? (item.paymentDeadline instanceof Date ? item.paymentDeadline.toISOString() : new Date(item.paymentDeadline).toISOString()) : null,
+            paymentDate: item.paymentDate ? (item.paymentDate instanceof Date ? item.paymentDate.toISOString() : new Date(item.paymentDate).toISOString()) : null,
+          })
+        }
+      }
+    }
+
     // Fetch approved/finalized invoices for incoming payments
     let invoicesAsTransactions: any[] = []
     if (!direction || direction === "INCOMING") {
@@ -340,6 +400,7 @@ export async function GET(request: NextRequest) {
       ...normalizedTransactions,
       ...generalCostsAsTransactions,
       ...vehicleStageCostsAsTransactions,
+      ...costItemsAsTransactions,
       ...invoicesAsTransactions,
     ].sort((a, b) => {
       const dateA = new Date(a.date).getTime()
@@ -381,7 +442,7 @@ export async function GET(request: NextRequest) {
     });
 
     const convertedTransactions = convertDecimalsToNumbers(transactionsWithParsedPaymentDate)
-    console.log(`[Transactions API] Returning ${convertedTransactions.length} transactions (${transactions.length} regular, ${generalCosts.length} general costs, ${vehicleStageCosts.length} vehicle costs)`)
+    console.log(`[Transactions API] Returning ${convertedTransactions.length} transactions (${transactions.length} regular, ${generalCosts.length} general costs, ${vehicleStageCosts.length} vehicle costs, ${costItemsAsTransactions.length} invoice cost items)`)
     return NextResponse.json(convertedTransactions)
   } catch (error: any) {
     console.error("[Transactions API] Error fetching transactions:", error)
