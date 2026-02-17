@@ -30,11 +30,34 @@ export async function POST(
       )
     }
 
-    // Check if already assigned to someone else (unless manager)
+    const body = await request.json().catch(() => ({}))
+    const assignToId = body.assignToId as string | undefined
+    const isManager = session.user.role === UserRole.MANAGER || session.user.role === UserRole.ADMIN
+
+    // Determine target assignee: from body (managers only) or current user
+    let targetAssigneeId: string
+    if (assignToId && isManager) {
+      targetAssigneeId = assignToId
+      const targetUser = await prisma.user.findUnique({
+        where: { id: assignToId },
+        select: { id: true, role: true },
+      })
+      const assignableRoles: UserRole[] = [UserRole.SALES, UserRole.MANAGER, UserRole.ADMIN]
+      if (!targetUser || !assignableRoles.includes(targetUser.role)) {
+        return NextResponse.json(
+          { error: "Invalid assignee - must be sales staff, manager, or admin" },
+          { status: 400 }
+        )
+      }
+    } else {
+      targetAssigneeId = session.user.id
+    }
+
+    // Check if already assigned to someone else (unless manager reassigning)
     if (
       inquiry.assignedToId &&
       inquiry.assignedToId !== session.user.id &&
-      session.user.role !== UserRole.MANAGER
+      !isManager
     ) {
       return NextResponse.json(
         { error: "Inquiry already assigned to another user" },
@@ -66,11 +89,10 @@ export async function POST(
       }),
     }
 
-    // Assign to current user
     const updatedInquiry = await prisma.inquiry.update({
       where: { id: params.id },
       data: {
-        assignedToId: session.user.id,
+        assignedToId: targetAssigneeId,
         assignedAt: new Date(),
         metadata: updatedMetadata,
       },
@@ -86,16 +108,23 @@ export async function POST(
       },
     })
 
-    // Create history entry
+    const targetUser = await prisma.user.findUnique({
+      where: { id: targetAssigneeId },
+      select: { name: true, email: true },
+    })
+    const assigneeName = targetUser?.name || targetUser?.email || "Unknown"
+
     await prisma.inquiryHistory.create({
       data: {
         inquiryId: inquiry.id,
         userId: session.user.id,
         action: "ASSIGNED",
         newStatus: inquiry.status,
-        notes: previousAssignee
-          ? `Previously tried by ${previousAssignee.name || previousAssignee.email}`
-          : null,
+        notes: assignToId && isManager
+          ? `Assigned to ${assigneeName} by ${session.user.name || session.user.email}`
+          : previousAssignee
+            ? `Previously tried by ${previousAssignee.name || previousAssignee.email}`
+            : null,
       },
     })
 

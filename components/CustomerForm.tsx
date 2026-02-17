@@ -22,11 +22,18 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  COUNTRIES_DATA,
-  getUniquePhoneCodes,
+  getCountriesForPhonePicker,
   getCountriesSorted,
+  getPhoneCodeForCountry,
+  getUniquePhoneCodes,
 } from "@/lib/countries-data";
 import { getRegionsForCountry, getRegionLabel } from "@/lib/address-data";
+import {
+  validatePostalCode,
+  validateStateForCountry,
+  getPostalPlaceholder,
+} from "@/lib/address-validation";
+import { validatePhoneNumber } from "@/lib/phone-validation";
 
 const customerSchema = z
   .object({
@@ -61,11 +68,8 @@ const customerSchema = z
   })
   .refine(
     (data) => {
-      // If shipping address is different, all shipping fields are required
       if (!data.sameAsBilling) {
-        if (!data.shippingAddress) {
-          return false;
-        }
+        if (!data.shippingAddress) return false;
         return (
           !!data.shippingAddress.street &&
           !!data.shippingAddress.apartment &&
@@ -82,7 +86,69 @@ const customerSchema = z
         "All shipping address fields are required when shipping address is different",
       path: ["shippingAddress"],
     },
-  );
+  )
+  .superRefine((data, ctx) => {
+    // Phone validation
+    const phoneResult = validatePhoneNumber(
+      data.phoneNumber,
+      data.phoneCountryCode
+    );
+    if (!phoneResult.valid) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: phoneResult.message,
+        path: ["phoneNumber"],
+      });
+    }
+
+    // Billing address - state and zip by country
+    const country = data.address?.country;
+    if (country) {
+      const stateResult = validateStateForCountry(data.address!.state, country);
+      if (!stateResult.valid) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: stateResult.message,
+          path: ["address", "state"],
+        });
+      }
+      const zipResult = validatePostalCode(data.address!.zip, country);
+      if (!zipResult.valid) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: zipResult.message,
+          path: ["address", "zip"],
+        });
+      }
+    }
+
+    // Shipping address - state and zip when different
+    if (!data.sameAsBilling && data.shippingAddress?.country) {
+      const shCountry = data.shippingAddress.country;
+      const shStateResult = validateStateForCountry(
+        data.shippingAddress.state || "",
+        shCountry
+      );
+      if (!shStateResult.valid) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: shStateResult.message,
+          path: ["shippingAddress", "state"],
+        });
+      }
+      const shZipResult = validatePostalCode(
+        data.shippingAddress.zip || "",
+        shCountry
+      );
+      if (!shZipResult.valid) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: shZipResult.message,
+          path: ["shippingAddress", "zip"],
+        });
+      }
+    }
+  });
 
 type CustomerFormData = z.infer<typeof customerSchema>;
 
@@ -101,8 +167,8 @@ interface CustomerFormProps {
   onCustomerCreated?: (customer: { id: string; name: string }) => void;
 }
 
-// Get phone codes (grouped by code, as some countries share codes)
-const COUNTRY_CODES = getUniquePhoneCodes();
+const COUNTRY_CODES = getUniquePhoneCodes(); // for parsing existing phone
+const PHONE_CODE_OPTIONS = getCountriesForPhonePicker(); // for dropdown with flags
 
 // Get all countries sorted alphabetically
 const COUNTRIES = getCountriesSorted();
@@ -252,16 +318,21 @@ export function CustomerForm({
     }
   }, [customer, reset]);
 
-  // Update regions when billing country changes
+  // Update regions when billing country changes; suggest phone code from address country
   useEffect(() => {
     const country = watch("address.country");
     if (country) {
       setSelectedCountry(country);
       const regions = getRegionsForCountry(country);
       setAvailableRegions(regions);
-      // Clear state if regions change
       if (regions.length === 0) {
         setValue("address.state", "");
+      }
+      // Suggest phone country code when address country is set and phone code is empty
+      const phoneCode = watch("phoneCountryCode");
+      if (!phoneCode) {
+        const suggested = getPhoneCodeForCountry(country);
+        if (suggested) setValue("phoneCountryCode", suggested);
       }
     } else {
       setSelectedCountry("");
@@ -505,23 +576,34 @@ export function CustomerForm({
                         </span>
                       </Label>
                       <div className="flex gap-3">
-                        <div className="w-[150px]">
+                        <div className="min-w-[200px]">
                           <Select
                             value={watch("phoneCountryCode") || ""}
-                            onValueChange={(value) =>
-                              setValue("phoneCountryCode", value)
-                            }
+                            onValueChange={(value) => {
+                              setValue("phoneCountryCode", value, {
+                                shouldValidate: true,
+                              });
+                            }}
                           >
-                            <SelectTrigger className="h-10">
-                              <SelectValue placeholder="Code *" />
+                            <SelectTrigger className="h-10 w-full">
+                              <SelectValue placeholder="Select country code" />
                             </SelectTrigger>
-                            <SelectContent>
-                              {COUNTRY_CODES.map((cc) => (
-                                <SelectItem key={cc.code} value={cc.code}>
-                                  {cc.code}{" "}
-                                  {cc.countries.length > 1
-                                    ? `(${cc.countries[0]}...)`
-                                    : `(${cc.countries[0]})`}
+                            <SelectContent className="max-h-[320px]">
+                              {PHONE_CODE_OPTIONS.map((opt) => (
+                                <SelectItem
+                                  key={opt.code}
+                                  value={opt.code}
+                                  className="py-2"
+                                >
+                                  <span className="flex items-center gap-2">
+                                    <span
+                                      className="text-lg leading-none"
+                                      aria-hidden
+                                    >
+                                      {opt.flag}
+                                    </span>
+                                    <span>{opt.label}</span>
+                                  </span>
                                 </SelectItem>
                               ))}
                             </SelectContent>
@@ -536,8 +618,9 @@ export function CustomerForm({
                           <Input
                             id="phone"
                             type="tel"
+                            inputMode="numeric"
                             {...register("phoneNumber")}
-                            placeholder="Phone number"
+                            placeholder="e.g. 5551234567"
                             className="h-10"
                           />
                           {errors.phoneNumber && (
@@ -779,7 +862,9 @@ export function CustomerForm({
                       <Input
                         id="addressZip"
                         {...register("address.zip")}
-                        placeholder="ZIP/Postal code"
+                        placeholder={getPostalPlaceholder(
+                          watch("address.country") || "",
+                        )}
                         className="h-10"
                       />
                       {errors.address?.zip && (
@@ -977,7 +1062,9 @@ export function CustomerForm({
                           <Input
                             id="shippingAddressZip"
                             {...register("shippingAddress.zip")}
-                            placeholder="ZIP/Postal code"
+                            placeholder={getPostalPlaceholder(
+                              watch("shippingAddress.country") || "",
+                            )}
                             className="h-10"
                           />
                           {errors.shippingAddress?.zip && (
@@ -1006,7 +1093,7 @@ export function CustomerForm({
                   htmlFor="sameAsBilling"
                   className="text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer"
                 >
-                  Shipping address is different
+                  Shipping address is the same
                 </Label>
               </div>
             </div>

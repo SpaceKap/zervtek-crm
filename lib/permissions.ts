@@ -90,6 +90,7 @@ export function canDeleteSharedInvoice(userRole: UserRole): boolean {
 
 export function canViewVehicles(userRole: UserRole): boolean {
   return (
+    userRole === UserRole.SALES ||
     userRole === UserRole.MANAGER ||
     userRole === UserRole.ADMIN ||
     userRole === UserRole.BACK_OFFICE_STAFF ||
@@ -118,5 +119,16 @@ export function canManageVehicleStages(userRole: UserRole): boolean {
     userRole === UserRole.MANAGER ||
     userRole === UserRole.ADMIN ||
     userRole === UserRole.BACK_OFFICE_STAFF
+  )
+}
+
+/** Sales, Managers, Admins, BackOffice can view customers (with role-based filtering in API) */
+export function canViewCustomers(userRole: UserRole): boolean {
+  return (
+    userRole === UserRole.SALES ||
+    userRole === UserRole.MANAGER ||
+    userRole === UserRole.ADMIN ||
+    userRole === UserRole.BACK_OFFICE_STAFF ||
+    userRole === UserRole.ACCOUNTANT
   )
 }

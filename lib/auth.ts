@@ -4,7 +4,7 @@ import { prisma } from "./prisma"
 import { UserRole } from "@prisma/client"
 
 export const authOptions: NextAuthOptions = {
-    // No adapter needed for JWT sessions
+    ...({ trustHost: true } as any), // Required for ngrok, reverse proxies
     providers: [
         GoogleProvider({
             clientId: process.env.GOOGLE_CLIENT_ID!,

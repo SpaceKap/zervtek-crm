@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useForm } from "react-hook-form"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
@@ -35,9 +35,16 @@ export function NotesDialog({
     },
   })
 
+  // Only initialize form when dialog opens; avoid overwriting user input during parent re-fetch (e.g. 30s refresh)
+  const wasOpen = useRef(false)
   useEffect(() => {
     if (open) {
-      setValue("notes", currentNotes)
+      if (!wasOpen.current) {
+        setValue("notes", currentNotes)
+        wasOpen.current = true
+      }
+    } else {
+      wasOpen.current = false
     }
   }, [open, currentNotes, setValue])
 

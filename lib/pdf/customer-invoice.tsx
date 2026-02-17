@@ -7,6 +7,7 @@ import {
   StyleSheet,
   Image,
 } from "@react-pdf/renderer";
+import { getChargesSubtotal, isChargeSubtracting } from "@/lib/charge-utils";
 
 const styles = StyleSheet.create({
   page: {
@@ -258,18 +259,18 @@ export function CustomerInvoicePDF({
       maximumFractionDigits: 2,
     });
   };
+  const formatCurrencyNegative = (amount: number) => {
+    if (amount >= 0) return formatCurrency(amount);
+    return `- ${formatCurrency(Math.abs(amount))}`;
+  };
 
-  // Calculate totals
-  const subtotal = invoice.charges.reduce(
-    (sum: number, charge: any) => sum + parseFloat(charge.amount.toString()),
-    0,
-  );
+  // Calculate totals (getChargesSubtotal includes discounts/deposits as negative)
+  const subtotal = getChargesSubtotal(invoice.charges);
 
   const taxAmount = invoice.taxEnabled
     ? subtotal * (parseFloat(invoice.taxRate.toString()) / 100)
     : 0;
 
-  // Recycle Fee is same as tax amount when tax is enabled (10% consumption tax)
   const recycleFee = invoice.taxEnabled ? taxAmount : 0;
 
   const total = subtotal + taxAmount + recycleFee;
@@ -465,6 +466,9 @@ export function CustomerInvoicePDF({
           </View>
           {invoice.charges.map((charge: any, index: number) => {
             const amount = parseFloat(charge.amount.toString());
+            const isDeduction = isChargeSubtracting(charge);
+            const displayAmount = isDeduction ? -amount : amount;
+            const formatted = isDeduction ? formatCurrencyNegative(displayAmount) : formatCurrency(displayAmount);
             return (
               <View key={index} style={styles.tableRow}>
                 <Text
@@ -473,10 +477,10 @@ export function CustomerInvoicePDF({
                   {charge.description}
                 </Text>
                 <Text style={[styles.colRate, styles.tableRowText]}>
-                  {formatCurrency(amount)}
+                  {formatted}
                 </Text>
                 <Text style={[styles.colAmount, styles.tableRowText]}>
-                  {formatCurrency(amount)}
+                  {formatted}
                 </Text>
               </View>
             );

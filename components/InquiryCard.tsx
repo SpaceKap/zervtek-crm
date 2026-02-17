@@ -34,13 +34,16 @@ interface InquiryCardProps {
     } | null;
   };
   onAssign?: (id: string) => void;
+  onAssignTo?: (id: string) => void;
   onRelease?: (id: string) => void;
   onView?: (id: string) => void;
   onNotes?: (id: string) => void;
   onDelete?: (id: string) => void;
   showAssignButton?: boolean;
+  showAssignToButton?: boolean;
   showReleaseButton?: boolean;
   showNotesButton?: boolean;
+  showCopyFieldIcons?: boolean;
   showDeleteButton?: boolean;
   currentUserId?: string;
   currentUserEmail?: string;
@@ -106,13 +109,16 @@ const sourceLabels: Record<InquirySource, string> = {
 export function InquiryCard({
   inquiry,
   onAssign,
+  onAssignTo,
   onRelease,
   onView,
   onNotes,
   onDelete,
   showAssignButton = false,
+  showAssignToButton = false,
   showReleaseButton = false,
   showNotesButton = false,
+  showCopyFieldIcons = false,
   showDeleteButton = false,
   currentUserId,
   currentUserEmail,
@@ -125,6 +131,37 @@ export function InquiryCard({
 }: InquiryCardProps) {
   const canDelete = currentUserEmail === "avi@zervtek.com";
   const metadata = (inquiry.metadata as any) || {};
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const handleCopyField = async (e: React.MouseEvent, text: string, fieldId: string) => {
+    e.stopPropagation();
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedId(fieldId);
+      setTimeout(() => setCopiedId(null), 1500);
+    } catch {
+      // fallback for older browsers
+      document.execCommand("copy");
+    }
+  };
+  const CopyIcon = ({ text, fieldId }: { text: string; fieldId: string }) => {
+    if (!showCopyFieldIcons || !text?.trim()) return null;
+    return (
+      <button
+        type="button"
+        onClick={(e) => handleCopyField(e, text, fieldId)}
+        className="ml-0.5 inline-flex shrink-0 p-0.5 rounded hover:bg-gray-200 dark:hover:bg-[#2C2C2C] text-gray-400 dark:text-[#A1A1A1] hover:text-gray-600 dark:hover:text-white transition-colors overflow-visible"
+        title="Copy"
+        aria-label="Copy to clipboard"
+      >
+        <span
+          className="material-symbols-outlined select-none block leading-none"
+          style={{ fontSize: 12 }}
+        >
+          {copiedId === fieldId ? "check" : "content_copy"}
+        </span>
+      </button>
+    );
+  };
   const lookingFor = metadata.lookingFor || null;
   const country = metadata.country || null;
   const notes = metadata.notes || "";
@@ -148,6 +185,9 @@ export function InquiryCard({
   // 2. AND it's in the funnel (kanban board)
   const isAssignedToCurrentUser = inquiry.assignedToId === currentUserId;
   const showContactInfo = isInFunnel && isAssignedToCurrentUser;
+
+  // Check if inquiry is CLOSED_WON - show minimal info
+  const isClosedWon = inquiry.status === InquiryStatus.CLOSED_WON;
   const getInitials = (name: string | null | undefined, email: string) => {
     if (name) {
       return name
@@ -192,231 +232,222 @@ export function InquiryCard({
             : "opacity-75"
       }`}
     >
-      <CardContent className="p-4 flex flex-col flex-1 min-h-0">
+      <CardContent className="p-3 flex flex-col flex-1 min-h-0">
         {/* Header Section */}
         <div className="flex flex-col space-y-3 flex-shrink-0">
-          {/* Status Badge */}
-          {!hideStatusBadge && (
-            <div className="flex items-start justify-between gap-2">
-              <span
-                className={`text-xs font-medium px-2 py-1 rounded border ${
-                  statusColors[inquiry.status]
-                }`}
-              >
-                {statusLabels[inquiry.status]}
-              </span>
+          {/* Badges + Title Row */}
+          <div className="flex flex-col gap-2">
+            <div className="flex flex-wrap items-center gap-1.5">
+              {!hideStatusBadge && (
+                <span
+                  className={`text-xs font-medium px-2 py-0.5 rounded border ${
+                    statusColors[inquiry.status]
+                  }`}
+                >
+                  {statusLabels[inquiry.status]}
+                </span>
+              )}
+              {!hideSourceBadge && (
+                <span
+                  className={`text-xs px-2 py-0.5 rounded ${
+                    sourceColors[inquiry.source]
+                  }`}
+                >
+                  {sourceLabels[inquiry.source]}
+                </span>
+              )}
               {previouslyTriedBy && (
-                <span className="text-xs font-medium px-2 py-1 rounded border bg-amber-50 text-amber-700 border-amber-300 dark:bg-amber-900/20 dark:text-amber-300 dark:border-amber-700">
-                  Previously tried by: {previouslyTriedBy.userName}
+                <span className="text-xs font-medium px-2 py-0.5 rounded border bg-amber-50 text-amber-700 border-amber-300 dark:bg-amber-900/20 dark:text-amber-300 dark:border-amber-700">
+                  Previously tried: {previouslyTriedBy.userName}
                 </span>
               )}
             </div>
-          )}
-
-          {/* Title with Drag Handle */}
-          <div className="flex items-start gap-2">
-            {dragHandleProps && (
-              <div
-                {...dragHandleProps}
-                className="mt-0.5 cursor-grab active:cursor-grabbing text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-400"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <span className="material-symbols-outlined text-base">
-                  drag_indicator
-                </span>
-              </div>
-            )}
             <h3
               className={`font-semibold text-sm text-gray-900 dark:text-white line-clamp-2 leading-snug flex-1 ${
                 isClickable ? "cursor-pointer" : "cursor-not-allowed"
               }`}
             >
-              {inquiry.customerName ||
-                (showContactInfo ? inquiry.email : "Unknown Customer") ||
-                "Unknown Customer"}
+              <span className="inline-flex items-center gap-1">
+                {inquiry.customerName ||
+                  (showContactInfo ? inquiry.email : "Unknown Customer") ||
+                  "Unknown Customer"}
+                <CopyIcon
+                  text={
+                    inquiry.customerName || (showContactInfo && inquiry.email) || ""
+                  }
+                  fieldId="name"
+                />
+              </span>
             </h3>
           </div>
         </div>
 
-        {/* Content Section - Always takes up space for consistency */}
-        <div className="flex flex-col space-y-2.5 flex-1 min-h-[60px] mt-1">
-          {/* Country */}
-          {country && (
-            <div className="text-xs text-gray-600 dark:text-[#A1A1A1]">
-              <span className="font-medium text-gray-700 dark:text-[#D0D0D0]">
-                Country:
-              </span>{" "}
-              <span>{country}</span>
-            </div>
-          )}
-
-          {/* Description */}
-          {lookingFor && (
-            <div className="text-xs text-gray-600 dark:text-[#A1A1A1]">
-              <span className="font-medium text-gray-700 dark:text-[#D0D0D0]">
-                Looking for:
-              </span>{" "}
-              <span className="line-clamp-2 leading-tight">{lookingFor}</span>
-            </div>
-          )}
-
-          {inquiry.message && (
-            <div className="text-xs text-gray-600 dark:text-[#A1A1A1]">
-              <span className="font-medium text-gray-700 dark:text-[#D0D0D0]">
-                Message:
-              </span>{" "}
-              <div className="mt-0.5">
-                <span
-                  className={`leading-tight ${
-                    shouldTruncate && !isMessageExpanded
-                      ? "line-clamp-2"
-                      : ""
-                  }`}
-                >
-                  {inquiry.message}
-                </span>
-                {shouldTruncate && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setShowMessageDialog(true);
-                    }}
-                    className="ml-1 text-blue-600 dark:text-blue-400 hover:underline font-medium text-xs"
-                  >
-                    Read more
-                  </button>
-                )}
+        {/* Content Section */}
+        {!isClosedWon ? (
+          <div className="flex flex-col space-y-2.5 flex-1 min-h-[60px] mt-1">
+            {/* Country */}
+            {country && (
+              <div className="text-xs text-gray-600 dark:text-[#A1A1A1] flex items-center gap-1">
+                <span className="font-medium text-gray-700 dark:text-[#D0D0D0]">
+                  Country:
+                </span>{" "}
+                <span>{country}</span>
+                <CopyIcon text={country} fieldId="country" />
               </div>
-            </div>
-          )}
+            )}
 
-          {/* Contact Info - Only show if assigned or admin */}
-          {showContactInfo && (inquiry.email || inquiry.phone) && (
-            <div className="space-y-1.5 text-xs text-gray-600 dark:text-[#A1A1A1] pt-2 mt-2 border-t border-gray-100 dark:border-[#2C2C2C]">
-              {inquiry.email && (
-                <div className="flex items-center gap-1.5">
-                  <span className="material-symbols-outlined text-sm flex-shrink-0">
-                    email
+            {/* Description */}
+            {lookingFor && (
+              <div className="text-xs text-gray-600 dark:text-[#A1A1A1] flex items-start gap-1">
+                <span className="font-medium text-gray-700 dark:text-[#D0D0D0]">
+                  Looking for:
+                </span>{" "}
+                <span className="line-clamp-2 leading-tight flex-1">{lookingFor}</span>
+                <CopyIcon text={lookingFor} fieldId="lookingFor" />
+              </div>
+            )}
+
+            {inquiry.message && (
+              <div className="text-xs text-gray-600 dark:text-[#A1A1A1]">
+                <span className="font-medium text-gray-700 dark:text-[#D0D0D0]">
+                  Message:
+                </span>{" "}
+                <div className="mt-0.5 flex items-start gap-1">
+                  <span
+                    className={`leading-tight flex-1 ${
+                      shouldTruncate && !isMessageExpanded
+                        ? "line-clamp-2"
+                        : ""
+                    }`}
+                  >
+                    {inquiry.message}
                   </span>
-                  <span className="line-clamp-1">{inquiry.email}</span>
+                  <CopyIcon text={inquiry.message} fieldId="message" />
+                  {shouldTruncate && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowMessageDialog(true);
+                      }}
+                      className="ml-1 text-blue-600 dark:text-blue-400 hover:underline font-medium text-xs"
+                    >
+                      Read more
+                    </button>
+                  )}
                 </div>
-              )}
-              {inquiry.phone && (
-                <div className="flex items-center gap-1.5">
-                  <span className="material-symbols-outlined text-sm flex-shrink-0">
-                    phone
-                  </span>
-                  <span>{inquiry.phone}</span>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
+              </div>
+            )}
 
-        {/* Source Badge - Fixed position */}
-        {!hideSourceBadge && (
-          <div className="flex items-center gap-2 mt-3 mb-3 flex-shrink-0">
-            <span
-              className={`text-xs px-2 py-0.5 rounded ${
-                sourceColors[inquiry.source]
-              }`}
-            >
-              {sourceLabels[inquiry.source]}
-            </span>
-          </div>
-        )}
-
-        {/* Footer - Fixed at bottom */}
-        <div className="flex items-center justify-between pt-3 border-t border-gray-100 dark:border-[#2C2C2C] flex-shrink-0 mt-auto">
-          {/* Assignee Avatar */}
-          <div className="flex items-center gap-2">
-            {inquiry.assignedTo ? (
-              <div className="flex items-center gap-1">
-                {inquiry.assignedTo.image ? (
-                  <img
-                    src={inquiry.assignedTo.image}
-                    alt={inquiry.assignedTo.name || inquiry.assignedTo.email}
-                    className="w-6 h-6 rounded-full"
-                  />
-                ) : (
-                  <div className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 dark:from-[#D4AF37] dark:to-[#FFD700] flex items-center justify-center text-white text-xs font-medium">
-                    {getInitials(
-                      inquiry.assignedTo.name,
-                      inquiry.assignedTo.email,
-                    )}
+            {/* Contact Info - Only show if assigned or admin */}
+            {showContactInfo && (inquiry.email || inquiry.phone) && (
+              <div className="space-y-1.5 text-xs text-gray-600 dark:text-[#A1A1A1] pt-2 mt-2 border-t border-gray-100 dark:border-[#2C2C2C]">
+                {inquiry.email && (
+                  <div className="flex items-center gap-1.5">
+                    <span className="material-symbols-outlined text-sm flex-shrink-0">
+                      email
+                    </span>
+                    <span className="line-clamp-1 flex-1">{inquiry.email}</span>
+                    <CopyIcon text={inquiry.email} fieldId="email" />
+                  </div>
+                )}
+                {inquiry.phone && (
+                  <div className="flex items-center gap-1.5">
+                    <span className="material-symbols-outlined text-sm flex-shrink-0">
+                      phone
+                    </span>
+                    <span className="flex-1">{inquiry.phone}</span>
+                    <CopyIcon text={inquiry.phone} fieldId="phone" />
                   </div>
                 )}
               </div>
+            )}
+          </div>
+        ) : (
+          <div className="flex flex-col space-y-1 flex-1 min-h-[20px] mt-1">
+            {/* Minimal info for CLOSED_WON */}
+            <div className="text-xs text-gray-500 dark:text-[#A1A1A1] italic">
+              Closed Won
+            </div>
+          </div>
+        )}
+
+        {/* Footer */}
+        <div className="flex items-center justify-between gap-2 pt-3 mt-auto border-t border-gray-100 dark:border-[#2C2C2C] flex-shrink-0">
+          <div className="flex items-center gap-2 min-w-0">
+            {inquiry.assignedTo ? (
+              inquiry.assignedTo.image ? (
+                <img
+                  src={inquiry.assignedTo.image}
+                  alt={inquiry.assignedTo.name || inquiry.assignedTo.email}
+                  className="w-5 h-5 rounded-full flex-shrink-0"
+                />
+              ) : (
+                <div className="w-5 h-5 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 dark:from-[#D4AF37] dark:to-[#FFD700] flex items-center justify-center text-white text-[10px] font-medium flex-shrink-0">
+                  {getInitials(
+                    inquiry.assignedTo.name,
+                    inquiry.assignedTo.email,
+                  )}
+                </div>
+              )
             ) : (
-              <div className="w-6 h-6 rounded-full bg-gray-200 dark:bg-[#2C2C2C] flex items-center justify-center">
-                <span className="material-symbols-outlined text-sm text-gray-400 dark:text-[#A1A1A1]">
+              <div className="w-5 h-5 rounded-full bg-gray-200 dark:bg-[#2C2C2C] flex items-center justify-center flex-shrink-0">
+                <span className="material-symbols-outlined text-xs text-gray-400 dark:text-[#A1A1A1]">
                   person
                 </span>
               </div>
             )}
+            <span className="text-[11px] text-gray-500 dark:text-[#A1A1A1] truncate">
+              {format(new Date(inquiry.createdAt), "dd MMM yyyy")}
+            </span>
           </div>
-
-          {/* Metadata and Actions */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1 flex-shrink-0">
             {showNotesButton && onNotes && (
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   onNotes(inquiry.id);
                 }}
-                className={`flex items-center justify-center p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-[#2C2C2C] transition-colors ${
+                className={`flex items-center justify-center p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-[#2C2C2C] transition-colors ${
                   hasNotes
                     ? "text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20"
                     : "text-gray-500 dark:text-[#A1A1A1]"
                 }`}
                 title={hasNotes ? "Edit notes" : "Add notes"}
               >
-                <span className="material-symbols-outlined text-lg">
+                <span className="material-symbols-outlined text-base">
                   {hasNotes ? "note" : "note_add"}
                 </span>
               </button>
             )}
-            <div className="flex items-center gap-3 text-xs text-gray-500 dark:text-[#A1A1A1]">
-              <span className="flex items-center gap-1">
-                <span className="material-symbols-outlined text-sm">
-                  comment
-                </span>
-                <span>0</span>
-              </span>
-              <span className="flex items-center gap-1">
-                <span className="material-symbols-outlined text-sm">link</span>
-                <span>0</span>
-              </span>
-              <span className="text-gray-400 dark:text-[#A1A1A1]">
-                {format(new Date(inquiry.createdAt), "dd MMM yyyy")}
-              </span>
-            </div>
-            {showAssignButton && onAssign && !inquiry.assignedToId && (
+            {showAssignToButton && onAssignTo && (isManager || isAdmin) && (
               <Button
                 size="sm"
+                variant="ghost"
                 onClick={(e) => {
                   e.stopPropagation();
-                  onAssign(inquiry.id);
+                  onAssignTo(inquiry.id);
                 }}
-                className="h-7 text-xs flex items-center gap-1"
+                className="h-7 px-2 text-xs flex items-center gap-1 shrink-0"
+                title="Assign to a team member"
               >
                 <span className="material-symbols-outlined text-sm">
                   person_add
                 </span>
-                Assign to Me
+                Assign
               </Button>
             )}
             {showReleaseButton && onRelease && inquiry.assignedToId ? (
               <Button
                 size="sm"
-                variant="outline"
+                variant="ghost"
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
                   onRelease(inquiry.id);
                 }}
                 onMouseDown={(e) => e.stopPropagation()}
-                className="h-7 text-xs flex items-center gap-1 shrink-0"
+                className="h-7 px-2 text-xs flex items-center gap-1 shrink-0"
+                title="Release to pool"
               >
                 <span className="material-symbols-outlined text-sm">
                   person_remove
@@ -425,9 +456,7 @@ export function InquiryCard({
               </Button>
             ) : null}
             {canDelete && showDeleteButton && onDelete && (
-              <Button
-                size="sm"
-                variant="outline"
+              <button
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
@@ -440,13 +469,13 @@ export function InquiryCard({
                   }
                 }}
                 onMouseDown={(e) => e.stopPropagation()}
-                className="h-7 text-xs flex items-center gap-1 shrink-0 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
+                className="flex items-center justify-center p-1.5 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 transition-colors"
+                title="Delete inquiry"
               >
-                <span className="material-symbols-outlined text-sm">
+                <span className="material-symbols-outlined text-base">
                   delete
                 </span>
-                Delete
-              </Button>
+              </button>
             )}
           </div>
         </div>

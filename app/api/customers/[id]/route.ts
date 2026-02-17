@@ -1,88 +1,235 @@
-import { NextRequest, NextResponse } from "next/server"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
-import { prisma } from "@/lib/prisma"
-import { requireAuth } from "@/lib/permissions"
+import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
+import { UserRole } from "@prisma/client";
 
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    await requireAuth()
+    const session = await getServerSession(authOptions);
+    if (!session?.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
+    console.log(`[Customer API] Fetching customer with ID: ${params.id}`);
+    
+    // First, try to find the customer
     const customer = await prisma.customer.findUnique({
       where: { id: params.id },
       include: {
-        invoices: {
+        assignedTo: {
           select: {
             id: true,
-            invoiceNumber: true,
-            status: true,
-            createdAt: true,
+            name: true,
+            email: true,
           },
-          orderBy: { createdAt: "desc" },
-          take: 10,
+        },
+        vehicles: {
+          include: {
+            invoices: {
+              select: {
+                id: true,
+                invoiceNumber: true,
+                status: true,
+                paymentStatus: true,
+                issueDate: true,
+                dueDate: true,
+                finalizedAt: true,
+              },
+              orderBy: {
+                createdAt: "desc",
+              },
+            },
+            shippingStage: {
+              include: {
+                yard: {
+                  select: {
+                    id: true,
+                    name: true,
+                  },
+                },
+              },
+            },
+          },
+          orderBy: {
+            createdAt: "desc",
+          },
+        },
+        invoices: {
+          include: {
+            vehicle: {
+              select: {
+                id: true,
+                vin: true,
+                make: true,
+                model: true,
+                year: true,
+              },
+            },
+            charges: {
+              include: {
+                chargeType: {
+                  select: {
+                    id: true,
+                    name: true,
+                  },
+                },
+              },
+            },
+          },
+          orderBy: {
+            createdAt: "desc",
+          },
+        },
+        transactions: {
+          include: {
+            vehicle: {
+              select: {
+                id: true,
+                vin: true,
+                make: true,
+                model: true,
+                year: true,
+              },
+            },
+            vendor: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+          orderBy: {
+            date: "desc",
+          },
         },
       },
-    })
+    });
 
     if (!customer) {
+      // Try to find by name as a fallback for debugging
+      const customerByName = await prisma.customer.findFirst({
+        where: {
+          name: {
+            contains: params.id,
+            mode: "insensitive",
+          },
+        },
+        select: {
+          id: true,
+          name: true,
+        },
+      });
+      
+      console.log(`[Customer API] Customer not found with ID: ${params.id}`);
+      if (customerByName) {
+        console.log(`[Customer API] Found customer by name search: ${customerByName.name} (ID: ${customerByName.id})`);
+      }
+      
+      // Also check total customer count
+      const totalCustomers = await prisma.customer.count();
+      console.log(`[Customer API] Total customers in database: ${totalCustomers}`);
+      
       return NextResponse.json(
-        { error: "Customer not found" },
+        { 
+          error: "Customer not found",
+          searchedId: params.id,
+          totalCustomers,
+          suggestion: customerByName ? `Did you mean: ${customerByName.name} (ID: ${customerByName.id})?` : null,
+        },
         { status: 404 }
-      )
+      );
     }
+    
+    console.log(`[Customer API] Found customer: ${customer.name} (ID: ${customer.id})`);
 
-    return NextResponse.json(customer)
-  } catch (error) {
-    console.error("Error fetching customer:", error)
+    // Get all documents for customer's vehicles
+    const vehicleIds = customer.vehicles?.map((v: any) => v.id) || [];
+    const documents = vehicleIds.length > 0
+      ? await prisma.vehicleDocument.findMany({
+          where: {
+            vehicleId: {
+              in: vehicleIds,
+            },
+          },
+          include: {
+            vehicle: {
+              select: {
+                id: true,
+                vin: true,
+                make: true,
+                model: true,
+                year: true,
+              },
+            },
+          },
+          orderBy: {
+            createdAt: "desc",
+          },
+        })
+      : [];
+
+    return NextResponse.json({
+      ...customer,
+      documents: documents || [],
+    });
+  } catch (error: any) {
+    console.error("[Customer API] Error fetching customer:", error);
+    console.error("[Customer API] Error details:", {
+      message: error?.message || String(error),
+      code: error?.code,
+      meta: error?.meta,
+      stack: error?.stack,
+    });
     return NextResponse.json(
-      { error: "Failed to fetch customer" },
+      { 
+        error: "Failed to fetch customer",
+        details: process.env.NODE_ENV === "development" 
+          ? (error?.message || String(error))
+          : "An error occurred while fetching customer data",
+        code: error?.code || "UNKNOWN",
+      },
       { status: 500 }
-    )
+    );
   }
 }
 
-export async function PATCH(
+export async function DELETE(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    await requireAuth()
+    const session = await getServerSession(authOptions);
+    if (!session?.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    if (session.user.role !== UserRole.ADMIN) {
+      return NextResponse.json({ error: "Forbidden - Admin only" }, { status: 403 });
+    }
 
-    const body = await request.json()
-    const {
-      name,
-      email,
-      phone,
-      country,
-      billingAddress,
-      shippingAddress,
-      portOfDestination,
-      assignedToId,
-    } = body
-
-    const customer = await prisma.customer.update({
+    const customer = await prisma.customer.findUnique({
       where: { id: params.id },
-      data: {
-        ...(name !== undefined && { name }),
-        ...(email !== undefined && { email }),
-        ...(phone !== undefined && { phone }),
-        ...(country !== undefined && { country }),
-        ...(billingAddress !== undefined && { billingAddress }),
-        ...(shippingAddress !== undefined && { shippingAddress }),
-        ...(portOfDestination !== undefined && { portOfDestination }),
-        ...(assignedToId !== undefined && { assignedToId: assignedToId || null }),
-      },
-    })
+    });
+    if (!customer) {
+      return NextResponse.json(
+        { error: "Customer not found" },
+        { status: 404 }
+      );
+    }
 
-    return NextResponse.json(customer)
+    await prisma.customer.delete({
+      where: { id: params.id },
+    });
+
+    return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("Error updating customer:", error)
+    console.error("[Customer API] Error deleting customer:", error);
     return NextResponse.json(
-      { error: "Failed to update customer" },
+      { error: "Failed to delete customer" },
       { status: 500 }
-    )
+    );
   }
 }

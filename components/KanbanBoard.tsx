@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { AddInquiryDialog } from "./AddInquiryDialog";
 import { NotesDialog } from "./NotesDialog";
 import { ReleaseConfirmationDialog } from "./ReleaseConfirmationDialog";
+import { AssignToDialog } from "./AssignToDialog";
 import {
   DndContext,
   DragEndEvent,
@@ -81,6 +82,8 @@ export function KanbanBoard({
   const [notes, setNotes] = useState<string>("");
   const [releaseDialogOpen, setReleaseDialogOpen] = useState(false);
   const [pendingReleaseId, setPendingReleaseId] = useState<string | null>(null);
+  const [assignToDialogOpen, setAssignToDialogOpen] = useState(false);
+  const [assignToInquiryId, setAssignToInquiryId] = useState<string | null>(null);
   const [releasing, setReleasing] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -122,11 +125,15 @@ export function KanbanBoard({
       const url = filterUserId
         ? `/api/kanban?userId=${filterUserId}`
         : "/api/kanban";
-      console.log("[KanbanBoard] Fetching board from:", url);
+      if (process.env.NODE_ENV === "development") {
+        console.log("[KanbanBoard] Fetching board from:", url);
+      }
       const response = await fetch(url);
       if (response.ok) {
         const data = await response.json();
-        console.log("[KanbanBoard] Received data:", { stagesCount: data.stages?.length || 0, stages: data.stages });
+        if (process.env.NODE_ENV === "development") {
+          console.log("[KanbanBoard] Received data:", { stagesCount: data.stages?.length || 0, stages: data.stages });
+        }
         setStages(data.stages || []);
       } else {
         const errorData = await response.json().catch(() => ({ error: "Unknown error" }));
@@ -143,10 +150,12 @@ export function KanbanBoard({
 
   useEffect(() => {
     fetchBoard();
-    // Refresh every 30 seconds
-    const interval = setInterval(fetchBoard, 30000);
+    // Refresh every 30 seconds, but pause while notes dialog is open to avoid overwriting user input
+    const interval = setInterval(() => {
+      if (!notesDialogOpen) fetchBoard();
+    }, 30000);
     return () => clearInterval(interval);
-  }, [fetchBoard]);
+  }, [fetchBoard, notesDialogOpen]);
 
   const handleView = (inquiryId: string) => {
     router.push(`/dashboard/inquiries/${inquiryId}`);
@@ -220,6 +229,16 @@ export function KanbanBoard({
 
   const handleNotesSaved = () => {
     fetchBoard();
+  };
+
+  const handleAssignTo = (inquiryId: string) => {
+    setAssignToInquiryId(inquiryId);
+    setAssignToDialogOpen(true);
+  };
+
+  const handleAssignToSuccess = () => {
+    fetchBoard();
+    setAssignToInquiryId(null);
   };
 
   const handleDragStart = (event: DragStartEvent) => {
@@ -352,11 +371,11 @@ export function KanbanBoard({
     }
   };
 
-  if (loading) {
+  if (loading && stages.length === 0) {
     return (
       <div className="flex items-center justify-center py-20">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 dark:border-[#D4AF37] mx-auto mb-4"></div>
           <p className="text-sm text-gray-500">Loading kanban board...</p>
         </div>
       </div>
@@ -373,7 +392,18 @@ export function KanbanBoard({
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
-      <div className="flex gap-4 h-full overflow-x-auto overflow-y-hidden pb-4 scrollbar-hide" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+      <div className="relative h-full">
+        {loading && stages.length > 0 && (
+          <div className="absolute inset-0 z-10 flex items-center justify-center bg-gray-50/70 dark:bg-[#121212]/70 rounded-lg">
+            <div className="flex items-center gap-2 px-3 py-2 bg-white dark:bg-[#1E1E1E] rounded-lg shadow-md">
+              <div className="animate-spin rounded-full h-5 w-5 border-2 border-primary border-t-transparent" />
+              <span className="text-sm text-gray-600 dark:text-gray-300">
+                Refreshing...
+              </span>
+            </div>
+          </div>
+        )}
+        <div className="flex gap-4 h-full overflow-x-auto overflow-y-hidden pb-4 scrollbar-modern-horizontal">
         <SortableContext
           items={allInquiryIds}
           strategy={verticalListSortingStrategy}
@@ -390,7 +420,9 @@ export function KanbanBoard({
               status={stage.status}
               onRelease={handleRelease}
               onNotes={handleNotes}
+              onAssignTo={handleAssignTo}
               onDelete={handleDelete}
+              users={users}
               currentUserId={currentUserId}
               currentUserEmail={currentUserEmail}
               isManager={isManager}
@@ -404,6 +436,7 @@ export function KanbanBoard({
             <span className="material-symbols-outlined text-xl">add</span>
             <span className="text-sm font-medium">Add Column</span>
           </button>
+        </div>
         </div>
       </div>
       <DragOverlay>
@@ -453,6 +486,18 @@ export function KanbanBoard({
         onConfirm={confirmRelease}
         loading={releasing}
       />
+      {assignToInquiryId && (
+        <AssignToDialog
+          open={assignToDialogOpen}
+          onOpenChange={(open) => {
+            setAssignToDialogOpen(open);
+            if (!open) setAssignToInquiryId(null);
+          }}
+          inquiryId={assignToInquiryId}
+          users={users}
+          onSuccess={handleAssignToSuccess}
+        />
+      )}
     </DndContext>
   );
 }

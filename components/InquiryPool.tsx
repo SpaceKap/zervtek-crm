@@ -6,7 +6,9 @@ import { Button } from "@/components/ui/button";
 import { InquirySource, InquiryStatus } from "@prisma/client";
 import { useRouter } from "next/navigation";
 import { AddInquiryDialog } from "./AddInquiryDialog";
+import { NotesDialog } from "./NotesDialog";
 import { ReleaseConfirmationDialog } from "./ReleaseConfirmationDialog";
+import { AssignToDialog } from "./AssignToDialog";
 
 interface Inquiry {
   id: string;
@@ -82,6 +84,11 @@ export function InquiryPool({
   const [releaseDialogOpen, setReleaseDialogOpen] = useState(false);
   const [pendingReleaseId, setPendingReleaseId] = useState<string | null>(null);
   const [releasing, setReleasing] = useState(false);
+  const [notesDialogOpen, setNotesDialogOpen] = useState(false);
+  const [notesInquiryId, setNotesInquiryId] = useState<string | null>(null);
+  const [notes, setNotes] = useState<string>("");
+  const [assignToDialogOpen, setAssignToDialogOpen] = useState(false);
+  const [assignToInquiryId, setAssignToInquiryId] = useState<string | null>(null);
 
   // Use external filters if provided, otherwise use internal state
   const currentFilterSource =
@@ -130,13 +137,15 @@ export function InquiryPool({
       const response = await fetch(`/api/inquiries?${params.toString()}`);
       if (response.ok) {
         const data = await response.json();
-        console.log(
-          "Fetched inquiries:",
-          data.length,
-          "total",
-          "showUnassignedOnly:",
-          showUnassignedOnly,
-        );
+        if (process.env.NODE_ENV === "development") {
+          console.log(
+            "Fetched inquiries:",
+            data.length,
+            "total",
+            "showUnassignedOnly:",
+            showUnassignedOnly,
+          );
+        }
         // When unassignedOnly=true is passed to API, it already filters server-side
         // But we still filter client-side as a safety measure
         if (showUnassignedOnly) {
@@ -245,6 +254,29 @@ export function InquiryPool({
 
   const handleView = (inquiryId: string) => {
     router.push(`/dashboard/inquiries/${inquiryId}`);
+  };
+
+  const handleNotes = async (inquiryId: string) => {
+    try {
+      const response = await fetch(`/api/inquiries/${inquiryId}/notes`);
+      if (response.ok) {
+        const data = await response.json();
+        setNotes(data.notes || "");
+      } else {
+        setNotes("");
+      }
+      setNotesInquiryId(inquiryId);
+      setNotesDialogOpen(true);
+    } catch {
+      setNotes("");
+      setNotesInquiryId(inquiryId);
+      setNotesDialogOpen(true);
+    }
+  };
+
+  const handleAssignTo = (inquiryId: string) => {
+    setAssignToInquiryId(inquiryId);
+    setAssignToDialogOpen(true);
   };
 
   if (loading) {
@@ -362,18 +394,21 @@ export function InquiryPool({
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
           {inquiries.map((inquiry) => (
             <InquiryCard
               key={inquiry.id}
               inquiry={inquiry}
-              onAssign={handleAssign}
+              onAssignTo={handleAssignTo}
               onRelease={handleRelease}
               onView={handleView}
+              onNotes={handleNotes}
               onDelete={handleDelete}
               showDeleteButton={true}
+              showNotesButton={true}
+              showAssignToButton={(isManager || isAdmin) && users.length > 0}
               currentUserEmail={currentUserEmail}
-              showAssignButton={!inquiry.assignedToId}
+              showAssignButton={false}
               showReleaseButton={!!inquiry.assignedToId}
               currentUserId={currentUserId}
               isManager={isManager}
@@ -388,6 +423,30 @@ export function InquiryPool({
         onConfirm={confirmRelease}
         loading={releasing}
       />
+      {notesInquiryId && (
+        <NotesDialog
+          open={notesDialogOpen}
+          onOpenChange={(open) => {
+            setNotesDialogOpen(open);
+            if (!open) setNotesInquiryId(null);
+          }}
+          inquiryId={notesInquiryId}
+          currentNotes={notes}
+          onSuccess={fetchInquiries}
+        />
+      )}
+      {assignToInquiryId && users.length > 0 && (
+        <AssignToDialog
+          open={assignToDialogOpen}
+          onOpenChange={(open) => {
+            setAssignToDialogOpen(open);
+            if (!open) setAssignToInquiryId(null);
+          }}
+          inquiryId={assignToInquiryId}
+          users={users}
+          onSuccess={fetchInquiries}
+        />
+      )}
     </div>
   );
 }

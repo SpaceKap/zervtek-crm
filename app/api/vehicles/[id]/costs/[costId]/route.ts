@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { canManageVehicleStages } from "@/lib/permissions"
+import { TransactionType } from "@prisma/client"
 
 export async function PATCH(
   request: NextRequest,
@@ -27,14 +28,42 @@ export async function PATCH(
     if (vendorId !== undefined) updateData.vendorId = vendorId
     if (currency !== undefined) updateData.currency = currency
     if (paymentDeadline !== undefined) updateData.paymentDeadline = paymentDeadline ? new Date(paymentDeadline) : null
-    if (paymentDate !== undefined) updateData.paymentDate = paymentDate ? new Date(paymentDate) : null
+    const paymentDateValue = paymentDate ? new Date(paymentDate) : null
+    if (paymentDate !== undefined) updateData.paymentDate = paymentDateValue
 
-    const cost = await prisma.vehicleStageCost.update({
-      where: { id: params.costId },
-      data: updateData,
-      include: {
-        vendor: true,
-      },
+    const cost = await prisma.$transaction(async (tx) => {
+      const updated = await tx.vehicleStageCost.update({
+        where: { id: params.costId },
+        data: updateData,
+        include: {
+          vendor: true,
+        },
+      })
+
+      // Create OUTGOING Transaction when marking cost as paid (sync expense <-> payment)
+      if (paymentDateValue && session?.user?.id) {
+        const existing = await tx.transaction.findFirst({
+          where: { vehicleStageCostId: params.costId },
+        })
+        if (!existing) {
+          await tx.transaction.create({
+            data: {
+              direction: "OUTGOING",
+              type: TransactionType.BANK_TRANSFER,
+              amount: parseFloat(updated.amount.toString()),
+              currency: updated.currency || "JPY",
+              date: paymentDateValue,
+              description: `${updated.costType} - ${updated.vendor?.name || "Vendor"}`,
+              vendorId: updated.vendorId,
+              vehicleId: updated.vehicleId,
+              vehicleStageCostId: params.costId,
+              createdById: session.user.id,
+            },
+          })
+        }
+      }
+
+      return updated
     })
 
     return NextResponse.json(cost)

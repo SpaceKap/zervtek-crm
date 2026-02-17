@@ -5,6 +5,11 @@ import { prisma } from "@/lib/prisma"
 import { canManageTransactions } from "@/lib/permissions"
 import { TransactionDirection, TransactionType } from "@prisma/client"
 import { convertDecimalsToNumbers } from "@/lib/decimal"
+import {
+  getInvoiceTotalWithTax,
+  isAmountPaidInFull,
+  hasPartialPayment,
+} from "@/lib/invoice-utils"
 
 export async function GET(
   request: NextRequest,
@@ -68,10 +73,28 @@ export async function PATCH(
       customerId,
       vehicleId,
       invoiceId,
+      containerInvoiceId,
+      vehicleStageCostId,
+      costItemId,
+      generalCostId,
       invoiceUrl,
       referenceNumber,
       notes,
     } = body
+
+    // Get current transaction to check for changes
+    const currentTransaction = await prisma.transaction.findUnique({
+      where: { id: params.id },
+      select: {
+        invoiceId: true,
+        vehicleId: true,
+        direction: true,
+        amount: true,
+        vehicleStageCostId: true,
+        costItemId: true,
+        generalCostId: true,
+      },
+    })
 
     const updateData: any = {}
     if (direction !== undefined) updateData.direction = direction
@@ -84,18 +107,155 @@ export async function PATCH(
     if (customerId !== undefined) updateData.customerId = customerId
     if (vehicleId !== undefined) updateData.vehicleId = vehicleId
     if (invoiceId !== undefined) updateData.invoiceId = invoiceId
+    if (containerInvoiceId !== undefined) updateData.containerInvoiceId = containerInvoiceId
+    if (vehicleStageCostId !== undefined) updateData.vehicleStageCostId = vehicleStageCostId
+    if (costItemId !== undefined) updateData.costItemId = costItemId
+    if (generalCostId !== undefined) updateData.generalCostId = generalCostId
     if (invoiceUrl !== undefined) updateData.invoiceUrl = invoiceUrl
     if (referenceNumber !== undefined) updateData.referenceNumber = referenceNumber
     if (notes !== undefined) updateData.notes = notes
 
-    const transaction = await prisma.transaction.update({
-      where: { id: params.id },
-      data: updateData,
-      include: {
-        vendor: true,
-        customer: true,
-        vehicle: true,
-      },
+    // Update transaction and sync with invoice/vehicle
+    const transaction = await prisma.$transaction(async (tx) => {
+      const updatedTransaction = await tx.transaction.update({
+        where: { id: params.id },
+        data: updateData,
+        include: {
+          vendor: true,
+          customer: true,
+          vehicle: true,
+        },
+      })
+
+      const finalInvoiceId = invoiceId !== undefined ? invoiceId : currentTransaction?.invoiceId
+      const finalVehicleId = vehicleId !== undefined ? vehicleId : currentTransaction?.vehicleId
+      const finalDirection = direction !== undefined ? direction : currentTransaction?.direction
+      const oldInvoiceId = currentTransaction?.invoiceId
+      const oldVehicleId = currentTransaction?.vehicleId
+      const wasIncoming = currentTransaction?.direction === "INCOMING"
+
+      // Recalc OLD invoice if we unlinked or changed direction (transaction no longer counts)
+      if (oldInvoiceId && wasIncoming && (oldInvoiceId !== finalInvoiceId || finalDirection !== "INCOMING")) {
+        const invoice = await tx.invoice.findUnique({
+          where: { id: oldInvoiceId },
+          include: { charges: true },
+        })
+        if (invoice) {
+          const totalAmount = getInvoiceTotalWithTax(invoice)
+          const invoiceTransactions = await tx.transaction.findMany({
+            where: {
+              invoiceId: oldInvoiceId,
+              direction: "INCOMING",
+              id: { not: params.id },
+            },
+          })
+          const totalReceived = invoiceTransactions.reduce(
+            (sum, t) => sum + parseFloat(t.amount.toString()),
+            0,
+          )
+          let paymentStatus = "PENDING"
+          if (isAmountPaidInFull(totalReceived, totalAmount)) paymentStatus = "PAID"
+          else if (hasPartialPayment(totalReceived)) paymentStatus = "PARTIALLY_PAID"
+          await tx.invoice.update({
+            where: { id: oldInvoiceId },
+            data: {
+              paymentStatus: paymentStatus as any,
+              paidAt: paymentStatus === "PAID" ? new Date() : null,
+            },
+          })
+        }
+      }
+
+      // Recalc OLD vehicle if we unlinked or changed direction
+      if (oldVehicleId && wasIncoming && (oldVehicleId !== finalVehicleId || finalDirection !== "INCOMING")) {
+        const vehicleTransactions = await tx.transaction.findMany({
+          where: {
+            vehicleId: oldVehicleId,
+            direction: "INCOMING",
+            id: { not: params.id },
+          },
+        })
+        const totalReceived = vehicleTransactions.reduce(
+          (sum, t) => sum + parseFloat(t.amount.toString()),
+          0,
+        )
+        await tx.vehicleShippingStage.upsert({
+          where: { vehicleId: oldVehicleId },
+          update: { totalReceived },
+          create: { vehicleId: oldVehicleId, stage: "PURCHASE", totalReceived },
+        })
+      }
+
+      // Sync NEW invoice payment status
+      if (finalInvoiceId && finalDirection === "INCOMING") {
+        const invoice = await tx.invoice.findUnique({
+          where: { id: finalInvoiceId },
+          include: { charges: true },
+        })
+        if (invoice) {
+          const totalAmount = getInvoiceTotalWithTax(invoice)
+          const invoiceTransactions = await tx.transaction.findMany({
+            where: {
+              invoiceId: finalInvoiceId,
+              direction: "INCOMING",
+            },
+          })
+          const totalReceived = invoiceTransactions.reduce(
+            (sum, t) => sum + parseFloat(t.amount.toString()),
+            0,
+          )
+          let paymentStatus = "PENDING"
+          if (isAmountPaidInFull(totalReceived, totalAmount)) paymentStatus = "PAID"
+          else if (hasPartialPayment(totalReceived)) paymentStatus = "PARTIALLY_PAID"
+          await tx.invoice.update({
+            where: { id: finalInvoiceId },
+            data: {
+              paymentStatus: paymentStatus as any,
+              paidAt: paymentStatus === "PAID" ? new Date() : null,
+            },
+          })
+        }
+      }
+
+      // Sync NEW vehicle payment tracking
+      if (finalVehicleId && finalDirection === "INCOMING") {
+        const vehicleTransactions = await tx.transaction.findMany({
+          where: {
+            vehicleId: finalVehicleId,
+            direction: "INCOMING",
+          },
+        })
+        const totalReceived = vehicleTransactions.reduce(
+          (sum, t) => sum + parseFloat(t.amount.toString()),
+          0,
+        )
+        await tx.vehicleShippingStage.upsert({
+          where: { vehicleId: finalVehicleId },
+          update: { totalReceived },
+          create: { vehicleId: finalVehicleId, stage: "PURCHASE", totalReceived },
+        })
+      }
+
+      // Sync expense paymentDate when OUTGOING and linked to expense
+      const finalVscId = vehicleStageCostId !== undefined ? vehicleStageCostId : currentTransaction?.vehicleStageCostId
+      const finalCiId = costItemId !== undefined ? costItemId : currentTransaction?.costItemId
+      if (updatedTransaction.direction === "OUTGOING") {
+        const txnDate = updatedTransaction.date
+        if (finalVscId) {
+          await tx.vehicleStageCost.update({
+            where: { id: finalVscId },
+            data: { paymentDate: txnDate },
+          })
+        }
+        if (finalCiId) {
+          await tx.costItem.update({
+            where: { id: finalCiId },
+            data: { paymentDate: txnDate },
+          })
+        }
+      }
+
+      return updatedTransaction
     })
 
     return NextResponse.json(convertDecimalsToNumbers(transaction))
@@ -122,8 +282,82 @@ export async function DELETE(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
-    await prisma.transaction.delete({
+    // Get transaction before deletion to sync invoice/vehicle
+    const transaction = await prisma.transaction.findUnique({
       where: { id: params.id },
+      select: { invoiceId: true, vehicleId: true, direction: true },
+    })
+
+    await prisma.$transaction(async (tx) => {
+      // Delete transaction
+      await tx.transaction.delete({
+        where: { id: params.id },
+      })
+
+      // Sync invoice payment status if transaction was linked to an invoice
+      if (transaction?.invoiceId && transaction.direction === "INCOMING") {
+        const invoice = await tx.invoice.findUnique({
+          where: { id: transaction.invoiceId },
+          include: { charges: true },
+        })
+
+        if (invoice) {
+          const totalAmount = getInvoiceTotalWithTax(invoice)
+
+          const invoiceTransactions = await tx.transaction.findMany({
+            where: {
+              invoiceId: transaction.invoiceId,
+              direction: "INCOMING",
+            },
+          })
+
+          const totalReceived = invoiceTransactions.reduce(
+            (sum, t) => sum + parseFloat(t.amount.toString()),
+            0,
+          )
+
+          let paymentStatus = "PENDING"
+          if (isAmountPaidInFull(totalReceived, totalAmount)) paymentStatus = "PAID"
+          else if (hasPartialPayment(totalReceived)) paymentStatus = "PARTIALLY_PAID"
+
+          await tx.invoice.update({
+            where: { id: transaction.invoiceId },
+            data: {
+              paymentStatus: paymentStatus as any,
+              paidAt: paymentStatus === "PAID" ? new Date() : null,
+            },
+          })
+        }
+      }
+
+      // Sync vehicle payment tracking if transaction was linked to a vehicle
+      if (transaction?.vehicleId && transaction.direction === "INCOMING") {
+        // Get all remaining transactions for this vehicle
+        const vehicleTransactions = await tx.transaction.findMany({
+          where: {
+            vehicleId: transaction.vehicleId,
+            direction: "INCOMING",
+          },
+        })
+
+        const totalReceived = vehicleTransactions.reduce(
+          (sum, t) => sum + parseFloat(t.amount.toString()),
+          0,
+        )
+
+        // Update vehicle shipping stage totalReceived
+        await tx.vehicleShippingStage.upsert({
+          where: { vehicleId: transaction.vehicleId },
+          update: {
+            totalReceived: totalReceived,
+          },
+          create: {
+            vehicleId: transaction.vehicleId,
+            stage: "PURCHASE",
+            totalReceived: totalReceived,
+          },
+        })
+      }
     })
 
     return NextResponse.json({ success: true })

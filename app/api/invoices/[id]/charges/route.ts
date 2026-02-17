@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { requireAuth, canEditInvoice } from "@/lib/permissions"
+import { recalcInvoicePaymentStatus } from "@/lib/invoice-utils"
 
 export async function GET(
   request: NextRequest,
@@ -72,6 +73,8 @@ export async function POST(
         chargeType: true,
       },
     })
+
+    await recalcInvoicePaymentStatus(params.id)
 
     return NextResponse.json(charge, { status: 201 })
   } catch (error) {

@@ -16,13 +16,22 @@ import {
   DialogDescription,
   DialogClose,
 } from "@/components/ui/dialog";
-import { UserRole } from "@prisma/client";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { getCountriesForPhonePicker } from "@/lib/countries-data";
 
 interface User {
   id: string;
   name: string | null;
   email: string;
 }
+
+const PHONE_REGEX = /^[\d\s\-()]+$/;
 
 const inquirySchema = z.object({
   source: z.enum([
@@ -37,7 +46,14 @@ const inquirySchema = z.object({
   ]),
   customerName: z.string().min(1, "Customer name is required"),
   email: z.string().email().optional().or(z.literal("")),
-  phone: z.string().optional(),
+  phoneCountryCode: z.string().optional(),
+  phoneNumber: z
+    .string()
+    .optional()
+    .refine(
+      (val) => !val || (val.length >= 6 && PHONE_REGEX.test(val)),
+      "Phone must be at least 6 digits and contain only numbers, spaces, hyphens, or parentheses",
+    ),
   message: z.string().optional(),
   lookingFor: z.string().optional(),
   assignToId: z.string().optional(),
@@ -66,6 +82,8 @@ export function AddInquiryDialog({
   const {
     register,
     handleSubmit,
+    watch,
+    setValue,
     formState: { errors },
     reset,
   } = useForm<InquiryFormData>({
@@ -84,7 +102,10 @@ export function AddInquiryDialog({
           source: data.source,
           customerName: data.customerName,
           email: data.email || undefined,
-          phone: data.phone || undefined,
+          phone:
+            data.phoneCountryCode && data.phoneNumber
+              ? `${data.phoneCountryCode} ${data.phoneNumber.replace(/\s+/g, " ").trim()}`
+              : undefined,
           message: data.message || undefined,
           lookingFor: data.lookingFor || undefined,
           assignToId: isManager ? data.assignToId || undefined : undefined,
@@ -174,12 +195,51 @@ export function AddInquiryDialog({
 
           <div>
             <Label htmlFor="phone">Phone</Label>
-            <Input
-              id="phone"
-              type="tel"
-              {...register("phone")}
-              placeholder="+1234567890"
-            />
+            <div className="flex gap-2">
+              <Select
+                value={watch("phoneCountryCode") || ""}
+                onValueChange={(value) =>
+                  setValue("phoneCountryCode", value, {
+                    shouldValidate: true,
+                  })
+                }
+              >
+                <SelectTrigger className="w-[180px] min-w-[180px]">
+                  <SelectValue placeholder="Select country code" />
+                </SelectTrigger>
+                <SelectContent className="max-h-[320px]">
+                  {getCountriesForPhonePicker().map((opt) => (
+                    <SelectItem
+                      key={opt.code}
+                      value={opt.code}
+                      className="py-2"
+                    >
+                      <span className="flex items-center gap-2">
+                        <span
+                          className="text-lg leading-none"
+                          aria-hidden
+                        >
+                          {opt.flag}
+                        </span>
+                        <span>{opt.label}</span>
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Input
+                id="phoneNumber"
+                type="tel"
+                {...register("phoneNumber")}
+                placeholder="Phone number"
+                className="flex-1"
+              />
+            </div>
+            {errors.phoneNumber && (
+              <p className="text-sm text-red-500 mt-1">
+                {errors.phoneNumber.message}
+              </p>
+            )}
           </div>
 
           <div>

@@ -60,8 +60,9 @@ export async function GET(
       )
     }
 
-    // Get shared invoice costs for this vehicle
-    const forwarderCosts = costInvoice.invoice.vehicle.sharedInvoiceVehicles
+    // Get shared invoice costs for this vehicle (empty if invoice has no vehicle)
+    const sharedVehicles = costInvoice.invoice.vehicle?.sharedInvoiceVehicles || []
+    const forwarderCosts = sharedVehicles
       .filter((siv) => siv.sharedInvoice.type === "FORWARDER")
       .map((siv) => ({
         id: `shared-forwarder-${siv.id}`,
@@ -80,7 +81,7 @@ export async function GET(
         vehicleId: siv.vehicleId,
       }))
 
-    const containerCosts = costInvoice.invoice.vehicle.sharedInvoiceVehicles
+    const containerCosts = sharedVehicles
       .filter((siv) => siv.sharedInvoice.type === "CONTAINER")
       .map((siv) => ({
         id: `shared-container-${siv.id}`,

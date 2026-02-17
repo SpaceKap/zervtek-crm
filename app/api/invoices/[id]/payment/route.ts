@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
-import { PaymentStatus, UserRole } from "@prisma/client"
+import { PaymentStatus, UserRole, TransactionType } from "@prisma/client"
+import { getInvoiceTotalWithTax, isAmountPaidInFull, hasPartialPayment } from "@/lib/invoice-utils"
 
 export async function PATCH(
   request: NextRequest,
@@ -14,9 +15,9 @@ export async function PATCH(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    // Only admins can update payment status (or via webhook with secret)
+    // Allow managers, accountants, and admins to update payment status (or via webhook with secret)
     const body = await request.json()
-    const { paymentStatus, paidAt, webhookSecret } = body
+    const { paymentStatus, paidAt, amountReceived, webhookSecret } = body
 
     // Check webhook secret if provided (for Wise webhooks)
     if (webhookSecret) {
@@ -25,14 +26,18 @@ export async function PATCH(
         return NextResponse.json({ error: "Invalid webhook secret" }, { status: 403 })
       }
     } else {
-      // If no webhook secret, require admin role
-      if (session.user.role !== UserRole.ADMIN) {
+      // If no webhook secret, require manager, accountant, or admin role
+      const allowedRoles: UserRole[] = [UserRole.ADMIN, UserRole.MANAGER, UserRole.ACCOUNTANT]
+      if (!allowedRoles.includes(session.user.role)) {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 })
       }
     }
 
     const invoice = await prisma.invoice.findUnique({
       where: { id: params.id },
+      include: {
+        charges: true,
+      },
     })
 
     if (!invoice) {
@@ -41,6 +46,9 @@ export async function PATCH(
         { status: 404 }
       )
     }
+
+    // Calculate total amount (charges + tax if enabled) - what customer actually owes
+    const totalAmount = getInvoiceTotalWithTax(invoice)
 
     // Validate payment status
     const validStatuses = Object.values(PaymentStatus)
@@ -51,24 +59,62 @@ export async function PATCH(
       )
     }
 
-    // Update payment status
-    const updateData: any = {}
-    if (paymentStatus) {
-      updateData.paymentStatus = paymentStatus
-    }
-    if (paidAt) {
-      updateData.paidAt = new Date(paidAt)
-    } else if (paymentStatus === PaymentStatus.PAID && !invoice.paidAt) {
-      updateData.paidAt = new Date()
+    // Determine payment status based on amount received if provided
+    let finalPaymentStatus = paymentStatus
+    if (amountReceived !== undefined && amountReceived !== null) {
+      const receivedAmount = parseFloat(amountReceived.toString())
+      if (isAmountPaidInFull(receivedAmount, totalAmount)) {
+        finalPaymentStatus = PaymentStatus.PAID
+      } else if (hasPartialPayment(receivedAmount)) {
+        finalPaymentStatus = PaymentStatus.PARTIALLY_PAID
+      } else {
+        finalPaymentStatus = PaymentStatus.PENDING
+      }
     }
 
-    const updatedInvoice = await prisma.invoice.update({
-      where: { id: params.id },
-      data: updateData,
-      include: {
-        customer: true,
-        vehicle: true,
-      },
+    // Update payment status and create Transaction when amount received
+    const updateData: any = {}
+    if (finalPaymentStatus) {
+      updateData.paymentStatus = finalPaymentStatus
+    }
+    const paidAtDate = paidAt ? new Date(paidAt) : (finalPaymentStatus === PaymentStatus.PAID && !invoice.paidAt ? new Date() : undefined)
+    if (paidAtDate) {
+      updateData.paidAt = paidAtDate
+    }
+
+    const receivedAmount = amountReceived !== undefined && amountReceived !== null
+      ? parseFloat(amountReceived.toString())
+      : null
+
+    const updatedInvoice = await prisma.$transaction(async (tx) => {
+      const updated = await tx.invoice.update({
+        where: { id: params.id },
+        data: updateData,
+        include: {
+          customer: true,
+          vehicle: true,
+        },
+      })
+
+      // Create INCOMING Transaction when marking paid with amount (sync payment records)
+      if (receivedAmount != null && receivedAmount > 0) {
+        await tx.transaction.create({
+          data: {
+            direction: "INCOMING",
+            type: TransactionType.BANK_TRANSFER,
+            amount: receivedAmount,
+            currency: "JPY",
+            date: paidAtDate || new Date(),
+            description: `Payment for Invoice ${invoice.invoiceNumber}`,
+            invoiceId: params.id,
+            customerId: invoice.customerId,
+            vehicleId: invoice.vehicleId,
+            createdById: webhookSecret ? null : session?.user?.id ?? null,
+          },
+        })
+      }
+
+      return updated
     })
 
     return NextResponse.json(updatedInvoice)

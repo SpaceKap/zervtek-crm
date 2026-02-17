@@ -37,20 +37,38 @@ export async function GET(request: NextRequest) {
       where.customerId = customerId
     }
 
-    // Filter by customer assignment for non-admin/manager/back-office staff
-    const isAdmin = session.user.role === UserRole.ADMIN
-    const isManager = session.user.role === UserRole.MANAGER
-    const isBackOffice = session.user.role === UserRole.BACK_OFFICE_STAFF
-    
-    if (!isAdmin && !isManager && !isBackOffice) {
-      // Regular staff: only see vehicles for customers assigned to them
-      where.customer = {
-        assignedToId: session.user.id,
-      }
-    } else if (filterType === "mine") {
-      // Admin/Manager/BackOffice: filter to their assigned customers
-      where.customer = {
-        assignedToId: session.user.id,
+    // Role-based vehicle visibility (skip when filtering by customerId)
+    if (!customerId) {
+      const isAdmin = session.user.role === UserRole.ADMIN
+      const isManager = session.user.role === UserRole.MANAGER
+      const isBackOffice = session.user.role === UserRole.BACK_OFFICE_STAFF
+      const isSales = session.user.role === UserRole.SALES
+
+      if (isSales) {
+        where.customer = { assignedToId: session.user.id }
+      } else if (isManager) {
+        if (filterType === "mine") {
+          where.customer = { assignedToId: session.user.id }
+        } else {
+          const salesIds = await prisma.user.findMany({
+            where: { role: UserRole.SALES },
+            select: { id: true },
+          })
+          const allowedIds = [session.user.id, ...salesIds.map((u) => u.id)]
+          where.OR = [
+            { customerId: null },
+            {
+              customer: {
+                OR: [
+                  { assignedToId: { in: allowedIds } },
+                  { assignedToId: null },
+                ],
+              },
+            },
+          ]
+        }
+      } else if (filterType === "mine" && (isAdmin || isBackOffice)) {
+        where.customer = { assignedToId: session.user.id }
       }
     }
 
@@ -79,6 +97,7 @@ export async function GET(request: NextRequest) {
           select: {
             documents: true,
             stageCosts: true,
+            invoices: true,
           },
         },
       },
@@ -110,13 +129,19 @@ export async function GET(request: NextRequest) {
       };
     })
 
+    console.log(`[Shipping Kanban API] Returning ${boardData.length} stages with ${vehicles.length} total vehicles`)
     return NextResponse.json({
       stages: boardData,
     })
-  } catch (error) {
-    console.error("Error fetching shipping kanban board:", error)
+  } catch (error: any) {
+    console.error("[Shipping Kanban API] Error fetching shipping kanban board:", error)
     return NextResponse.json(
-      { error: "Failed to fetch shipping kanban board" },
+      { 
+        error: "Failed to fetch shipping kanban board",
+        details: error.message || String(error),
+        code: error.code || "UNKNOWN",
+        stack: process.env.NODE_ENV === "development" ? error.stack : undefined
+      },
       { status: 500 }
     )
   }
@@ -235,6 +260,7 @@ export async function PATCH(request: NextRequest) {
           select: {
             documents: true,
             stageCosts: true,
+            invoices: true,
           },
         },
       },

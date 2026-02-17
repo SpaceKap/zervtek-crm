@@ -76,6 +76,39 @@ export const ADDRESS_REGIONS: Record<string, string[]> = {
     "Quintana Roo", "San Luis Potosí", "Sinaloa", "Sonora", "Tabasco",
     "Tamaulipas", "Tlaxcala", "Veracruz", "Yucatán", "Zacatecas"
   ],
+  "Moldova": [
+    "Anenii Noi", "Bălți", "Basarabeasca", "Briceni", "Cahul", "Cantemir",
+    "Călărași", "Căușeni", "Cimișlia", "Criuleni", "Dondușeni", "Drochia",
+    "Dubăsari", "Edineț", "Fălești", "Florești", "Gagauzia", "Glodeni",
+    "Hîncești", "Ialoveni", "Leova", "Nisporeni", "Ocnița", "Orhei",
+    "Rezina", "Rîșcani", "Sîngerei", "Soroca", "Strășeni", "Șoldănești",
+    "Ștefan Vodă", "Taraclia", "Telenști", "Ungheni", "Chișinău"
+  ],
+  "Sri Lanka": [
+    "Central", "Eastern", "North Central", "Northern", "North Western",
+    "Sabaragamuwa", "Southern", "Uva", "Western"
+  ],
+  "France": [
+    "Auvergne-Rhône-Alpes", "Bourgogne-Franche-Comté", "Bretagne",
+    "Centre-Val de Loire", "Corse", "Grand Est", "Hauts-de-France",
+    "Île-de-France", "Normandie", "Nouvelle-Aquitaine", "Occitanie",
+    "Pays de la Loire", "Provence-Alpes-Côte d'Azur"
+  ],
+  "Spain": [
+    "Andalucía", "Aragón", "Asturias", "Baleares", "Canarias", "Cantabria",
+    "Castilla-La Mancha", "Castilla y León", "Cataluña", "Ceuta", "Extremadura",
+    "Galicia", "Madrid", "Melilla", "Murcia", "Navarra", "País Vasco", "La Rioja", "Valencia"
+  ],
+  "Italy": [
+    "Abruzzo", "Aosta Valley", "Apulia", "Basilicata", "Calabria", "Campania",
+    "Emilia-Romagna", "Friuli-Venezia Giulia", "Lazio", "Liguria", "Lombardy",
+    "Marche", "Molise", "Piedmont", "Sardinia", "Sicily", "Trentino-Alto Adige",
+    "Tuscany", "Umbria", "Veneto"
+  ],
+  "Netherlands": [
+    "Drenthe", "Flevoland", "Friesland", "Gelderland", "Groningen", "Limburg",
+    "North Brabant", "North Holland", "Overijssel", "South Holland", "Utrecht", "Zeeland"
+  ],
 };
 
 export function getRegionsForCountry(country: string): string[] {
@@ -93,5 +126,11 @@ export function getRegionLabel(country: string): string {
   if (country === "China") return "Province/Region";
   if (country === "Brazil") return "State";
   if (country === "Mexico") return "State";
+  if (country === "Moldova") return "District";
+  if (country === "Sri Lanka") return "Province";
+  if (country === "France") return "Region";
+  if (country === "Spain") return "Autonomous Community";
+  if (country === "Italy") return "Region";
+  if (country === "Netherlands") return "Province";
   return "State/Province/Region";
 }

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { TransactionDirection, TransactionType } from "@prisma/client";
 import { AddTransactionDialog } from "@/components/AddTransactionDialog";
+import { DatePicker } from "@/components/ui/date-picker";
 
 interface Transaction {
   id: string;
@@ -22,6 +23,7 @@ interface Transaction {
   } | null;
   invoiceUrl: string | null;
   referenceNumber: string | null;
+  notes: string | null;
 }
 
 export default function TransactionsPage() {
@@ -51,7 +53,20 @@ export default function TransactionsPage() {
       const response = await fetch(`/api/transactions?${params}`);
       if (response.ok) {
         const data = await response.json();
+        console.log(`[Transactions Page] Fetched ${data.length} transactions`);
         setTransactions(data);
+      } else {
+        const errorData = await response
+          .json()
+          .catch(() => ({ error: "Unknown error" }));
+        console.error(
+          "[Transactions Page] API error:",
+          response.status,
+          errorData,
+        );
+        alert(
+          `Failed to fetch transactions: ${errorData.error || errorData.details || "Unknown error"}`,
+        );
       }
     } catch (error) {
       console.error("Error fetching transactions:", error);
@@ -125,19 +140,17 @@ export default function TransactionsPage() {
 
         <div className="p-6">
           <div className="flex gap-4 mb-4 flex-wrap">
-            <input
-              type="date"
+            <DatePicker
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
               placeholder="Start Date"
-              className="px-4 py-2 border border-gray-300 dark:border-[#2C2C2C] rounded-lg bg-white dark:bg-[#1E1E1E] text-gray-900 dark:text-white"
+              className="px-4 py-2"
             />
-            <input
-              type="date"
+            <DatePicker
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
               placeholder="End Date"
-              className="px-4 py-2 border border-gray-300 dark:border-[#2C2C2C] rounded-lg bg-white dark:bg-[#1E1E1E] text-gray-900 dark:text-white"
+              className="px-4 py-2"
             />
             <select
               value={typeFilter}

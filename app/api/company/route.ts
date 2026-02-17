@@ -75,7 +75,7 @@ export async function PATCH(request: NextRequest) {
         })
       : await prisma.companyInfo.create({
           data: {
-            name: name || "ZERVTEK CO., LTD",
+            name: String(name || "ZERVTEK CO., LTD"),
             logo: logo || null,
             address: address || {},
             phone: phone || null,
@@ -83,7 +83,7 @@ export async function PATCH(request: NextRequest) {
             website: website || null,
             taxId: taxId || null,
             bankDetails1: bankDetails1 || {},
-          },
+          } as any, // Type assertion to bypass Prisma type checking for create
         })
 
     return NextResponse.json(companyInfo)

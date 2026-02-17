@@ -49,6 +49,7 @@ interface Vehicle {
   _count: {
     documents: number;
     stageCosts: number;
+    invoices?: number;
   };
   createdAt: string;
 }
@@ -124,7 +125,25 @@ export function ShippingKanbanBoard({ customerId }: ShippingKanbanBoardProps) {
       const response = await fetch(`/api/shipping-kanban?${params}`);
       if (response.ok) {
         const data = await response.json();
-        setStages(data.stages);
+        if (process.env.NODE_ENV === "development") {
+          console.log(
+            `[Shipping Kanban] Fetched ${data.stages?.length || 0} stages`,
+          );
+        }
+        setStages(data.stages || []);
+      } else {
+        const errorData = await response
+          .json()
+          .catch(() => ({ error: "Unknown error" }));
+        console.error(
+          "[Shipping Kanban] API error:",
+          response.status,
+          errorData,
+        );
+        alert(
+          `Failed to fetch shipping kanban: ${errorData.error || errorData.details || "Unknown error"}`,
+        );
+        setStages([]);
       }
     } catch (error) {
       console.error("Error fetching shipping kanban board:", error);
@@ -205,7 +224,10 @@ export function ShippingKanbanBoard({ customerId }: ShippingKanbanBoardProps) {
     }
 
     // Check if moving to DHL stage and if DHL tracking is missing
-    if (targetStage.stage === ShippingStage.DHL && !vehicle.shippingStage?.dhlTracking) {
+    if (
+      targetStage.stage === ShippingStage.DHL &&
+      !vehicle.shippingStage?.dhlTracking
+    ) {
       // Store pending stage change and prompt for DHL tracking
       setPendingStageChange({ vehicleId, newStage: targetStage.stage });
       setDhlTrackingInput("");
@@ -238,7 +260,7 @@ export function ShippingKanbanBoard({ customerId }: ShippingKanbanBoardProps) {
   const performStageChange = async (
     vehicleId: string,
     newStage: ShippingStage,
-    dhlTracking: string | null
+    dhlTracking: string | null,
   ) => {
     try {
       const response = await fetch("/api/shipping-kanban", {
@@ -284,19 +306,19 @@ export function ShippingKanbanBoard({ customerId }: ShippingKanbanBoardProps) {
     const vehicle = stages
       .flatMap((s) => s.vehicles)
       .find((v) => v.id === pendingStageChange.vehicleId);
-    
+
     if (vehicle) {
       const sourceStage = stages.find((s) =>
-        s.vehicles.some((v) => v.id === pendingStageChange.vehicleId)
+        s.vehicles.some((v) => v.id === pendingStageChange.vehicleId),
       );
-      
+
       if (sourceStage) {
         const newStages = stages.map((stage) => {
           if (stage.id === sourceStage.id) {
             return {
               ...stage,
               vehicles: stage.vehicles.filter(
-                (v) => v.id !== pendingStageChange.vehicleId
+                (v) => v.id !== pendingStageChange.vehicleId,
               ),
             };
           }
@@ -316,7 +338,7 @@ export function ShippingKanbanBoard({ customerId }: ShippingKanbanBoardProps) {
     performStageChange(
       pendingStageChange.vehicleId,
       pendingStageChange.newStage,
-      dhlTrackingInput.trim()
+      dhlTrackingInput.trim(),
     );
 
     // Reset state
@@ -335,11 +357,11 @@ export function ShippingKanbanBoard({ customerId }: ShippingKanbanBoardProps) {
     router.push(`/dashboard/vehicles/${vehicleId}`);
   };
 
-  if (loading) {
+  if (loading && stages.length === 0) {
     return (
       <div className="flex items-center justify-center py-20">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 dark:border-[#D4AF37] mx-auto mb-4"></div>
           <p className="text-sm text-gray-500">Loading kanban board...</p>
         </div>
       </div>
@@ -352,7 +374,18 @@ export function ShippingKanbanBoard({ customerId }: ShippingKanbanBoardProps) {
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
-      <div className="flex gap-4 h-full overflow-x-auto overflow-y-hidden pb-4">
+      <div className="relative h-full">
+        {loading && stages.length > 0 && (
+          <div className="absolute inset-0 z-10 flex items-center justify-center bg-gray-50/70 dark:bg-[#121212]/70 rounded-lg">
+            <div className="flex items-center gap-2 px-3 py-2 bg-white dark:bg-[#1E1E1E] rounded-lg shadow-md">
+              <div className="animate-spin rounded-full h-5 w-5 border-2 border-primary border-t-transparent" />
+              <span className="text-sm text-gray-600 dark:text-gray-300">
+                Refreshing...
+              </span>
+            </div>
+          </div>
+        )}
+        <div className="flex gap-4 h-full overflow-x-auto overflow-y-hidden pb-4 scrollbar-modern-horizontal">
         {stages.map((stage) => (
           <ShippingKanbanColumn
             key={stage.id}
@@ -370,22 +403,27 @@ export function ShippingKanbanBoard({ customerId }: ShippingKanbanBoardProps) {
             <span className="text-sm font-medium">Add Column</span>
           </button>
         </div>
+        </div>
       </div>
       <DragOverlay>
         {activeVehicle ? (
-          <div className="opacity-90 rotate-2">
+          <div className="rotate-3 shadow-2xl">
             <VehicleCard vehicle={activeVehicle} />
           </div>
         ) : null}
       </DragOverlay>
 
       {/* DHL Tracking Dialog */}
-      <Dialog open={dhlTrackingDialogOpen} onOpenChange={setDhlTrackingDialogOpen}>
+      <Dialog
+        open={dhlTrackingDialogOpen}
+        onOpenChange={setDhlTrackingDialogOpen}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>DHL Tracking Required</DialogTitle>
             <DialogDescription>
-              Please enter the DHL tracking number before moving this vehicle to Completed stage.
+              Please enter the DHL tracking number before moving this vehicle to
+              Completed stage.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">

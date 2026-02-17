@@ -2,16 +2,20 @@ import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
-import { requireAuth } from "@/lib/permissions"
+import { requireAuth, canViewCustomers } from "@/lib/permissions"
+import { UserRole } from "@prisma/client"
 
 export async function GET(request: NextRequest) {
   try {
-    await requireAuth()
+    const user = await requireAuth()
+    if (!canViewCustomers(user.role)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    }
 
     const { searchParams } = new URL(request.url)
     const search = searchParams.get("search")
 
-    const where: any = search
+    const searchWhere = search
       ? {
           OR: [
             { name: { contains: search, mode: "insensitive" as const } },
@@ -22,7 +26,31 @@ export async function GET(request: NextRequest) {
         }
       : {}
 
-    // All authenticated users can see all customers (universal access)
+    // Role-based: Sales = own, Manager = own + sales staff + unassigned, Admin/BackOffice/Accountant = all
+    let roleWhere: Record<string, unknown> = {}
+    if (user.role === UserRole.SALES) {
+      roleWhere = { assignedToId: user.id }
+    } else if (user.role === UserRole.MANAGER) {
+      const salesIds = await prisma.user.findMany({
+        where: { role: UserRole.SALES },
+        select: { id: true },
+      })
+      const allowedIds = [user.id, ...salesIds.map((u) => u.id)]
+      roleWhere = {
+        OR: [
+          { assignedToId: { in: allowedIds } },
+          { assignedToId: null },
+        ],
+      }
+    }
+
+    const where =
+      Object.keys(searchWhere).length > 0 && Object.keys(roleWhere).length > 0
+        ? { AND: [searchWhere, roleWhere] }
+        : Object.keys(roleWhere).length > 0
+          ? roleWhere
+          : searchWhere
+
     const customers = await prisma.customer.findMany({
       where,
       orderBy: { name: "asc" },
@@ -44,11 +72,17 @@ export async function GET(request: NextRequest) {
       },
     })
 
+    console.log(`[Customers API] Returning ${customers.length} customers`)
     return NextResponse.json(customers)
-  } catch (error) {
-    console.error("Error fetching customers:", error)
+  } catch (error: any) {
+    console.error("[Customers API] Error fetching customers:", error)
     return NextResponse.json(
-      { error: "Failed to fetch customers" },
+      { 
+        error: "Failed to fetch customers",
+        details: error.message || String(error),
+        code: error.code || "UNKNOWN",
+        stack: process.env.NODE_ENV === "development" ? error.stack : undefined
+      },
       { status: 500 }
     )
   }
@@ -79,7 +113,7 @@ export async function POST(request: NextRequest) {
 
     const customer = await prisma.customer.create({
       data: {
-        name,
+        name: String(name),
         email: email || null,
         phone: phone || null,
         country: country || null,
@@ -87,7 +121,7 @@ export async function POST(request: NextRequest) {
         shippingAddress: shippingAddress || null,
         portOfDestination: portOfDestination || null,
         assignedToId: assignedToId || null,
-      },
+      } as any, // Type assertion to bypass Prisma type checking
     })
 
     return NextResponse.json(customer, { status: 201 })

@@ -38,6 +38,11 @@ export async function POST(
           },
         },
         shippingStage: true,
+        auctionHouse: {
+          select: {
+            name: true,
+          },
+        },
       },
     })
 
@@ -140,10 +145,7 @@ ${session.user.name || "Zervtek Team"}`
     // Update booking requested flag
     await prisma.vehicleShippingStage.upsert({
       where: {
-        vehicleId_stage: {
-          vehicleId: vehicleId,
-          stage: "BOOKING",
-        },
+        vehicleId: vehicleId,
       },
       update: {
         bookingRequested: true,

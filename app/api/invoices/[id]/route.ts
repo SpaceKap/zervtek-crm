@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma"
 import { requireAuth, canEditInvoice, canViewAllInquiries, canDeleteInvoice } from "@/lib/permissions"
 import { InvoiceStatus } from "@prisma/client"
 import { convertDecimalsToNumbers } from "@/lib/decimal"
+import { recalcInvoicePaymentStatus } from "@/lib/invoice-utils"
 
 export async function GET(
   request: NextRequest,
@@ -172,6 +173,25 @@ export async function PATCH(
     if (wisePaymentLink !== undefined)
       updateData.wisePaymentLink = wisePaymentLink || null
 
+    // Sync customerId/vehicleId changes to vehicle
+    if (customerId !== undefined || vehicleId !== undefined) {
+      const currentInvoice = await prisma.invoice.findUnique({
+        where: { id: params.id },
+        select: { vehicleId: true, customerId: true },
+      })
+      
+      const finalVehicleId = vehicleId !== undefined ? vehicleId : currentInvoice?.vehicleId
+      const finalCustomerId = customerId !== undefined ? customerId : currentInvoice?.customerId
+      
+      // Update vehicle's customerId if invoice customerId changed
+      if (finalVehicleId && finalCustomerId !== undefined) {
+        await prisma.vehicle.update({
+          where: { id: finalVehicleId },
+          data: { customerId: finalCustomerId || null },
+        })
+      }
+    }
+
     const updatedInvoice = await prisma.invoice.update({
       where: { id: params.id },
       data: updateData,
@@ -222,6 +242,8 @@ export async function PATCH(
           })),
         })
       }
+
+      await recalcInvoicePaymentStatus(params.id)
 
       // Fetch updated invoice with charges
       const invoiceWithCharges = await prisma.invoice.findUnique({

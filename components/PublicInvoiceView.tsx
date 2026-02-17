@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { getChargesSubtotal, isChargeSubtracting } from "@/lib/charge-utils";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -145,10 +146,7 @@ export function PublicInvoiceView({
   const billingAddressLines = formatCustomerAddress(billingAddress);
   const shippingAddressLines = formatCustomerAddress(shippingAddress);
 
-  const totalCharges = invoice.charges.reduce(
-    (sum: number, charge: any) => sum + parseFloat(charge.amount.toString()),
-    0,
-  );
+  const totalCharges = getChargesSubtotal(invoice.charges);
 
   let subtotal = totalCharges;
   let taxAmount = 0;
@@ -341,40 +339,32 @@ export function PublicInvoiceView({
                   </tr>
                 </thead>
                 <tbody>
-                  {invoice.charges.map((charge: any) => (
-                    <tr
-                      key={charge.id}
-                      className="border-b border-gray-100 dark:border-[#2C2C2C]/50"
-                    >
-                      <td className="py-3 px-4">
-                        <p className="font-medium text-gray-900 dark:text-white">
-                          {charge.description}
-                        </p>
-                      </td>
-                      <td className="py-3 px-4 text-right w-32">
-                        <p className="font-semibold text-gray-900 dark:text-white whitespace-nowrap">
-                          ¥
-                          {parseFloat(
-                            charge.amount.toString(),
-                          ).toLocaleString()}
-                        </p>
-                      </td>
-                    </tr>
-                  ))}
+                  {invoice.charges.map((charge: any) => {
+                    const amount = parseFloat(charge.amount.toString());
+                    const displayAmount = isChargeSubtracting(charge) ? -amount : amount;
+                    const formatted = displayAmount < 0
+                      ? `¥- ${Math.abs(displayAmount).toLocaleString()}`
+                      : `¥${displayAmount.toLocaleString()}`;
+                    return (
+                      <tr
+                        key={charge.id}
+                        className="border-b border-gray-100 dark:border-[#2C2C2C]/50"
+                      >
+                        <td className="py-3 px-4">
+                          <p className="font-medium text-gray-900 dark:text-white">
+                            {charge.description}
+                          </p>
+                        </td>
+                        <td className="py-3 px-4 text-right w-32">
+                          <p className="font-semibold text-gray-900 dark:text-white whitespace-nowrap">
+                            {formatted}
+                          </p>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
                 <tfoot>
-                  <tr className="border-t border-gray-200 dark:border-[#2C2C2C]">
-                    <td className="py-3 px-4 text-right">
-                      <p className="font-semibold text-gray-900 dark:text-white">
-                        Subtotal
-                      </p>
-                    </td>
-                    <td className="py-3 px-4 text-right w-32">
-                      <p className="font-semibold text-gray-900 dark:text-white whitespace-nowrap">
-                        ¥{subtotal.toLocaleString()}
-                      </p>
-                    </td>
-                  </tr>
                   {invoice.taxEnabled && taxAmount > 0 && (
                     <tr>
                       <td className="py-3 px-4 text-right">

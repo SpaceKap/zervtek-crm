@@ -22,10 +22,15 @@ export default async function KanbanPage({
     session.user.role === UserRole.ADMIN;
   const isAdmin = session.user.role === UserRole.ADMIN;
 
-  // Get all users for manager/admin filter and assignment
+  // Get all users (sales, managers, admins) for manager/admin filter and assign
   let users: Array<{ id: string; name: string | null; email: string }> = [];
   if (isManager) {
     users = await prisma.user.findMany({
+      where: {
+        role: {
+          in: [UserRole.SALES, UserRole.MANAGER, UserRole.ADMIN],
+        },
+      },
       select: {
         id: true,
         name: true,

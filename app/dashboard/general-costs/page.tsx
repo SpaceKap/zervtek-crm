@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DatePicker } from "@/components/ui/date-picker";
 
 interface GeneralCost {
   id: string;
@@ -204,18 +205,18 @@ export default function GeneralCostsPage() {
           <div className="flex gap-4 flex-wrap">
             <div>
               <Label>Start Date</Label>
-              <Input
-                type="date"
+              <DatePicker
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
+                placeholder="Start Date"
               />
             </div>
             <div>
               <Label>End Date</Label>
-              <Input
-                type="date"
+              <DatePicker
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
+                placeholder="End Date"
               />
             </div>
           </div>
@@ -361,8 +362,7 @@ export default function GeneralCostsPage() {
             </div>
             <div>
               <Label>Date *</Label>
-              <Input
-                type="date"
+              <DatePicker
                 value={formData.date}
                 onChange={(e) =>
                   setFormData({ ...formData, date: e.target.value })

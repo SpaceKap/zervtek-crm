@@ -37,6 +37,7 @@ export default async function InvoiceDetailPage({
               sharedInvoice: true,
             },
           },
+          shippingStage: true,
           stageCosts: {
             include: {
               vendor: true,

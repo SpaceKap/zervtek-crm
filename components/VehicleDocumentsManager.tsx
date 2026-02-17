@@ -43,11 +43,8 @@ interface VehicleDocumentsManagerProps {
 }
 
 const documentCategories: Record<DocumentCategory, string> = {
-  AUCTION_DETAILS: "Auction Details",
-  FINAL_BID: "Final Bid",
   INVOICE: "Invoice",
   PHOTOS: "Photos",
-  ETD_ETA: "ETD/ETA",
   EXPORT_CERTIFICATE: "Export Certificate",
   DEREGISTRATION_CERTIFICATE: "Deregistration Certificate",
   INSURANCE_REFUND: "Insurance Refund",
@@ -58,26 +55,13 @@ const documentCategories: Record<DocumentCategory, string> = {
   EXPORT_DECLARATION: "Export Declaration",
   RECYCLE_APPLICATION: "Recycle Application",
   DHL_TRACKING: "DHL Tracking",
-  SPARE_KEYS: "Spare Keys",
-  MAINTENANCE_RECORDS: "Maintenance Records",
-  MANUALS: "Manuals",
-  CATALOGUES: "Catalogues",
-  ACCESSORIES: "Accessories",
   RELEASED_BILL_OF_LADING: "Released Bill of Lading (B/L)",
   AUCTION_SHEET: "Auction Sheet",
   OTHER: "Other",
 };
 
-// Categories to hide from the upload dropdown
-const hiddenCategories: DocumentCategory[] = [
-  DocumentCategory.MAINTENANCE_RECORDS,
-  DocumentCategory.SPARE_KEYS,
-  DocumentCategory.CATALOGUES,
-  DocumentCategory.ACCESSORIES,
-  DocumentCategory.MANUALS,
-  DocumentCategory.FINAL_BID,
-  DocumentCategory.AUCTION_DETAILS,
-];
+// No categories to hide - all remaining categories are actual documents
+const hiddenCategories: DocumentCategory[] = [];
 
 const stageLabels: Record<ShippingStage | "GENERAL", string> = {
   PURCHASE: "Purchase",
@@ -88,6 +72,14 @@ const stageLabels: Record<ShippingStage | "GENERAL", string> = {
   SHIPPED: "Shipped",
   DHL: "DHL",
   GENERAL: "General",
+};
+
+// Format file size
+const formatFileSize = (bytes: number | null | undefined) => {
+  if (!bytes) return "Unknown size";
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 };
 
 export function VehicleDocumentsManager({

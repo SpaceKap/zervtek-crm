@@ -47,8 +47,17 @@ export function AdminCustomersList() {
   const [showForm, setShowForm] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
 
+  // Fetch customers on mount and when search changes (debounced)
   useEffect(() => {
-    fetchCustomers();
+    const timer = setTimeout(
+      () => {
+        fetchCustomers();
+      },
+      search ? 300 : 0,
+    ); // Immediate on mount, debounced on search
+
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search]);
 
   const fetchCustomers = async () => {
@@ -57,13 +66,54 @@ export function AdminCustomersList() {
       const url = search
         ? `/api/customers?search=${encodeURIComponent(search)}`
         : "/api/customers";
+
+      if (process.env.NODE_ENV === "development") {
+        console.log("[Customers List] Fetching customers from:", url);
+      }
       const response = await fetch(url);
+
+      if (process.env.NODE_ENV === "development") {
+        console.log("[Customers List] Response status:", response.status);
+      }
+
       if (response.ok) {
         const data = await response.json();
-        setCustomers(data);
+        if (process.env.NODE_ENV === "development") {
+          console.log(`[Customers List] Fetched ${data.length} customers`);
+        }
+        setCustomers(Array.isArray(data) ? data : []);
+      } else {
+        let errorData;
+        try {
+          errorData = await response.json();
+        } catch {
+          errorData = {
+            error: `HTTP ${response.status}: ${response.statusText}`,
+          };
+        }
+        console.error(
+          "[Customers List] API error:",
+          response.status,
+          errorData,
+        );
+        const errorMessage =
+          errorData.details || errorData.error || `HTTP ${response.status}`;
+        console.error("[Customers List] Error message:", errorMessage);
+        // Don't show alert on initial load, only on user actions
+        if (customers.length > 0) {
+          alert(`Failed to fetch customers: ${errorMessage}`);
+        }
+        setCustomers([]); // Clear customers on error
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error fetching customers:", error);
+      // Don't show alert on initial load, only on user actions
+      if (customers.length > 0) {
+        alert(
+          `Failed to fetch customers: ${error?.message || "Network error. Please check your connection and try again."}`,
+        );
+      }
+      setCustomers([]); // Clear customers on error
     } finally {
       setLoading(false);
     }
@@ -129,7 +179,7 @@ export function AdminCustomersList() {
               <span className="material-symbols-outlined text-lg mr-2">
                 add
               </span>
-              Add Customer
+              Create a new customer
             </Button>
           </div>
         </CardHeader>
@@ -167,7 +217,12 @@ export function AdminCustomersList() {
                   {customers.map((customer) => (
                     <TableRow key={customer.id}>
                       <TableCell className="font-medium">
-                        {customer.name}
+                        <Link
+                          href={`/dashboard/customers/${customer.id}`}
+                          className="text-primary dark:text-[#D4AF37] hover:underline"
+                        >
+                          {customer.name}
+                        </Link>
                       </TableCell>
                       <TableCell>
                         <div className="space-y-1">
@@ -228,7 +283,9 @@ export function AdminCustomersList() {
                             </span>
                             Edit
                           </Button>
-                          <Link href={`/dashboard/invoices?customer=${customer.id}`}>
+                          <Link
+                            href={`/dashboard/invoices?customer=${customer.id}`}
+                          >
                             <Button variant="outline" size="sm">
                               <span className="material-symbols-outlined text-sm mr-1">
                                 receipt
@@ -236,7 +293,9 @@ export function AdminCustomersList() {
                               Invoices
                             </Button>
                           </Link>
-                          <Link href={`/dashboard/vehicles?customer=${customer.id}`}>
+                          <Link
+                            href={`/dashboard/vehicles?customer=${customer.id}`}
+                          >
                             <Button variant="outline" size="sm">
                               <span className="material-symbols-outlined text-sm mr-1">
                                 directions_car

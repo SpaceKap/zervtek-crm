@@ -87,8 +87,8 @@ export async function GET(
 
     const costInvoice = invoice.costInvoice; // Type narrowing
 
-    // Get shared invoice costs (forwarder costs) for this vehicle
-    const sharedInvoiceCosts = (invoice.vehicle.sharedInvoiceVehicles || [])
+    // Get shared invoice costs (forwarder costs) for this vehicle (empty if no vehicle)
+    const sharedInvoiceCosts = (invoice.vehicle?.sharedInvoiceVehicles || [])
       .filter((siv) => siv.sharedInvoice?.type === "FORWARDER")
       .map((siv) => ({
         id: `shared-${siv.id}`,

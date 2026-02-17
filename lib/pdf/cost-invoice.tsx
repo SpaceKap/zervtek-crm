@@ -98,10 +98,11 @@ export function CostInvoicePDF({
   costInvoice,
   companyInfo,
 }: CostInvoicePDFProps) {
-  const vehicleDisplay =
-    invoice.vehicle.make && invoice.vehicle.model
-      ? `${invoice.vehicle.year || ""} ${invoice.vehicle.make} ${invoice.vehicle.model}`.trim()
-      : invoice.vehicle.vin;
+  const vehicleDisplay = invoice.vehicle
+    ? (invoice.vehicle.make && invoice.vehicle.model
+        ? `${invoice.vehicle.year || ""} ${invoice.vehicle.make} ${invoice.vehicle.model}`.trim()
+        : invoice.vehicle.vin)
+    : "Container/Shipping";
 
   const totalRevenue = parseFloat(costInvoice.totalRevenue.toString());
   const totalCost = parseFloat(costInvoice.totalCost.toString());
@@ -120,14 +121,25 @@ export function CostInvoicePDF({
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Vehicle Information</Text>
-          <View style={styles.row}>
-            <Text style={styles.label}>VIN:</Text>
-            <Text>{invoice.vehicle.vin}</Text>
-          </View>
-          {(invoice.vehicle.make || invoice.vehicle.model) && (
+          <Text style={styles.sectionTitle}>
+            {invoice.vehicle ? "Vehicle Information" : "Invoice Details"}
+          </Text>
+          {invoice.vehicle ? (
+            <>
+              <View style={styles.row}>
+                <Text style={styles.label}>VIN:</Text>
+                <Text>{invoice.vehicle.vin}</Text>
+              </View>
+              {(invoice.vehicle.make || invoice.vehicle.model) && (
+                <View style={styles.row}>
+                  <Text style={styles.label}>Vehicle:</Text>
+                  <Text>{vehicleDisplay}</Text>
+                </View>
+              )}
+            </>
+          ) : (
             <View style={styles.row}>
-              <Text style={styles.label}>Vehicle:</Text>
+              <Text style={styles.label}>Type:</Text>
               <Text>{vehicleDisplay}</Text>
             </View>
           )}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { getChargesSubtotal, isChargeSubtracting } from "@/lib/charge-utils";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -62,20 +63,16 @@ export function CostInvoiceEditor({
   const [saving, setSaving] = useState(false);
   const [vendors, setVendors] = useState<Vendor[]>([]);
 
-  // Calculate total revenue from all customer invoice charges including tax
+  // Calculate total revenue from all customer invoice charges including tax (discounts/deposits subtract)
   const calculateTotalRevenue = () => {
     let subtotal = 0;
     if (invoice.charges && invoice.charges.length > 0) {
-      subtotal = invoice.charges.reduce(
-        (sum: number, charge: any) =>
-          sum + parseFloat(charge.amount.toString()),
-        0,
-      );
+      subtotal = getChargesSubtotal(invoice.charges);
     } else {
       // Fallback to cost invoice total or vehicle price
       subtotal = invoice.costInvoice?.totalRevenue
         ? parseFloat(invoice.costInvoice.totalRevenue.toString())
-        : invoice.vehicle.price
+        : invoice.vehicle?.price
           ? parseFloat(invoice.vehicle.price.toString())
           : 0;
     }
@@ -111,14 +108,10 @@ export function CostInvoiceEditor({
     fetchVendors();
   }, []);
 
-  // Update revenue when invoice charges or tax change
+  // Update revenue when invoice charges or tax change (discounts/deposits subtract)
   useEffect(() => {
     if (invoice.charges && invoice.charges.length > 0) {
-      let subtotal = invoice.charges.reduce(
-        (sum: number, charge: any) =>
-          sum + parseFloat(charge.amount.toString()),
-        0,
-      );
+      let subtotal = getChargesSubtotal(invoice.charges);
 
       // Add tax if enabled
       if (invoice.taxEnabled && invoice.taxRate) {
@@ -275,10 +268,11 @@ export function CostInvoiceEditor({
   const margin = revenue > 0 ? (profit / revenue) * 100 : 0;
   const roi = totalCost > 0 ? (profit / totalCost) * 100 : 0;
 
-  const vehicleDisplay =
-    invoice.vehicle.make && invoice.vehicle.model
-      ? `${invoice.vehicle.year || ""} ${invoice.vehicle.make} ${invoice.vehicle.model}`.trim()
-      : invoice.vehicle.vin;
+  const vehicleDisplay = invoice.vehicle
+    ? (invoice.vehicle.make && invoice.vehicle.model
+        ? `${invoice.vehicle.year || ""} ${invoice.vehicle.make} ${invoice.vehicle.model}`.trim()
+        : invoice.vehicle.vin)
+    : "Container/Shipping";
 
   return (
     <div className="space-y-6">
@@ -325,7 +319,8 @@ export function CostInvoiceEditor({
                 <div className="divide-y divide-border/50">
                   {invoice.charges && invoice.charges.length > 0 ? (
                     invoice.charges.map((charge: any, index: number) => {
-                      const chargeAmount = parseFloat(charge.amount.toString());
+                      const amount = parseFloat(charge.amount.toString());
+                      const chargeAmount = isChargeSubtracting(charge) ? -amount : amount;
                       return (
                         <div
                           key={charge.id || index}

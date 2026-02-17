@@ -21,6 +21,7 @@ import {
   SelectValue,
 } from "./ui/select";
 import { VendorForm } from "./VendorForm";
+import { DatePicker } from "@/components/ui/date-picker";
 
 interface Vendor {
   id: string;
@@ -46,7 +47,7 @@ interface Transaction {
   direction: TransactionDirection;
   type: TransactionType;
   amount: string;
-  currency: string;
+  currency?: string;
   date: string;
   description: string | null;
   vendor: { id: string; name: string } | null;
@@ -60,6 +61,15 @@ interface Transaction {
   invoiceUrl: string | null;
   referenceNumber: string | null;
   notes: string | null;
+  paymentDeadline?: string | null;
+}
+
+interface InvoiceOption {
+  id: string;
+  invoiceNumber: string;
+  status: string;
+  paymentStatus: string;
+  vehicle?: { id: string; vin: string; make: string | null; model: string | null; year: number | null } | null;
 }
 
 interface AddTransactionDialogProps {
@@ -69,6 +79,8 @@ interface AddTransactionDialogProps {
   defaultDirection?: TransactionDirection;
   transaction?: Transaction | null;
   defaultVehicleId?: string;
+  defaultCustomerId?: string;
+  defaultInvoiceId?: string;
 }
 
 export function AddTransactionDialog({
@@ -78,12 +90,15 @@ export function AddTransactionDialog({
   defaultDirection = "INCOMING",
   transaction = null,
   defaultVehicleId,
+  defaultCustomerId,
+  defaultInvoiceId,
 }: AddTransactionDialogProps) {
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [customerInvoices, setCustomerInvoices] = useState<InvoiceOption[]>([]);
   const [showVendorForm, setShowVendorForm] = useState(false);
   const [vendorSearch, setVendorSearch] = useState("");
   const [vendorDropdownOpen, setVendorDropdownOpen] = useState(false);
@@ -97,11 +112,13 @@ export function AddTransactionDialog({
     amount: "",
     currency: "JPY",
     exchangeRate: "",
-    date: new Date().toISOString().split("T")[0],
+    date: "",
     vendorId: "",
     customerId: "",
     vehicleId: "",
-    notes: "",
+    invoiceId: "",
+    description: "",
+    paymentDeadline: new Date().toISOString().split("T")[0],
   });
 
   // Close vendor dropdown when clicking outside
@@ -140,21 +157,45 @@ export function AddTransactionDialog({
           }
         }
 
+        // For outgoing transactions, if customer exists but no vendor, it might be a refund
+        const vendorId = transaction.vendor?.id || "";
+        const customerId = transaction.customer?.id || "";
+        // If it's outgoing and has customer but no vendor, treat customer as the "vendor" for display
+        const displayVendorId =
+          transaction.direction === "OUTGOING" && !vendorId && customerId
+            ? customerId
+            : vendorId;
+
         setFormData({
           direction: transaction.direction,
           type: transaction.type,
           amount: formatAmount(transaction.amount),
-          currency: transaction.currency,
+          currency: transaction.currency || "",
           exchangeRate: (transaction as any).exchangeRate || "",
           date: dateValue,
-          vendorId: transaction.vendor?.id || "",
-          customerId: transaction.customer?.id || "",
+          vendorId: displayVendorId,
+          customerId:
+            transaction.direction === "OUTGOING" && !vendorId && customerId
+              ? ""
+              : customerId,
           vehicleId: transaction.vehicle?.id || "",
-          notes: transaction.notes || "",
+          invoiceId: (transaction as any).invoiceId || "",
+          description: transaction.description || transaction.notes || "",
+          paymentDeadline: transaction.paymentDeadline
+            ? new Date(transaction.paymentDeadline).toISOString().split("T")[0]
+            : new Date().toISOString().split("T")[0],
         });
         setUploadedFileUrl(transaction.invoiceUrl);
         if (transaction.vendor) {
           setVendorSearch(transaction.vendor.name);
+        } else if (
+          transaction.direction === "OUTGOING" &&
+          transaction.customer
+        ) {
+          // For refunds, show customer name in vendor search
+          setVendorSearch(
+            transaction.customer.name || transaction.customer.email || "",
+          );
         }
       } else {
         // Reset form when creating new
@@ -164,18 +205,42 @@ export function AddTransactionDialog({
           amount: "",
           currency: defaultDirection === "OUTGOING" ? "JPY" : "JPY",
           exchangeRate: "",
-          date: new Date().toISOString().split("T")[0],
+          date: "",
           vendorId: "",
-          customerId: "",
+          customerId: defaultCustomerId || "",
           vehicleId: defaultVehicleId || "",
-          notes: "",
+          invoiceId: defaultInvoiceId || "",
+          description: "",
+          paymentDeadline: new Date().toISOString().split("T")[0],
         });
         setUploadedFileUrl(null);
         setVendorSearch("");
       }
       setVendorDropdownOpen(false);
     }
-  }, [open, defaultDirection, transaction]);
+  }, [
+    open,
+    defaultDirection,
+    transaction,
+    defaultCustomerId,
+    defaultVehicleId,
+    defaultInvoiceId,
+  ]);
+
+  // Fetch customer invoices when customerId changes (for INCOMING)
+  useEffect(() => {
+    if (formData.direction === "INCOMING" && formData.customerId) {
+      fetch(`/api/invoices?customer=${formData.customerId}`)
+        .then((res) => res.json())
+        .then((data) => {
+          const list = data?.invoices ?? [];
+          setCustomerInvoices(list.filter((inv: any) => inv.paymentStatus === "PENDING" || inv.paymentStatus === "PARTIALLY_PAID"));
+        })
+        .catch(() => setCustomerInvoices([]));
+    } else {
+      setCustomerInvoices([]);
+    }
+  }, [formData.customerId, formData.direction]);
 
   const fetchVendors = async () => {
     try {
@@ -202,10 +267,10 @@ export function AddTransactionDialog({
 
   const fetchCustomers = async () => {
     try {
-      const response = await fetch("/api/customers");
+      const response = await fetch("/api/customers", { cache: "no-store" });
       if (response.ok) {
         const data = await response.json();
-        setCustomers(data);
+        setCustomers(Array.isArray(data) ? data : []);
       }
     } catch (error) {
       console.error("Error fetching customers:", error);
@@ -311,7 +376,7 @@ export function AddTransactionDialog({
 
     // Remove commas for validation
     const amountValue = formData.amount.replace(/,/g, "");
-    if (!formData.type || !amountValue || !formData.date) {
+    if (!formData.type || !amountValue || !formData.paymentDeadline) {
       alert("Please fill in all required fields");
       return;
     }
@@ -347,19 +412,33 @@ export function AddTransactionDialog({
         : "/api/transactions";
       const method = transaction ? "PATCH" : "POST";
 
+      // Check if vendorId is actually a customer (for refunds)
+      const isCustomerSelected = customers.some(
+        (c) => c.id === formData.vendorId,
+      );
+      const finalVendorId = isCustomerSelected
+        ? null
+        : formData.vendorId || null;
+      const finalCustomerId = isCustomerSelected
+        ? formData.vendorId
+        : formData.customerId || null;
+
       const response = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...formData,
           amount: formData.amount.replace(/,/g, ""), // Remove commas before sending
-          vendorId: formData.vendorId || null,
-          customerId: formData.customerId || null,
+          vendorId: finalVendorId,
+          customerId: finalCustomerId,
           vehicleId: formData.vehicleId || null,
+          invoiceId: formData.invoiceId || null,
           invoiceUrl: uploadedFileUrl || null,
           referenceNumber: null,
-          description: null,
-          notes: formData.notes || null,
+          description: formData.description || null,
+          notes: null,
+          date: formData.date || null,
+          paymentDeadline: formData.paymentDeadline,
           exchangeRate:
             formData.currency !== "JPY" && formData.exchangeRate
               ? parseFloat(formData.exchangeRate)
@@ -558,14 +637,31 @@ export function AddTransactionDialog({
                   className="mt-1.5"
                 />
               </div>
+            </div>
 
+            {/* Date and Payment Deadline in one row */}
+            <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label className="text-sm font-medium">Date *</Label>
-                <Input
-                  type="date"
+                <Label className="text-sm font-medium">Date (Optional)</Label>
+                <DatePicker
                   value={formData.date}
                   onChange={(e) =>
                     setFormData({ ...formData, date: e.target.value })
+                  }
+                  className="mt-1.5"
+                />
+              </div>
+              <div>
+                <Label className="text-sm font-medium">
+                  Payment Deadline *
+                </Label>
+                <DatePicker
+                  value={formData.paymentDeadline}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      paymentDeadline: e.target.value,
+                    })
                   }
                   required
                   className="mt-1.5"
@@ -574,51 +670,92 @@ export function AddTransactionDialog({
             </div>
 
             {formData.direction === "INCOMING" && (
-              <div>
-                <Label className="text-sm font-medium">
-                  Customer (Optional)
-                </Label>
-                <Select
-                  value={formData.customerId || undefined}
-                  onValueChange={(value) =>
-                    setFormData({ ...formData, customerId: value || "" })
-                  }
-                >
-                  <SelectTrigger className="mt-1.5">
-                    <SelectValue placeholder="Select customer (optional)" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {customers.map((customer) => (
-                      <SelectItem key={customer.id} value={customer.id}>
-                        {customer.name}{" "}
-                        {customer.email && `(${customer.email})`}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              <>
+                <div>
+                  <Label className="text-sm font-medium">
+                    Customer (Optional)
+                  </Label>
+                  <Select
+                    value={formData.customerId || undefined}
+                    onValueChange={(value) =>
+                      setFormData({
+                        ...formData,
+                        customerId: value || "",
+                        invoiceId: "",
+                      })
+                    }
+                  >
+                    <SelectTrigger className="mt-1.5">
+                      <SelectValue placeholder="Select customer (optional)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {customers.map((customer) => (
+                        <SelectItem key={customer.id} value={customer.id}>
+                          {customer.name}{" "}
+                          {customer.email && `(${customer.email})`}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                {formData.customerId && customerInvoices.length > 0 && (
+                  <div>
+                    <Label className="text-sm font-medium">
+                      Link to Invoice (Optional)
+                    </Label>
+                    <Select
+                      value={formData.invoiceId || undefined}
+                      onValueChange={(value) => {
+                        const inv = customerInvoices.find((i) => i.id === value);
+                        setFormData({
+                          ...formData,
+                          invoiceId: value || "",
+                          vehicleId: inv?.vehicle?.id ? inv.vehicle.id : formData.vehicleId,
+                        });
+                      }}
+                    >
+                      <SelectTrigger className="mt-1.5">
+                        <SelectValue placeholder="Select invoice to link payment" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {customerInvoices.map((inv) => (
+                          <SelectItem key={inv.id} value={inv.id}>
+                            {inv.invoiceNumber}
+                            {inv.vehicle && ` - ${inv.vehicle.make} ${inv.vehicle.model} ${inv.vehicle.year}`}
+                            {` (${inv.paymentStatus})`}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+              </>
             )}
 
             {formData.direction === "OUTGOING" && (
               <div>
-                <Label className="text-sm font-medium">Vendor *</Label>
+                <Label className="text-sm font-medium">Vendor/Customer *</Label>
                 <div className="flex gap-2 mt-1.5 relative">
                   <div className="flex-1 relative" ref={vendorDropdownRef}>
                     <Input
                       type="text"
-                      placeholder="Search vendors..."
+                      placeholder="Search vendors or customers..."
                       value={vendorSearch}
                       onChange={(e) => {
                         setVendorSearch(e.target.value);
                         setVendorDropdownOpen(true);
-                        // Clear selection if search doesn't match selected vendor
+                        // Clear selection if search doesn't match selected vendor/customer
                         if (formData.vendorId) {
                           const selectedVendor = vendors.find(
                             (v) => v.id === formData.vendorId,
                           );
+                          const selectedCustomer = customers.find(
+                            (c) => c.id === formData.vendorId,
+                          );
+                          const selected = selectedVendor || selectedCustomer;
                           if (
-                            selectedVendor &&
-                            !selectedVendor.name
+                            selected &&
+                            !(selected.name || (selected as any).email || "")
                               .toLowerCase()
                               .includes(e.target.value.toLowerCase())
                           ) {
@@ -628,13 +765,19 @@ export function AddTransactionDialog({
                       }}
                       onFocus={() => {
                         setVendorDropdownOpen(true);
-                        // Show selected vendor name when focusing if not searching
+                        // Show selected vendor/customer name when focusing if not searching
                         if (!vendorSearch && formData.vendorId) {
                           const selectedVendor = vendors.find(
                             (v) => v.id === formData.vendorId,
                           );
-                          if (selectedVendor) {
-                            setVendorSearch(selectedVendor.name);
+                          const selectedCustomer = customers.find(
+                            (c) => c.id === formData.vendorId,
+                          );
+                          const selected = selectedVendor || selectedCustomer;
+                          if (selected) {
+                            setVendorSearch(
+                              selected.name || (selected as any).email || "",
+                            );
                           }
                         }
                       }}
@@ -642,6 +785,16 @@ export function AddTransactionDialog({
                     />
                     {vendorDropdownOpen && (
                       <div className="absolute z-50 w-full mt-1 bg-white dark:bg-[#1E1E1E] border border-gray-200 dark:border-[#2C2C2C] rounded-md shadow-lg max-h-60 overflow-auto">
+                        {/* Vendors Section */}
+                        {vendors.filter((vendor) =>
+                          vendor.name
+                            .toLowerCase()
+                            .includes(vendorSearch.toLowerCase()),
+                        ).length > 0 && (
+                          <div className="px-2 py-1 text-xs font-semibold text-muted-foreground border-b">
+                            Vendors
+                          </div>
+                        )}
                         {vendors
                           .filter((vendor) =>
                             vendor.name
@@ -670,15 +823,60 @@ export function AddTransactionDialog({
                               )}
                             </button>
                           ))}
+                        {/* Customers Section */}
+                        {customers.filter((customer) =>
+                          (customer.name || customer.email || "")
+                            .toLowerCase()
+                            .includes(vendorSearch.toLowerCase()),
+                        ).length > 0 && (
+                          <div className="px-2 py-1 text-xs font-semibold text-muted-foreground border-b border-t">
+                            Customers (for refunds)
+                          </div>
+                        )}
+                        {customers
+                          .filter((customer) =>
+                            (customer.name || customer.email || "")
+                              .toLowerCase()
+                              .includes(vendorSearch.toLowerCase()),
+                          )
+                          .map((customer) => (
+                            <button
+                              key={customer.id}
+                              type="button"
+                              onClick={() => {
+                                setFormData({
+                                  ...formData,
+                                  vendorId: customer.id,
+                                });
+                                setVendorSearch(
+                                  customer.name || customer.email || "",
+                                );
+                                setVendorDropdownOpen(false);
+                              }}
+                              className="w-full text-left px-3 py-2 hover:bg-gray-100 dark:hover:bg-[#2C2C2C] cursor-pointer flex items-center gap-2"
+                            >
+                              <span>{customer.name || customer.email}</span>
+                              {formData.vendorId === customer.id && (
+                                <span className="material-symbols-outlined text-sm text-primary ml-auto">
+                                  check
+                                </span>
+                              )}
+                            </button>
+                          ))}
                         {vendors.filter((vendor) =>
                           vendor.name
                             .toLowerCase()
                             .includes(vendorSearch.toLowerCase()),
-                        ).length === 0 && (
-                          <div className="px-3 py-2 text-sm text-muted-foreground">
-                            No vendors found
-                          </div>
-                        )}
+                        ).length === 0 &&
+                          customers.filter((customer) =>
+                            (customer.name || customer.email || "")
+                              .toLowerCase()
+                              .includes(vendorSearch.toLowerCase()),
+                          ).length === 0 && (
+                            <div className="px-3 py-2 text-sm text-muted-foreground">
+                              No vendors or customers found
+                            </div>
+                          )}
                       </div>
                     )}
                   </div>
@@ -778,14 +976,16 @@ export function AddTransactionDialog({
             )}
 
             <div>
-              <Label className="text-sm font-medium">Notes (Optional)</Label>
+              <Label className="text-sm font-medium">
+                Description (Optional)
+              </Label>
               <textarea
-                value={formData.notes}
+                value={formData.description}
                 onChange={(e) =>
-                  setFormData({ ...formData, notes: e.target.value })
+                  setFormData({ ...formData, description: e.target.value })
                 }
                 rows={3}
-                placeholder="Additional notes..."
+                placeholder="Transaction description..."
                 className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 mt-1.5"
               />
             </div>

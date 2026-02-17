@@ -115,8 +115,10 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    console.log("Inquiries API query where clause:", JSON.stringify(where, null, 2))
-    console.log("unassignedOnly:", unassignedOnly, "status:", status, "source:", source)
+    if (process.env.NODE_ENV === "development") {
+      console.log("Inquiries API query where clause:", JSON.stringify(where, null, 2))
+      console.log("unassignedOnly:", unassignedOnly, "status:", status, "source:", source)
+    }
 
     const inquiries = await prisma.inquiry.findMany({
       where,
@@ -135,24 +137,28 @@ export async function GET(request: NextRequest) {
       },
     })
 
-    console.log(`Inquiries API returned ${inquiries.length} inquiries`)
-    if (inquiries.length > 0) {
-      console.log(`Sample inquiry metadata:`, inquiries[0]?.metadata)
-      console.log(`Sample inquiry assignedToId:`, inquiries[0]?.assignedToId)
+    if (process.env.NODE_ENV === "development") {
+      console.log(`Inquiries API returned ${inquiries.length} inquiries`)
+      if (inquiries.length > 0) {
+        console.log(`Sample inquiry metadata:`, inquiries[0]?.metadata)
+        console.log(`Sample inquiry assignedToId:`, inquiries[0]?.assignedToId)
+      }
     }
 
     // Filter out failed leads as a fallback (in case Prisma JSON query doesn't work)
     const filteredInquiries = inquiries.filter((inq) => {
       const metadata = inq.metadata as any
       const isFailed = metadata?.isFailedLead === true
-      if (isFailed) {
+      if (isFailed && process.env.NODE_ENV === "development") {
         console.log(`Filtering out failed lead: ${inq.id}, metadata:`, metadata)
       }
       return !isFailed
     })
 
-    console.log(`After filtering failed leads: ${filteredInquiries.length} inquiries`)
-    console.log(`Unassigned inquiries: ${filteredInquiries.filter(i => !i.assignedToId).length}`)
+    if (process.env.NODE_ENV === "development") {
+      console.log(`After filtering failed leads: ${filteredInquiries.length} inquiries`)
+      console.log(`Unassigned inquiries: ${filteredInquiries.filter(i => !i.assignedToId).length}`)
+    }
     
     // Debug: Check if any inquiries have assignedToId = null
     const unassignedCount = inquiries.filter((i) => !i.assignedToId).length

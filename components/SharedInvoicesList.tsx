@@ -47,11 +47,6 @@ export const SharedInvoicesList = forwardRef<
   );
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  // Debug: Log isAdmin prop
-  useEffect(() => {
-    console.log("SharedInvoicesList - isAdmin:", isAdmin);
-  }, [isAdmin]);
-
   useEffect(() => {
     fetchSharedInvoices();
   }, []);
@@ -126,13 +121,52 @@ export const SharedInvoicesList = forwardRef<
   return (
     <>
       <Card>
-        <CardContent className="p-4">
+        <CardContent className="p-6">
+          <div className="mb-6 flex items-center justify-end">
+            <Button
+              onClick={() => {
+                setEditingInvoice(null);
+                setShowForm(true);
+              }}
+            >
+              <span className="material-symbols-outlined text-lg mr-2">
+                add
+              </span>
+              New Shared Invoice
+            </Button>
+          </div>
+
           {sharedInvoices.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              No shared invoices found
+            <div className="text-center py-12">
+              <div className="flex flex-col items-center gap-3">
+                <span className="material-symbols-outlined text-5xl text-muted-foreground">
+                  receipt_long
+                </span>
+                <div>
+                  <p className="text-lg font-medium text-foreground mb-1">
+                    No shared invoices found
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Create a shared invoice to allocate costs across multiple
+                    vehicles
+                  </p>
+                </div>
+                <Button
+                  onClick={() => {
+                    setEditingInvoice(null);
+                    setShowForm(true);
+                  }}
+                  className="mt-2"
+                >
+                  <span className="material-symbols-outlined text-lg mr-2">
+                    add
+                  </span>
+                  Create Shared Invoice
+                </Button>
+              </div>
             </div>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-3">
               {sharedInvoices.map((invoice) => {
                 const vehicleDisplay = (v: any) => {
                   if (v.vehicle.make && v.vehicle.model) {
@@ -144,49 +178,16 @@ export const SharedInvoicesList = forwardRef<
                 return (
                   <div
                     key={invoice.id}
-                    className="p-4 border rounded-lg hover:bg-accent transition-colors"
+                    className="p-5 border rounded-lg hover:bg-accent/50 hover:border-primary/20 transition-all"
                   >
-                    <div className="flex items-center justify-end gap-2 mb-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => {
-                          setEditingInvoice(invoice);
-                          setShowForm(true);
-                        }}
-                      >
-                        Edit
-                      </Button>
-                      {isAdmin && (
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          onClick={() =>
-                            handleDelete(invoice.id, invoice.invoiceNumber)
-                          }
-                          disabled={deletingId === invoice.id}
-                        >
-                          {deletingId === invoice.id ? (
-                            "Deleting..."
-                          ) : (
-                            <>
-                              <span className="material-symbols-outlined text-sm mr-1">
-                                delete
-                              </span>
-                              Delete
-                            </>
-                          )}
-                        </Button>
-                      )}
-                    </div>
-                    <div className="flex items-center justify-between mb-2">
-                      <div>
-                        <div className="flex items-center gap-3">
-                          <span className="font-semibold">
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-3 mb-2">
+                          <span className="font-semibold text-base">
                             {invoice.invoiceNumber}
                           </span>
                           <span
-                            className={`text-xs px-2 py-1 rounded ${
+                            className={`text-xs px-2 py-1 rounded font-medium ${
                               invoice.type === "FORWARDER"
                                 ? "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300"
                                 : "bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300"
@@ -197,20 +198,33 @@ export const SharedInvoicesList = forwardRef<
                               : "Container"}
                           </span>
                         </div>
-                        <div className="text-sm text-muted-foreground mt-1">
-                          {format(new Date(invoice.date), "MMM dd, yyyy")} •{" "}
-                          {invoice.vehicles.length} vehicle
-                          {invoice.vehicles.length !== 1 ? "s" : ""}
+                        <div className="text-sm text-muted-foreground space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className="material-symbols-outlined text-xs">
+                              calendar_today
+                            </span>
+                            {invoice.date &&
+                            !isNaN(new Date(invoice.date).getTime())
+                              ? format(new Date(invoice.date), "MMM dd, yyyy")
+                              : "N/A"}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="material-symbols-outlined text-xs">
+                              directions_car
+                            </span>
+                            {invoice.vehicles.length} vehicle
+                            {invoice.vehicles.length !== 1 ? "s" : ""}
+                          </div>
                         </div>
                       </div>
-                      <div className="text-right">
-                        <div className="font-semibold">
+                      <div className="text-right ml-4 flex-shrink-0">
+                        <div className="font-semibold text-lg">
                           ¥
                           {parseFloat(
                             invoice.totalAmount.toString(),
                           ).toLocaleString()}
                         </div>
-                        <div className="text-sm text-muted-foreground">
+                        <div className="text-sm text-muted-foreground mt-1">
                           ¥
                           {(
                             parseFloat(invoice.totalAmount.toString()) /
@@ -220,15 +234,55 @@ export const SharedInvoicesList = forwardRef<
                         </div>
                       </div>
                     </div>
-                    <div className="mt-3 pt-3 border-t">
-                      <div className="text-xs text-muted-foreground mb-1">
-                        Vehicles:
+                    <div className="mt-4 pt-4 border-t">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="text-xs font-medium text-muted-foreground">
+                          Allocated Vehicles:
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditingInvoice(invoice);
+                              setShowForm(true);
+                            }}
+                          >
+                            <span className="material-symbols-outlined text-sm mr-1">
+                              edit
+                            </span>
+                            Edit
+                          </Button>
+                          {isAdmin && (
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDelete(invoice.id, invoice.invoiceNumber);
+                              }}
+                              disabled={deletingId === invoice.id}
+                            >
+                              {deletingId === invoice.id ? (
+                                "Deleting..."
+                              ) : (
+                                <>
+                                  <span className="material-symbols-outlined text-sm mr-1">
+                                    delete
+                                  </span>
+                                  Delete
+                                </>
+                              )}
+                            </Button>
+                          )}
+                        </div>
                       </div>
                       <div className="flex flex-wrap gap-2">
                         {invoice.vehicles.map((v) => (
                           <span
                             key={v.id}
-                            className="text-xs px-2 py-1 bg-muted rounded"
+                            className="text-xs px-2.5 py-1.5 bg-muted rounded-md font-medium"
                           >
                             {vehicleDisplay(v)} (¥
                             {parseFloat(

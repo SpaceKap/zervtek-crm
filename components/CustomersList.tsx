@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -26,6 +27,7 @@ interface Customer {
 }
 
 export function CustomersList() {
+  const { data: session } = useSession();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -113,15 +115,46 @@ export function CustomersList() {
                   key={customer.id}
                   className="flex items-center justify-between p-3 border rounded-lg hover:bg-accent"
                 >
-                  <div>
-                    <div className="font-medium">{customer.name}</div>
+                  <Link
+                    href={`/dashboard/customers/${customer.id}`}
+                    className="flex-1 min-w-0 hover:opacity-90 transition-opacity"
+                  >
+                    <div className="font-medium text-foreground">
+                      {customer.name}
+                    </div>
                     <div className="text-sm text-muted-foreground">
                       {customer.email && <span>{customer.email}</span>}
                       {customer.email && customer.phone && <span> • </span>}
                       {customer.phone && <span>{customer.phone}</span>}
                     </div>
-                  </div>
-                  <div className="flex items-center gap-2">
+                  </Link>
+                  <div className="flex items-center gap-2 shrink-0">
+                    {session?.user?.role === "ADMIN" && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="border-red-500/50 text-red-500 hover:bg-red-500/10 hover:text-red-400"
+                        onClick={async (e) => {
+                          e.preventDefault();
+                          if (!confirm(`Permanently delete customer "${customer.name}"? All their vehicles, invoices, and transactions will be removed.`)) return;
+                          try {
+                            const res = await fetch(`/api/customers/${customer.id}`, { method: "DELETE" });
+                            const data = await res.json();
+                            if (!res.ok) throw new Error(data.error || "Failed to delete");
+                            fetchCustomers();
+                          } catch (err) {
+                            alert(err instanceof Error ? err.message : "Failed to delete customer");
+                          }
+                        }}
+                      >
+                        <span className="material-symbols-outlined text-base">delete</span>
+                      </Button>
+                    )}
+                    <Link href={`/dashboard/customers/${customer.id}`}>
+                      <Button variant="outline" size="sm">
+                        View
+                      </Button>
+                    </Link>
                     <Button
                       variant="outline"
                       size="sm"
@@ -129,9 +162,9 @@ export function CustomersList() {
                     >
                       Edit
                     </Button>
-                    <Link href={`/dashboard/invoices?customer=${customer.id}`}>
-                      <Button variant="outline" size="sm">
-                        View Invoices
+                    <Link href={`/dashboard/invoices/new?customerId=${customer.id}`}>
+                      <Button size="sm">
+                        Create Invoice
                       </Button>
                     </Link>
                   </div>

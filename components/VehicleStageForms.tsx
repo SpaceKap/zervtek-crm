@@ -18,6 +18,7 @@ import { VehicleCostsManager } from "./VehicleCostsManager";
 import { QuickDocumentUploadDialog } from "./QuickDocumentUploadDialog";
 import { QuickChargeDialog } from "./QuickChargeDialog";
 import { DocumentCategory } from "@prisma/client";
+import { DatePicker } from "@/components/ui/date-picker";
 
 interface Vendor {
   id: string;
@@ -251,7 +252,7 @@ export function VehicleStageForms({
         containerNumber: stageData.containerNumber || "",
         containerSize: stageData.containerSize || "",
         sealNumber: stageData.sealNumber || "",
-        unitsInside: stageData.unitsInside || "",
+        unitsInside: stageData.unitsInside?.toString() || "",
         siEcSentToForwarder: stageData.siEcSentToForwarder,
         shippingOrderReceived: stageData.shippingOrderReceived,
         freightVendorId: stageData.freightVendorId || "",
@@ -367,15 +368,6 @@ export function VehicleStageForms({
               ))}
             </SelectContent>
           </Select>
-        </div>
-
-        <div className="border-t pt-4">
-          <h4 className="font-semibold mb-3">Purchase/Auction Fees</h4>
-          <VehicleCostsManager
-            vehicleId={vehicleId}
-            currentStage={ShippingStage.PURCHASE}
-            onStageUpdate={onUpdate}
-          />
         </div>
       </div>
     );
@@ -1266,8 +1258,7 @@ export function VehicleStageForms({
         </div>
         <div>
           <Label>ETD</Label>
-          <Input
-            type="date"
+          <DatePicker
             value={formData.etd}
             onChange={(e) =>
               setFormData((prev) => ({ ...prev, etd: e.target.value }))
@@ -1278,8 +1269,7 @@ export function VehicleStageForms({
 
       <div>
         <Label>ETA</Label>
-        <Input
-          type="date"
+        <DatePicker
           value={formData.eta}
           onChange={(e) =>
             setFormData((prev) => ({ ...prev, eta: e.target.value }))

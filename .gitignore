@@ -9,6 +9,9 @@ data/catalog_base_202601301645.csv
 
 # testing
 /coverage
+/.auth
+/test-results
+/blob-report
 
 # next.js
 /.next/

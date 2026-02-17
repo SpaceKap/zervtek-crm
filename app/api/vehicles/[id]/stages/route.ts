@@ -19,6 +19,13 @@ export async function GET(
     const vehicle = await prisma.vehicle.findUnique({
       where: { id: params.id },
       include: {
+        inquiry: {
+          select: {
+            id: true,
+            customerName: true,
+            status: true,
+          },
+        },
         customer: {
           select: {
             id: true,

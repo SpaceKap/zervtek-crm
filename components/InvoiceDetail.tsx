@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { getChargesSubtotal, isChargeSubtracting } from "@/lib/charge-utils";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -26,6 +27,7 @@ import { VendorForm } from "@/components/VendorForm";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { ShareInvoiceDialog } from "@/components/ShareInvoiceDialog";
+import { Checkbox } from "@/components/ui/checkbox";
 import { PaymentStatus } from "@prisma/client";
 
 interface InvoiceDetailProps {
@@ -65,6 +67,9 @@ const defaultCategories = [
   "DHL",
   "Forwarding",
   "Freight",
+  "Repair",
+  "Storage",
+  "Yard Photos",
 ];
 
 export function InvoiceDetail({
@@ -94,27 +99,24 @@ export function InvoiceDetail({
   );
   const [savingWiseLink, setSavingWiseLink] = useState(false);
 
-  const totalCharges = charges.reduce(
-    (sum: number, charge: any) => sum + parseFloat(charge.amount.toString()),
-    0,
-  );
+  const totalCharges = getChargesSubtotal(charges);
 
-  // Calculate total revenue including tax
-  const calculateTotalRevenue = useCallback((chargesArray: any[]) => {
-    const chargesTotal = chargesArray.reduce(
-      (sum: number, charge: any) => sum + parseFloat(charge.amount.toString()),
-      0,
-    );
-    let subtotal = chargesTotal;
-    if (invoice.taxEnabled && invoice.taxRate) {
-      const taxRate = parseFloat(invoice.taxRate.toString());
-      const taxAmount = subtotal * (taxRate / 100);
-      subtotal += taxAmount;
-    }
-    // Always calculate from charges, don't rely on costInvoice.totalRevenue
-    // as it might be 0 or outdated
-    return subtotal;
-  }, [invoice.taxEnabled, invoice.taxRate]);
+  // Calculate total revenue including tax (discounts/deposits subtract)
+  const calculateTotalRevenue = useCallback(
+    (chargesArray: any[]) => {
+      const chargesTotal = getChargesSubtotal(chargesArray);
+      let subtotal = chargesTotal;
+      if (invoice.taxEnabled && invoice.taxRate) {
+        const taxRate = parseFloat(invoice.taxRate.toString());
+        const taxAmount = subtotal * (taxRate / 100);
+        subtotal += taxAmount;
+      }
+      // Always calculate from charges, don't rely on costInvoice.totalRevenue
+      // as it might be 0 or outdated
+      return subtotal;
+    },
+    [invoice.taxEnabled, invoice.taxRate],
+  );
 
   const [revenue, setRevenue] = useState(() => calculateTotalRevenue(charges));
 
@@ -171,7 +173,9 @@ export function InvoiceDetail({
               paymentDate: siv.sharedInvoice.date
                 ? siv.sharedInvoice.date.toISOString()
                 : null,
-              paymentDeadline: siv.sharedInvoice.paymentDeadline.toISOString(),
+              paymentDeadline: siv.sharedInvoice.paymentDeadline
+                ? siv.sharedInvoice.paymentDeadline.toISOString()
+                : "",
               category: invoiceType === "CONTAINER" ? "Shipping" : "Forwarding",
               // Store metadata for shared invoice items
               sharedInvoiceVehicleId: siv.id,
@@ -709,9 +713,17 @@ export function InvoiceDetail({
                         <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                           Name
                         </Label>
-                        <p className="mt-1 text-base font-semibold text-gray-900 dark:text-white">
-                          {invoice.customer.name}
-                        </p>
+                        <div className="mt-1">
+                          <Link
+                            href={`/dashboard/customers/${invoice.customer.id}`}
+                            className="text-base font-semibold text-gray-900 dark:text-white hover:text-primary dark:hover:text-[#D4AF37] transition-colors inline-flex items-center gap-1"
+                          >
+                            {invoice.customer.name}
+                            <span className="material-symbols-outlined text-sm">
+                              open_in_new
+                            </span>
+                          </Link>
+                        </div>
                       </div>
                       {invoice.customer.email && (
                         <div>
@@ -795,34 +807,48 @@ export function InvoiceDetail({
                 <CardContent>
                   <div className="space-y-6">
                     {/* Primary Vehicle */}
-                    <div className="p-4 bg-gray-50 dark:bg-gray-900/50 rounded-lg border border-gray-200 dark:border-gray-800">
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                          <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                            VIN
-                          </Label>
-                          <p className="mt-1 text-base font-mono font-semibold text-gray-900 dark:text-white">
-                            {invoice.vehicle.vin}
-                          </p>
-                        </div>
-                        {(invoice.vehicle.make || invoice.vehicle.model) && (
+                    {invoice.vehicle && (
+                      <div className="p-4 bg-gray-50 dark:bg-gray-900/50 rounded-lg border border-gray-200 dark:border-gray-800">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                           <div>
                             <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                              Make / Model
+                              VIN
                             </Label>
-                            <p className="mt-1 text-base font-semibold text-gray-900 dark:text-white">
-                              {[
-                                invoice.vehicle.year,
-                                invoice.vehicle.make,
-                                invoice.vehicle.model,
-                              ]
-                                .filter(Boolean)
-                                .join(" ")}
+                            <p className="mt-1 text-base font-mono font-semibold text-gray-900 dark:text-white">
+                              {invoice.vehicle.vin}
                             </p>
                           </div>
-                        )}
+                          {(invoice.vehicle.make || invoice.vehicle.model) && (
+                            <div>
+                              <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                                Make / Model
+                              </Label>
+                              <p className="mt-1 text-base font-semibold text-gray-900 dark:text-white">
+                                {[
+                                  invoice.vehicle.year,
+                                  invoice.vehicle.make,
+                                  invoice.vehicle.model,
+                                ]
+                                  .filter(Boolean)
+                                  .join(" ")}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                        <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-800">
+                          <Link
+                            href={`/dashboard/vehicles/${invoice.vehicle.id}`}
+                          >
+                            <Button variant="outline" size="sm">
+                              <span className="material-symbols-outlined text-base mr-2">
+                                directions_car
+                              </span>
+                              View Vehicle Details
+                            </Button>
+                          </Link>
+                        </div>
                       </div>
-                    </div>
+                    )}
 
                     {/* Additional Vehicles for Container Invoice */}
                     {invoice.metadata?.isContainerInvoice &&
@@ -1225,10 +1251,10 @@ export function InvoiceDetail({
                           </td>
                           <td className="py-3 px-4 text-right align-top w-32">
                             <p className="font-semibold text-gray-900 dark:text-white whitespace-nowrap">
-                              ¥
-                              {parseFloat(
-                                charge.amount.toString(),
-                              ).toLocaleString()}
+                              {isChargeSubtracting(charge)
+                                ? `-¥${parseFloat(charge.amount.toString()).toLocaleString()}`
+                                : `¥${parseFloat(charge.amount.toString()).toLocaleString()}`
+                              }
                             </p>
                           </td>
                           {canEditCharges && (
@@ -1414,30 +1440,77 @@ export function InvoiceDetail({
                               </p>
                             </td>
                             <td className="py-3 px-4">
-                              <div className="text-sm text-gray-700 dark:text-gray-300 space-y-1">
-                                {item.paymentDeadline && (
-                                  <p>
-                                    <span className="font-medium">
-                                      Deadline:
-                                    </span>{" "}
-                                    {format(
-                                      new Date(item.paymentDeadline),
-                                      "MMM dd, yyyy",
-                                    )}
-                                  </p>
-                                )}
-                                {item.paymentDate ? (
-                                  <p className="text-xs text-muted-foreground">
-                                    <span className="font-medium">Paid:</span>{" "}
-                                    {format(
-                                      new Date(item.paymentDate),
-                                      "MMM dd, yyyy",
-                                    )}
-                                  </p>
-                                ) : (
-                                  <p className="text-xs text-muted-foreground italic">
-                                    Not paid
-                                  </p>
+                              <div className="flex items-center gap-2">
+                                <div className="flex flex-col gap-1">
+                                  {item.paymentDeadline &&
+                                    !isNaN(
+                                      new Date(
+                                        item.paymentDeadline,
+                                      ).getTime(),
+                                    ) && (
+                                    <div className="text-sm text-gray-700 dark:text-gray-300">
+                                      <span className="font-medium">
+                                        Deadline:
+                                      </span>{" "}
+                                      {format(
+                                        new Date(item.paymentDeadline),
+                                        "MMM dd, yyyy",
+                                      )}
+                                    </div>
+                                  )}
+                                  {item.paymentDate &&
+                                    !isNaN(
+                                      new Date(item.paymentDate).getTime(),
+                                    ) ? (
+                                    <div className="text-sm text-gray-700 dark:text-gray-300">
+                                      <span className="font-medium">Paid:</span>{" "}
+                                      {format(
+                                        new Date(item.paymentDate),
+                                        "MMM dd, yyyy",
+                                      )}
+                                    </div>
+                                  ) : (
+                                    <div className="text-xs text-muted-foreground italic">
+                                      Not paid
+                                    </div>
+                                  )}
+                                </div>
+                                {canEdit && !isReadOnly && (
+                                  <Checkbox
+                                    checked={!!item.paymentDate}
+                                    onCheckedChange={async (checked) => {
+                                      try {
+                                        const response = await fetch(
+                                          `/api/invoices/${invoice.id}/cost/items/${item.id}`,
+                                          {
+                                            method: "PATCH",
+                                            headers: {
+                                              "Content-Type":
+                                                "application/json",
+                                            },
+                                            body: JSON.stringify({
+                                              paymentDate: checked
+                                                ? new Date()
+                                                    .toISOString()
+                                                    .split("T")[0]
+                                                : null,
+                                            }),
+                                          },
+                                        );
+                                        if (response.ok) {
+                                          router.refresh();
+                                        } else {
+                                          alert(
+                                            "Failed to update payment status",
+                                          );
+                                        }
+                                      } catch (error) {
+                                        alert(
+                                          "Failed to update payment status",
+                                        );
+                                      }
+                                    }}
+                                  />
                                 )}
                               </div>
                             </td>
@@ -1864,13 +1937,18 @@ function CostItemForm({
       : "",
   );
   const [vendorId, setVendorId] = useState(item?.vendorId || "");
-  const [paymentDate, setPaymentDate] = useState(
-    item?.paymentDate ? format(new Date(item.paymentDate), "yyyy-MM-dd") : "",
+  const safeFormatDate = (val: string | null | undefined): string => {
+    if (!val) return "";
+    const d = new Date(val);
+    return !isNaN(d.getTime()) ? format(d, "yyyy-MM-dd") : "";
+  };
+  const [paymentDate, setPaymentDate] = useState(() =>
+    safeFormatDate(item?.paymentDate ?? undefined),
   );
   const [paymentDeadline, setPaymentDeadline] = useState(
-    item?.paymentDeadline
-      ? format(new Date(item.paymentDeadline), "yyyy-MM-dd")
-      : new Date().toISOString().split("T")[0],
+    () =>
+      safeFormatDate(item?.paymentDeadline) ||
+      new Date().toISOString().split("T")[0],
   );
   const [category, setCategory] = useState(
     item?.category || item?.description || "",

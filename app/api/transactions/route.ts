@@ -5,6 +5,11 @@ import { prisma } from "@/lib/prisma"
 import { canViewTransactions, canManageTransactions } from "@/lib/permissions"
 import { TransactionDirection, TransactionType } from "@prisma/client"
 import { convertDecimalsToNumbers } from "@/lib/decimal"
+import {
+  getInvoiceTotalWithTax,
+  isAmountPaidInFull,
+  hasPartialPayment,
+} from "@/lib/invoice-utils"
 
 export async function GET(request: NextRequest) {
   try {
@@ -107,7 +112,7 @@ export async function GET(request: NextRequest) {
       type: "BANK_TRANSFER" as TransactionType, // Default type for general costs
       amount: cost.amount,
       currency: cost.currency,
-      date: cost.date,
+      date: cost.date ? (cost.date instanceof Date ? cost.date.toISOString() : new Date(cost.date).toISOString()) : new Date().toISOString(),
       description: cost.description,
       vendorId: cost.vendorId,
       customerId: null,
@@ -118,8 +123,8 @@ export async function GET(request: NextRequest) {
       referenceNumber: null,
       notes: cost.notes,
       createdById: cost.createdById,
-      createdAt: cost.createdAt,
-      updatedAt: cost.updatedAt,
+      createdAt: cost.createdAt instanceof Date ? cost.createdAt.toISOString() : new Date(cost.createdAt).toISOString(),
+      updatedAt: cost.updatedAt instanceof Date ? cost.updatedAt.toISOString() : new Date(cost.updatedAt).toISOString(),
       vendor: cost.vendor,
       customer: null,
       vehicle: null,
@@ -154,6 +159,7 @@ export async function GET(request: NextRequest) {
             vin: true,
             make: true,
             model: true,
+            year: true,
           },
         },
       },
@@ -161,44 +167,231 @@ export async function GET(request: NextRequest) {
       take: 500,
     })
 
+    // Fetch invoices linked to vehicle stage costs
+    const costInvoiceIds = vehicleStageCosts
+      .map((cost) => cost.invoiceId)
+      .filter((id): id is string => id !== null)
+    const costInvoices = costInvoiceIds.length > 0
+      ? await prisma.invoice.findMany({
+          where: { id: { in: costInvoiceIds } },
+          select: {
+            id: true,
+            invoiceNumber: true,
+          },
+        })
+      : []
+    const invoiceMap = new Map(costInvoices.map((inv) => [inv.id, inv]))
+
     // Transform vehicle stage costs to transaction-like format
-    const vehicleStageCostsAsTransactions = vehicleStageCosts.map((cost) => ({
-      id: `vehicle-cost-${cost.id}`,
-      direction: "OUTGOING" as TransactionDirection,
-      type: "BANK_TRANSFER" as TransactionType, // Default type for vehicle costs
-      amount: cost.amount,
-      currency: cost.currency,
-      date: cost.paymentDate || cost.createdAt, // Use payment date if available, otherwise creation date
-      description: `${cost.costType}${cost.stage ? ` (${cost.stage})` : ""}`,
-      vendorId: cost.vendorId,
-      customerId: null,
-      vehicleId: cost.vehicleId,
-      invoiceId: null,
-      invoiceUrl: null,
-      documentId: null,
-      referenceNumber: null,
-      notes: null,
-      createdById: null,
-      createdAt: cost.createdAt,
-      updatedAt: cost.updatedAt,
-      vendor: cost.vendor,
-      customer: null,
-      vehicle: cost.vehicle,
-      isVehicleStageCost: true, // Flag to identify vehicle stage costs
-      paymentDeadline: cost.paymentDeadline,
-      paymentDate: cost.paymentDate,
+    const vehicleStageCostsAsTransactions = vehicleStageCosts.map((cost) => {
+      const linkedInvoice = cost.invoiceId ? invoiceMap.get(cost.invoiceId) : null
+      const dateValue = cost.paymentDate || cost.createdAt
+      const dateStr = dateValue instanceof Date ? dateValue.toISOString() : (dateValue ? new Date(dateValue).toISOString() : new Date().toISOString())
+      
+      return {
+        id: `vehicle-cost-${cost.id}`,
+        direction: "OUTGOING" as TransactionDirection,
+        type: "BANK_TRANSFER" as TransactionType, // Default type for vehicle costs
+        amount: cost.amount,
+        currency: cost.currency,
+        date: dateStr, // Use payment date if available, otherwise creation date
+        description: `${cost.costType}${cost.stage ? ` (${cost.stage})` : ""}`,
+        vendorId: cost.vendorId,
+        customerId: null,
+        vehicleId: cost.vehicleId,
+        invoiceId: cost.invoiceId || null, // Include invoiceId from vehicle stage cost
+        invoiceNumber: linkedInvoice?.invoiceNumber || null,
+        invoiceUrl: null,
+        documentId: null,
+        referenceNumber: null,
+        notes: null,
+        createdById: null,
+        createdAt: cost.createdAt instanceof Date ? cost.createdAt.toISOString() : new Date(cost.createdAt).toISOString(),
+        updatedAt: cost.updatedAt instanceof Date ? cost.updatedAt.toISOString() : new Date(cost.updatedAt).toISOString(),
+        vendor: cost.vendor,
+        customer: null,
+        vehicle: cost.vehicle,
+        isVehicleStageCost: true, // Flag to identify vehicle stage costs
+        paymentDeadline: cost.paymentDeadline ? (cost.paymentDeadline instanceof Date ? cost.paymentDeadline.toISOString() : new Date(cost.paymentDeadline).toISOString()) : null,
+        paymentDate: cost.paymentDate ? (cost.paymentDate instanceof Date ? cost.paymentDate.toISOString() : new Date(cost.paymentDate).toISOString()) : null,
+      }
+    })
+
+    // Fetch approved/finalized invoices for incoming payments
+    let invoicesAsTransactions: any[] = []
+    if (!direction || direction === "INCOMING") {
+      const invoiceWhere: any = {
+        status: {
+          in: ["APPROVED", "FINALIZED"],
+        },
+      }
+
+      // Apply date filters if provided
+      if (startDate || endDate) {
+        invoiceWhere.issueDate = {}
+        if (startDate) {
+          invoiceWhere.issueDate.gte = new Date(startDate)
+        }
+        if (endDate) {
+          invoiceWhere.issueDate.lte = new Date(endDate)
+        }
+      }
+
+      if (customerId) {
+        invoiceWhere.customerId = customerId
+      }
+
+      if (vehicleId) {
+        invoiceWhere.vehicleId = vehicleId
+      }
+
+      const invoices = await prisma.invoice.findMany({
+        where: invoiceWhere,
+        include: {
+          customer: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
+          vehicle: {
+            select: {
+              id: true,
+              vin: true,
+              make: true,
+              model: true,
+              year: true,
+            },
+          },
+          charges: {
+            select: {
+              amount: true,
+            },
+          },
+        },
+        orderBy: { issueDate: "desc" },
+        take: 500,
+      })
+
+      // Calculate payment status for each invoice (include tax in total)
+      invoicesAsTransactions = invoices.map((invoice) => {
+        const totalAmount = getInvoiceTotalWithTax(invoice)
+
+        // Calculate payment status
+        let paymentStatus = "due"
+        const now = new Date()
+        const dueDate = invoice.dueDate ? new Date(invoice.dueDate) : null
+
+        if (invoice.paymentStatus === "PAID" || invoice.paidAt) {
+          paymentStatus = "paid"
+        } else if (invoice.paymentStatus === "PARTIALLY_PAID") {
+          paymentStatus = "partially_paid"
+        } else if (dueDate && dueDate < now) {
+          paymentStatus = "overdue"
+        } else {
+          paymentStatus = "due"
+        }
+
+        return {
+          id: `invoice-${invoice.id}`,
+          direction: "INCOMING" as TransactionDirection,
+          type: "BANK_TRANSFER" as TransactionType, // Default type
+          amount: totalAmount,
+          currency: "JPY",
+          date: invoice.issueDate ? invoice.issueDate.toISOString() : new Date().toISOString(),
+          description: `Invoice ${invoice.invoiceNumber}`,
+          vendorId: null,
+          customerId: invoice.customerId,
+          vehicleId: invoice.vehicleId,
+          invoiceId: invoice.id,
+          invoiceNumber: invoice.invoiceNumber,
+          invoiceUrl: null,
+          documentId: null,
+          referenceNumber: null,
+          notes: null,
+          createdById: invoice.createdById,
+          createdAt: invoice.createdAt.toISOString(),
+          updatedAt: invoice.updatedAt.toISOString(),
+          vendor: null,
+          customer: invoice.customer,
+          vehicle: invoice.vehicle,
+          isInvoice: true, // Flag to identify invoices
+          paymentDeadline: invoice.dueDate ? invoice.dueDate.toISOString() : null,
+          paymentDate: invoice.paidAt ? invoice.paidAt.toISOString() : null,
+          paymentStatus: paymentStatus, // due, overdue, partially_paid, paid
+          invoiceStatus: invoice.status,
+        }
+      })
+    }
+
+    // Normalize dates for regular transactions from database
+    const normalizedTransactions = transactions.map((t: any) => ({
+      ...t,
+      date: t.date instanceof Date ? t.date.toISOString() : (typeof t.date === 'string' ? t.date : new Date(t.date).toISOString()),
+      createdAt: t.createdAt instanceof Date ? t.createdAt.toISOString() : (typeof t.createdAt === 'string' ? t.createdAt : new Date(t.createdAt).toISOString()),
+      updatedAt: t.updatedAt instanceof Date ? t.updatedAt.toISOString() : (typeof t.updatedAt === 'string' ? t.updatedAt : new Date(t.updatedAt).toISOString()),
+      paymentDeadline: t.paymentDeadline ? (t.paymentDeadline instanceof Date ? t.paymentDeadline.toISOString() : (typeof t.paymentDeadline === 'string' ? t.paymentDeadline : new Date(t.paymentDeadline).toISOString())) : null,
+      paymentDate: t.paymentDate ? (t.paymentDate instanceof Date ? t.paymentDate.toISOString() : (typeof t.paymentDate === 'string' ? t.paymentDate : new Date(t.paymentDate).toISOString())) : null,
     }))
 
     // Combine and sort by date
-    const allTransactions = [...transactions, ...generalCostsAsTransactions, ...vehicleStageCostsAsTransactions].sort(
-      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
-    )
+    const allTransactions = [
+      ...normalizedTransactions,
+      ...generalCostsAsTransactions,
+      ...vehicleStageCostsAsTransactions,
+      ...invoicesAsTransactions,
+    ].sort((a, b) => {
+      const dateA = new Date(a.date).getTime()
+      const dateB = new Date(b.date).getTime()
+      if (isNaN(dateA) || isNaN(dateB)) return 0
+      return dateB - dateA
+    })
 
-    return NextResponse.json(convertDecimalsToNumbers(allTransactions))
-  } catch (error) {
-    console.error("Error fetching transactions:", error)
+    // Parse paymentDate from notes for regular transactions and normalize all dates
+    const transactionsWithParsedPaymentDate = allTransactions.map((t: any) => {
+      // Normalize date field
+      if (t.date) {
+        t.date = t.date instanceof Date ? t.date.toISOString() : (typeof t.date === 'string' ? t.date : new Date(t.date).toISOString());
+      }
+      
+      // Normalize paymentDeadline
+      if (t.paymentDeadline) {
+        t.paymentDeadline = t.paymentDeadline instanceof Date ? t.paymentDeadline.toISOString() : (typeof t.paymentDeadline === 'string' ? t.paymentDeadline : new Date(t.paymentDeadline).toISOString());
+      }
+      
+      // If transaction doesn't have paymentDate but has notes, try to parse it
+      if (!t.paymentDate && t.notes) {
+        try {
+          const notesData = JSON.parse(t.notes);
+          if (notesData.paymentDate) {
+            t.paymentDate = notesData.paymentDate;
+          }
+        } catch (e) {
+          // Notes is not JSON, ignore
+        }
+      }
+      
+      // Normalize paymentDate
+      if (t.paymentDate) {
+        t.paymentDate = t.paymentDate instanceof Date ? t.paymentDate.toISOString() : (typeof t.paymentDate === 'string' ? t.paymentDate : new Date(t.paymentDate).toISOString());
+      }
+      
+      return t;
+    });
+
+    const convertedTransactions = convertDecimalsToNumbers(transactionsWithParsedPaymentDate)
+    console.log(`[Transactions API] Returning ${convertedTransactions.length} transactions (${transactions.length} regular, ${generalCosts.length} general costs, ${vehicleStageCosts.length} vehicle costs)`)
+    return NextResponse.json(convertedTransactions)
+  } catch (error: any) {
+    console.error("[Transactions API] Error fetching transactions:", error)
     return NextResponse.json(
-      { error: "Failed to fetch transactions" },
+      { 
+        error: "Failed to fetch transactions",
+        details: error.message || String(error),
+        code: error.code || "UNKNOWN",
+        stack: process.env.NODE_ENV === "development" ? error.stack : undefined
+      },
       { status: 500 }
     )
   }
@@ -222,45 +415,154 @@ export async function POST(request: NextRequest) {
       amount,
       currency,
       date,
+      paymentDeadline,
       description,
       vendorId,
       customerId,
       vehicleId,
       invoiceId,
+      containerInvoiceId,
+      vehicleStageCostId,
+      costItemId,
+      generalCostId,
       invoiceUrl,
       referenceNumber,
       notes,
     } = body
 
-    if (!direction || !type || !amount || !date) {
+    if (!direction || !type || !amount) {
       return NextResponse.json(
-        { error: "Direction, type, amount, and date are required" },
+        { error: "Direction, type, and amount are required" },
         { status: 400 }
       )
     }
 
-    const transaction = await prisma.transaction.create({
-      data: {
-        direction,
-        type,
-        amount: parseFloat(amount),
-        currency: currency || "JPY",
-        date: new Date(date),
-        description: description || null,
-        vendorId: vendorId || null,
-        customerId: customerId || null,
-        vehicleId: vehicleId || null,
-        invoiceId: invoiceId || null,
-        invoiceUrl: invoiceUrl || null,
-        referenceNumber: referenceNumber || null,
-        notes: notes || null,
-        createdById: session.user.id,
-      },
-      include: {
-        vendor: true,
-        customer: true,
-        vehicle: true,
-      },
+    // Use date or paymentDeadline as fallback (date can be optional)
+    const transactionDate = date
+      ? new Date(date)
+      : paymentDeadline
+        ? new Date(paymentDeadline)
+        : new Date()
+
+    // Create transaction and sync with invoice/vehicle
+    const transaction = await prisma.$transaction(async (tx) => {
+      const newTransaction = await tx.transaction.create({
+        data: {
+          direction,
+          type,
+          amount: parseFloat(amount),
+          currency: currency || "JPY",
+          date: transactionDate,
+          description: description || null,
+          vendorId: vendorId || null,
+          customerId: customerId || null,
+          vehicleId: vehicleId || null,
+          invoiceId: invoiceId || null,
+          containerInvoiceId: containerInvoiceId || null,
+          vehicleStageCostId: vehicleStageCostId || null,
+          costItemId: costItemId || null,
+          generalCostId: generalCostId || null,
+          invoiceUrl: invoiceUrl || null,
+          referenceNumber: referenceNumber || null,
+          notes: notes || null,
+          createdById: session.user.id,
+        },
+        include: {
+          vendor: true,
+          customer: true,
+          vehicle: true,
+        },
+      })
+
+      // Sync invoice payment status if transaction is linked to an invoice
+      if (invoiceId && direction === "INCOMING") {
+        const invoice = await tx.invoice.findUnique({
+          where: { id: invoiceId },
+          include: { charges: true },
+        })
+
+        if (invoice) {
+          const totalAmount = getInvoiceTotalWithTax(invoice)
+
+          // Get all incoming transactions for this invoice
+          const invoiceTransactions = await tx.transaction.findMany({
+            where: {
+              invoiceId: invoiceId,
+              direction: "INCOMING",
+            },
+          })
+
+          const totalReceived = invoiceTransactions.reduce(
+            (sum, t) => sum + parseFloat(t.amount.toString()),
+            0,
+          )
+
+          let paymentStatus = "PENDING"
+          if (isAmountPaidInFull(totalReceived, totalAmount)) {
+            paymentStatus = "PAID"
+          } else if (hasPartialPayment(totalReceived)) {
+            paymentStatus = "PARTIALLY_PAID"
+          }
+
+          await tx.invoice.update({
+            where: { id: invoiceId },
+            data: {
+              paymentStatus: paymentStatus as any,
+              paidAt: paymentStatus === "PAID" ? new Date() : null,
+            },
+          })
+        }
+      }
+
+      // Sync expense paymentDate when OUTGOING transaction is linked to an expense
+      if (direction === "OUTGOING") {
+        if (vehicleStageCostId) {
+          await tx.vehicleStageCost.update({
+            where: { id: vehicleStageCostId },
+            data: { paymentDate: transactionDate },
+          })
+        }
+        if (costItemId) {
+          await tx.costItem.update({
+            where: { id: costItemId },
+            data: { paymentDate: transactionDate },
+          })
+        }
+        if (generalCostId) {
+          // GeneralCost doesn't have paymentDate - it has date. Skip or add field? Schema has date, not paymentDate. Leave as-is for now.
+        }
+      }
+
+      // Sync vehicle payment tracking if transaction is linked to a vehicle
+      if (vehicleId && direction === "INCOMING") {
+        // Get all transactions for this vehicle
+        const vehicleTransactions = await tx.transaction.findMany({
+          where: {
+            vehicleId: vehicleId,
+            direction: "INCOMING",
+          },
+        })
+
+        const totalReceived = vehicleTransactions.reduce(
+          (sum, t) => sum + parseFloat(t.amount.toString()),
+          0,
+        )
+
+        // Update vehicle shipping stage totalReceived
+        await tx.vehicleShippingStage.upsert({
+          where: { vehicleId: vehicleId },
+          update: {
+            totalReceived: totalReceived,
+          },
+          create: {
+            vehicleId: vehicleId,
+            stage: "PURCHASE",
+            totalReceived: totalReceived,
+          },
+        })
+      }
+
+      return newTransaction
     })
 
     return NextResponse.json(convertDecimalsToNumbers(transaction), { status: 201 })

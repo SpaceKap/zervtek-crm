@@ -33,7 +33,9 @@ interface KanbanColumnProps {
   status: InquiryStatus;
   onRelease?: (id: string) => void;
   onNotes?: (id: string) => void;
+  onAssignTo?: (id: string) => void;
   onDelete?: (id: string) => void;
+  users?: Array<{ id: string; name: string | null; email: string }>;
   currentUserId?: string;
   currentUserEmail?: string;
   isManager?: boolean;
@@ -50,6 +52,7 @@ export const KanbanColumn = memo(function KanbanColumn({
   status,
   onRelease,
   onNotes,
+  onAssignTo,
   onDelete,
   currentUserId,
   currentUserEmail,
@@ -82,7 +85,7 @@ export const KanbanColumn = memo(function KanbanColumn({
   };
 
   return (
-    <div className={`flex flex-col h-full min-w-[360px] max-w-[400px] bg-gray-50 dark:bg-[#1E1E1E] rounded-lg flex-shrink-0 border-2 transition-colors duration-200 ${dropZoneClass || "border-gray-200 dark:border-[#2C2C2C]"}`}>
+    <div className={`flex flex-col h-full min-w-[320px] max-w-[340px] bg-gray-50 dark:bg-[#1E1E1E] rounded-lg flex-shrink-0 border-2 transition-colors duration-200 ${dropZoneClass || "border-gray-200 dark:border-[#2C2C2C]"}`}>
       {/* Column Header */}
       <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-[#2C2C2C] bg-white dark:bg-[#1E1E1E] rounded-t-lg flex-shrink-0">
         <div className="flex items-center gap-2">
@@ -118,7 +121,7 @@ export const KanbanColumn = memo(function KanbanColumn({
       {/* Column Content */}
       <div
         ref={setNodeRef}
-        className="flex-1 p-3 space-y-3 overflow-y-auto overflow-x-hidden min-h-[200px] transition-colors duration-200"
+        className="flex-1 p-2 space-y-2 overflow-y-auto overflow-x-hidden min-h-[180px] transition-colors duration-200 scrollbar-modern-vertical"
       >
         {inquiries.map((inquiry) => (
           <SortableInquiryCard
@@ -127,6 +130,7 @@ export const KanbanColumn = memo(function KanbanColumn({
             onView={onView}
             onRelease={onRelease}
             onNotes={onNotes}
+            onAssignTo={onAssignTo}
             onDelete={onDelete}
             currentUserId={currentUserId}
             currentUserEmail={currentUserEmail}

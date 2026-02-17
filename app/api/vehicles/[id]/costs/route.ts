@@ -58,9 +58,9 @@ export async function POST(
     const body = await request.json()
     const { stage, costType, amount, vendorId, currency, paymentDeadline, paymentDate } = body
 
-    if (!stage || !costType || !amount || !vendorId) {
+    if (!costType || !amount || !vendorId) {
       return NextResponse.json(
-        { error: "Stage, costType, amount, and vendorId are required" },
+        { error: "Cost type, amount, and vendor are required" },
         { status: 400 }
       )
     }
@@ -68,7 +68,7 @@ export async function POST(
     const cost = await prisma.vehicleStageCost.create({
       data: {
         vehicleId: params.id,
-        stage,
+        stage: stage || null, // Stage is optional for unified expenses
         costType,
         amount: parseFloat(amount),
         vendorId,

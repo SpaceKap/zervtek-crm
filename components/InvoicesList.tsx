@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { getChargesSubtotal } from "@/lib/charge-utils";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -89,12 +90,8 @@ export function InvoicesList() {
     fetchInvoices();
   }, [fetchInvoices]);
 
-  const calculateTotal = (charges: Array<{ amount: number }>) => {
-    return charges.reduce(
-      (sum, charge) => sum + parseFloat(charge.amount.toString()),
-      0,
-    );
-  };
+  const calculateTotal = (charges: Array<{ amount: number | string; chargeType?: string | { name?: string } | null }>) =>
+    getChargesSubtotal(charges);
 
   if (loading) {
     return <div className="text-muted-foreground">Loading...</div>;
@@ -102,33 +99,64 @@ export function InvoicesList() {
 
   return (
     <Card>
-      <CardContent className="p-4">
-        <div className="mb-4 flex items-center gap-4">
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="flex h-10 w-48 rounded-md border border-input bg-background px-3 py-2 text-sm"
-          >
-            <option value="all">All Statuses</option>
-            <option value="DRAFT">Draft</option>
-            <option value="PENDING_APPROVAL">Pending Approval</option>
-            <option value="APPROVED">Approved</option>
-            <option value="FINALIZED">Finalized</option>
-          </select>
+      <CardContent className="p-6">
+        <div className="mb-6 flex items-center justify-between gap-4 flex-wrap">
+          <div className="flex items-center gap-4">
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="flex h-10 w-48 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            >
+              <option value="all">All Statuses</option>
+              <option value="DRAFT">Draft</option>
+              <option value="PENDING_APPROVAL">Pending Approval</option>
+              <option value="APPROVED">Approved</option>
+              <option value="FINALIZED">Finalized</option>
+            </select>
+          </div>
+          <Link href="/dashboard/invoices/new">
+            <Button>
+              <span className="material-symbols-outlined text-lg mr-2">
+                add
+              </span>
+              New Invoice
+            </Button>
+          </Link>
         </div>
 
         {invoices.length === 0 ? (
-          <div className="text-center py-8 text-muted-foreground">
-            No invoices found
+          <div className="text-center py-12">
+            <div className="flex flex-col items-center gap-3">
+              <span className="material-symbols-outlined text-5xl text-muted-foreground">
+                receipt_long
+              </span>
+              <div>
+                <p className="text-lg font-medium text-foreground mb-1">
+                  No invoices found
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Get started by creating your first invoice
+                </p>
+              </div>
+              <Link href="/dashboard/invoices/new">
+                <Button className="mt-2">
+                  <span className="material-symbols-outlined text-lg mr-2">
+                    add
+                  </span>
+                  Create Invoice
+                </Button>
+              </Link>
+            </div>
           </div>
         ) : (
-          <div className="space-y-2">
+          <div className="space-y-3">
             {invoices.map((invoice) => {
               const total = calculateTotal(invoice.charges);
-              const vehicleDisplay =
-                invoice.vehicle.make && invoice.vehicle.model
-                  ? `${invoice.vehicle.year || ""} ${invoice.vehicle.make} ${invoice.vehicle.model}`.trim()
-                  : invoice.vehicle.vin;
+              const vehicleDisplay = invoice.vehicle
+                ? (invoice.vehicle.make && invoice.vehicle.model
+                    ? `${invoice.vehicle.year || ""} ${invoice.vehicle.make} ${invoice.vehicle.model}`.trim()
+                    : invoice.vehicle.vin)
+                : "—";
 
               return (
                 <Link
@@ -136,24 +164,37 @@ export function InvoicesList() {
                   href={`/dashboard/invoices/${invoice.id}`}
                   className="block"
                 >
-                  <div className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent transition-colors">
-                    <div className="flex-1">
+                  <div className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent/50 hover:border-primary/20 transition-all cursor-pointer">
+                    <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-3 mb-2">
-                        <span className="font-semibold">
+                        <span className="font-semibold text-base">
                           {invoice.invoiceNumber}
                         </span>
                         <span
-                          className={`text-xs px-2 py-1 rounded ${
+                          className={`text-xs px-2 py-1 rounded font-medium ${
                             statusColors[invoice.status] || statusColors.DRAFT
                           }`}
                         >
                           {statusLabels[invoice.status] || invoice.status}
                         </span>
                       </div>
-                      <div className="text-sm text-muted-foreground">
-                        <div>{invoice.customer.name}</div>
-                        <div>{vehicleDisplay}</div>
-                        <div className="mt-1">
+                      <div className="text-sm text-muted-foreground space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="material-symbols-outlined text-xs">
+                            person
+                          </span>
+                          {invoice.customer.name}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="material-symbols-outlined text-xs">
+                            directions_car
+                          </span>
+                          {vehicleDisplay}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="material-symbols-outlined text-xs">
+                            calendar_today
+                          </span>
                           {invoice.createdAt &&
                           !isNaN(new Date(invoice.createdAt).getTime())
                             ? format(
@@ -164,9 +205,13 @@ export function InvoicesList() {
                         </div>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <div className="font-semibold">
+                    <div className="text-right ml-4 flex-shrink-0">
+                      <div className="font-semibold text-lg">
                         ¥{total.toLocaleString()}
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-1">
+                        {invoice.charges.length} item
+                        {invoice.charges.length !== 1 ? "s" : ""}
                       </div>
                     </div>
                   </div>

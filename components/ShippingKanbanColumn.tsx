@@ -30,6 +30,7 @@ interface Vehicle {
   _count: {
     documents: number;
     stageCosts: number;
+    invoices?: number;
   };
   createdAt: string;
 }
@@ -57,6 +58,10 @@ export function ShippingKanbanColumn({
     },
   });
 
+  const dropZoneClass = isOver
+    ? "bg-blue-50 dark:bg-blue-900/20 border-blue-300 dark:border-blue-700"
+    : "";
+
   // Get color dot based on stage
   const getStatusDot = () => {
     const stageColors: Record<string, string> = {
@@ -72,7 +77,7 @@ export function ShippingKanbanColumn({
   };
 
   return (
-    <div className="flex flex-col h-full min-w-[360px] max-w-[400px] bg-gray-50 dark:bg-[#1E1E1E] rounded-lg flex-shrink-0 border border-gray-200 dark:border-[#2C2C2C]">
+    <div className={`flex flex-col h-full min-w-[360px] max-w-[400px] bg-gray-50 dark:bg-[#1E1E1E] rounded-lg flex-shrink-0 border-2 transition-colors duration-200 ${dropZoneClass || "border-gray-200 dark:border-[#2C2C2C]"}`}>
       {/* Column Header */}
       <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-[#2C2C2C] bg-white dark:bg-[#1E1E1E] rounded-t-lg flex-shrink-0">
         <div className="flex items-center gap-2">
@@ -96,7 +101,7 @@ export function ShippingKanbanColumn({
       {/* Column Content */}
       <div
         ref={setNodeRef}
-        className="flex-1 p-3 space-y-3 overflow-y-auto overflow-x-hidden"
+        className="flex-1 p-3 space-y-3 overflow-y-auto overflow-x-hidden scrollbar-modern-vertical"
       >
         <SortableContext
           items={vehicles.map((v) => v.id)}

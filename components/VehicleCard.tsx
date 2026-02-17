@@ -26,6 +26,7 @@ interface Vehicle {
   _count: {
     documents: number;
     stageCosts: number;
+    invoices?: number;
   };
   createdAt: string;
 }
@@ -33,13 +34,12 @@ interface Vehicle {
 interface VehicleCardProps {
   vehicle: Vehicle;
   onView?: (vehicleId: string) => void;
-  dragHandleProps?: any;
+  dragHandleProps?: React.HTMLAttributes<HTMLDivElement>;
 }
 
 const stageColors: Record<ShippingStage, string> = {
   PURCHASE: "bg-yellow-100 text-yellow-700 border-yellow-200",
   TRANSPORT: "bg-blue-100 text-blue-700 border-blue-200",
-  PAYMENT: "bg-green-100 text-green-700 border-green-200",
   REPAIR: "bg-purple-100 text-purple-700 border-purple-200",
   DOCUMENTS: "bg-orange-100 text-orange-700 border-orange-200",
   BOOKING: "bg-cyan-100 text-cyan-700 border-cyan-200",
@@ -50,7 +50,6 @@ const stageColors: Record<ShippingStage, string> = {
 const stageLabels: Record<ShippingStage, string> = {
   PURCHASE: "Purchase",
   TRANSPORT: "Transport",
-  PAYMENT: "Payment",
   REPAIR: "Repair",
   DOCUMENTS: "Documents",
   BOOKING: "Booking",
@@ -86,26 +85,18 @@ export function VehicleCard({
   return (
     <Card
       onClick={handleCardClick}
-      onMouseDown={(e) => {
-        // Allow drag to work, but also allow clicks
-        if (dragHandleProps && !(e.target as HTMLElement).closest("button")) {
-          // Let drag handle handle it
-        }
-      }}
       className={`bg-white dark:bg-[#1E1E1E] border border-gray-200 dark:border-[#2C2C2C] transition-all group h-full flex flex-col ${
         onView
           ? "hover:border-gray-300 dark:hover:border-[#49454F] hover:shadow-md dark:hover:shadow-lg dark:hover:shadow-black/20 cursor-pointer"
-          : dragHandleProps
-            ? "cursor-grab"
-            : ""
+          : "cursor-default"
       }`}
     >
       <CardContent className="p-4 flex flex-col flex-1 min-h-0">
         {/* Header Section */}
         <div className="flex flex-col space-y-3 flex-shrink-0">
-          {/* Stage Badge */}
+          {/* Stage Badge + Drag Handle */}
+          <div className="flex items-start justify-between gap-2">
           {vehicle.currentShippingStage && (
-            <div className="flex items-start justify-between gap-2">
               <span
                 className={`text-xs font-medium px-2 py-1 rounded border ${
                   stageColors[vehicle.currentShippingStage]
@@ -113,22 +104,20 @@ export function VehicleCard({
               >
                 {stageLabels[vehicle.currentShippingStage]}
               </span>
-            </div>
-          )}
-
-          {/* Title with Drag Handle */}
-          <div className="flex items-start gap-2">
+            )}
             {dragHandleProps && (
               <div
                 {...dragHandleProps}
-                className="mt-0.5 cursor-grab active:cursor-grabbing text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-400"
+                className="p-1 -m-1 rounded cursor-grab active:cursor-grabbing touch-none text-gray-400 hover:text-gray-600 dark:hover:text-[#A1A1A1]"
                 onClick={(e) => e.stopPropagation()}
               >
-                <span className="material-symbols-outlined text-base">
-                  drag_indicator
-                </span>
+                <span className="material-symbols-outlined text-lg">drag_indicator</span>
               </div>
             )}
+          </div>
+
+          {/* Title */}
+          <div className="flex items-start gap-2">
             <h3 className="font-semibold text-sm text-gray-900 dark:text-white line-clamp-2 leading-snug flex-1 cursor-pointer">
               {vehicleTitle}
             </h3>
@@ -188,7 +177,7 @@ export function VehicleCard({
             </span>
             <span className="flex items-center gap-1">
               <span className="material-symbols-outlined text-sm">receipt</span>
-              <span>{vehicle._count.stageCosts}</span>
+              <span>{vehicle._count.invoices ?? vehicle._count.stageCosts}</span>
             </span>
             <span className="text-gray-400 dark:text-[#A1A1A1]">
               {format(new Date(vehicle.createdAt), "dd MMM yyyy")}

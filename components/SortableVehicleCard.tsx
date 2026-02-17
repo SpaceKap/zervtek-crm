@@ -27,6 +27,7 @@ interface Vehicle {
   _count: {
     documents: number;
     stageCosts: number;
+    invoices?: number;
   };
   createdAt: string;
 }
@@ -51,8 +52,9 @@ export function SortableVehicleCard({
 
   const style = {
     transform: CSS.Transform.toString(transform),
-    transition,
+    transition: isDragging ? "none" : transition,
     opacity: isDragging ? 0.5 : 1,
+    willChange: isDragging ? "transform" : "auto",
   };
 
   return (

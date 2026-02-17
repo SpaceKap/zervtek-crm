@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { requireAuth, canEditInvoice } from "@/lib/permissions"
+import { recalcInvoicePaymentStatus } from "@/lib/invoice-utils"
 
 export async function PATCH(
   request: NextRequest,
@@ -45,6 +46,8 @@ export async function PATCH(
       },
     })
 
+    await recalcInvoicePaymentStatus(params.id)
+
     return NextResponse.json(charge)
   } catch (error) {
     console.error("Error updating charge:", error)
@@ -82,6 +85,8 @@ export async function DELETE(
     await prisma.invoiceCharge.delete({
       where: { id: params.chargeId },
     })
+
+    await recalcInvoicePaymentStatus(params.id)
 
     return NextResponse.json({ success: true })
   } catch (error) {

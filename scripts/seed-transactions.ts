@@ -1,151 +1,279 @@
-import { PrismaClient } from "@prisma/client";
-import { TransactionDirection, TransactionType } from "@prisma/client";
+import { PrismaClient, TransactionDirection, TransactionType } from "@prisma/client";
 
 const prisma = new PrismaClient();
+
+// Transaction templates for different scenarios
+const transactionTemplates: Array<{
+  direction: TransactionDirection;
+  type: TransactionType;
+  description: string;
+  amountRange: { min: number; max: number };
+  includeVehicle: boolean;
+  includeInvoice: boolean;
+}> = [
+  // Incoming transactions (payments from customers)
+  {
+    direction: TransactionDirection.INCOMING,
+    type: TransactionType.BANK_TRANSFER,
+    description: "Vehicle Purchase Payment",
+    amountRange: { min: 500000, max: 5000000 },
+    includeVehicle: true,
+    includeInvoice: true,
+  },
+  {
+    direction: TransactionDirection.INCOMING,
+    type: TransactionType.PAYPAL,
+    description: "Deposit Payment",
+    amountRange: { min: 50000, max: 500000 },
+    includeVehicle: true,
+    includeInvoice: false,
+  },
+  {
+    direction: TransactionDirection.INCOMING,
+    type: TransactionType.WISE,
+    description: "Final Payment",
+    amountRange: { min: 200000, max: 3000000 },
+    includeVehicle: true,
+    includeInvoice: true,
+  },
+  {
+    direction: TransactionDirection.INCOMING,
+    type: TransactionType.CASH,
+    description: "Partial Payment",
+    amountRange: { min: 100000, max: 1000000 },
+    includeVehicle: true,
+    includeInvoice: false,
+  },
+  // Outgoing transactions (costs to vendors)
+  {
+    direction: TransactionDirection.OUTGOING,
+    type: TransactionType.BANK_TRANSFER,
+    description: "Auction Fees",
+    amountRange: { min: 50000, max: 300000 },
+    includeVehicle: true,
+    includeInvoice: false,
+  },
+  {
+    direction: TransactionDirection.OUTGOING,
+    type: TransactionType.BANK_TRANSFER,
+    description: "Vehicle Purchase Cost",
+    amountRange: { min: 300000, max: 4000000 },
+    includeVehicle: true,
+    includeInvoice: false,
+  },
+  {
+    direction: TransactionDirection.OUTGOING,
+    type: TransactionType.BANK_TRANSFER,
+    description: "Transport Fees",
+    amountRange: { min: 30000, max: 200000 },
+    includeVehicle: true,
+    includeInvoice: false,
+  },
+  {
+    direction: TransactionDirection.OUTGOING,
+    type: TransactionType.BANK_TRANSFER,
+    description: "Inspection Fees",
+    amountRange: { min: 10000, max: 50000 },
+    includeVehicle: true,
+    includeInvoice: false,
+  },
+  {
+    direction: TransactionDirection.OUTGOING,
+    type: TransactionType.BANK_TRANSFER,
+    description: "Repair Costs",
+    amountRange: { min: 20000, max: 500000 },
+    includeVehicle: true,
+    includeInvoice: false,
+  },
+  {
+    direction: TransactionDirection.OUTGOING,
+    type: TransactionType.BANK_TRANSFER,
+    description: "Forwarding Fees",
+    amountRange: { min: 50000, max: 300000 },
+    includeVehicle: true,
+    includeInvoice: false,
+  },
+  {
+    direction: TransactionDirection.OUTGOING,
+    type: TransactionType.BANK_TRANSFER,
+    description: "Freight Costs",
+    amountRange: { min: 100000, max: 800000 },
+    includeVehicle: true,
+    includeInvoice: false,
+  },
+  {
+    direction: TransactionDirection.OUTGOING,
+    type: TransactionType.PAYPAL,
+    description: "Small Parts Purchase",
+    amountRange: { min: 5000, max: 50000 },
+    includeVehicle: false,
+    includeInvoice: false,
+  },
+  {
+    direction: TransactionDirection.OUTGOING,
+    type: TransactionType.WISE,
+    description: "International Payment",
+    amountRange: { min: 100000, max: 2000000 },
+    includeVehicle: false,
+    includeInvoice: false,
+  },
+];
 
 async function main() {
   console.log("🌱 Seeding dummy transactions...");
 
-  try {
-    // Get some existing data
-    const vendors = await prisma.vendor.findMany({ take: 5 });
-    const customers = await prisma.customer.findMany({ take: 3 });
-    const vehicles = await prisma.vehicle.findMany({ take: 3 });
-    const users = await prisma.user.findMany({ take: 1 });
+  // Get existing data
+  const customers = await prisma.customer.findMany({
+    take: 10,
+    orderBy: { createdAt: "desc" },
+  });
 
-    if (vendors.length === 0) {
-      console.log("⚠️  No vendors found. Please create vendors first.");
-      return;
-    }
+  const vendors = await prisma.vendor.findMany({
+    take: 10,
+    orderBy: { createdAt: "desc" },
+  });
 
-    if (customers.length === 0) {
-      console.log("⚠️  No customers found. Please create customers first.");
-      return;
-    }
+  const vehicles = await prisma.vehicle.findMany({
+    take: 20,
+    include: {
+      invoices: {
+        take: 1,
+        orderBy: { createdAt: "desc" },
+      },
+    },
+    orderBy: { createdAt: "desc" },
+  });
 
-    if (users.length === 0) {
-      console.log("⚠️  No users found. Please create users first.");
-      return;
-    }
+  const users = await prisma.user.findMany({
+    where: {
+      role: {
+        in: ["ADMIN", "MANAGER", "ACCOUNTANT"],
+      },
+    },
+    take: 3,
+  });
 
-    const userId = users[0].id;
-    const today = new Date();
-    const dates = [
-      new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000), // 30 days ago
-      new Date(today.getTime() - 20 * 24 * 60 * 60 * 1000), // 20 days ago
-      new Date(today.getTime() - 15 * 24 * 60 * 60 * 1000), // 15 days ago
-      new Date(today.getTime() - 10 * 24 * 60 * 60 * 1000), // 10 days ago
-      new Date(today.getTime() - 5 * 24 * 60 * 60 * 1000),  // 5 days ago
-      new Date(today.getTime() - 2 * 24 * 60 * 60 * 1000),  // 2 days ago
-    ];
+  if (customers.length === 0) {
+    console.log("⚠️  No customers found. Please run seed-test-data.ts first.");
+    process.exit(0);
+  }
 
-    const transactions = [
-      // 1. Auction Fees (OUTGOING)
-      {
-        direction: TransactionDirection.OUTGOING,
-        type: TransactionType.BANK_TRANSFER,
-        amount: 150000,
-        currency: "JPY",
-        date: dates[0],
-        description: "Auction Fees - Vehicle Purchase",
-        vendorId: vendors[0].id,
-        vehicleId: vehicles.length > 0 ? vehicles[0].id : null,
-        referenceNumber: "AUC-2024-001",
-        notes: "Auction fees for vehicle purchase",
-        createdById: userId,
-      },
-      // 2. Electricity Bill (OUTGOING)
-      {
-        direction: TransactionDirection.OUTGOING,
-        type: TransactionType.BANK_TRANSFER,
-        amount: 45000,
-        currency: "JPY",
-        date: dates[1],
-        description: "Electricity Bill - Office",
-        vendorId: vendors.length > 1 ? vendors[1].id : vendors[0].id,
-        referenceNumber: "ELEC-2024-001",
-        notes: "Monthly electricity bill for office",
-        createdById: userId,
-      },
-      // 3. Customer Payment (INCOMING)
-      {
-        direction: TransactionDirection.INCOMING,
-        type: TransactionType.BANK_TRANSFER,
-        amount: 2500000,
-        currency: "JPY",
-        date: dates[2],
-        description: "Customer Payment - Vehicle Purchase",
-        customerId: customers[0].id,
-        vehicleId: vehicles.length > 0 ? vehicles[0].id : null,
-        referenceNumber: "CUST-PAY-2024-001",
-        notes: "Full payment received from customer",
-        createdById: userId,
-      },
-      // 4. Inland Transport (OUTGOING)
-      {
-        direction: TransactionDirection.OUTGOING,
-        type: TransactionType.CASH,
-        amount: 85000,
-        currency: "JPY",
-        date: dates[3],
-        description: "Inland Transport - Vehicle Delivery",
-        vendorId: vendors.length > 2 ? vendors[2].id : vendors[0].id,
-        vehicleId: vehicles.length > 1 ? vehicles[1].id : null,
-        referenceNumber: "TRANS-2024-001",
-        notes: "Inland transport fees for vehicle delivery to yard",
-        createdById: userId,
-      },
-      // 5. Photo Inspection Request (OUTGOING)
-      {
-        direction: TransactionDirection.OUTGOING,
-        type: TransactionType.WISE,
-        amount: 12000,
-        currency: "JPY",
-        date: dates[4],
-        description: "Photo Inspection - Vehicle Photos",
-        vendorId: vendors.length > 3 ? vendors[3].id : vendors[0].id,
-        vehicleId: vehicles.length > 1 ? vehicles[1].id : null,
-        referenceNumber: "PHOTO-2024-001",
-        notes: "Photo inspection fees for vehicle documentation",
-        createdById: userId,
-      },
-      // 6. Others - Office Supplies (OUTGOING)
-      {
-        direction: TransactionDirection.OUTGOING,
-        type: TransactionType.PAYPAL,
-        amount: 35000,
-        currency: "JPY",
-        date: dates[5],
-        description: "Office Supplies - Stationery and Equipment",
-        vendorId: vendors.length > 4 ? vendors[4].id : vendors[0].id,
-        referenceNumber: "SUPPLIES-2024-001",
-        notes: "Monthly office supplies purchase",
-        createdById: userId,
-      },
-    ];
+  if (vendors.length === 0) {
+    console.log("⚠️  No vendors found. Please create vendors first.");
+    process.exit(0);
+  }
 
-    // Create transactions
-    for (const transactionData of transactions) {
-      try {
-        const transaction = await prisma.transaction.create({
-          data: transactionData,
-        });
-        console.log(`✅ Created transaction: ${transaction.description} - ${transaction.amount} ${transaction.currency}`);
-      } catch (error: any) {
-        console.error(`❌ Failed to create transaction: ${transactionData.description}`, error.message);
+  console.log(`📦 Found ${customers.length} customers, ${vendors.length} vendors, ${vehicles.length} vehicles`);
+
+  const createdUser = users[0] || null;
+  let transactionsCreated = 0;
+
+  // Generate transactions for the past 6 months
+  const now = new Date();
+  const sixMonthsAgo = new Date();
+  sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+
+  // Create 50-100 transactions
+  const numTransactions = Math.floor(Math.random() * 50) + 50; // 50-100 transactions
+
+  for (let i = 0; i < numTransactions; i++) {
+    // Random date within the past 6 months
+    const randomDaysAgo = Math.floor(Math.random() * 180); // 0-180 days ago
+    const transactionDate = new Date(now);
+    transactionDate.setDate(transactionDate.getDate() - randomDaysAgo);
+
+    // Pick a random template
+    const template = transactionTemplates[Math.floor(Math.random() * transactionTemplates.length)];
+
+    // Generate amount
+    const amount = Math.floor(
+      Math.random() * (template.amountRange.max - template.amountRange.min) +
+        template.amountRange.min
+    );
+
+    // Select customer/vendor
+    const customer = template.direction === TransactionDirection.INCOMING
+      ? customers[Math.floor(Math.random() * customers.length)]
+      : null;
+
+    const vendor = template.direction === TransactionDirection.OUTGOING
+      ? vendors[Math.floor(Math.random() * vendors.length)]
+      : null;
+
+    // Select vehicle if needed
+    let vehicle = null;
+    let invoiceId = null;
+
+    if (template.includeVehicle && vehicles.length > 0) {
+      vehicle = vehicles[Math.floor(Math.random() * vehicles.length)];
+      
+      // Link to invoice if available and needed
+      if (template.includeInvoice && vehicle.invoices && vehicle.invoices.length > 0) {
+        invoiceId = vehicle.invoices[0].id;
       }
     }
 
-    console.log("✨ Seeding completed!");
-  } catch (error) {
-    console.error("❌ Error seeding transactions:", error);
-    throw error;
+    // Generate reference number
+    const referenceNumber = template.direction === TransactionDirection.INCOMING
+      ? `CUST-${Date.now()}-${Math.floor(Math.random() * 1000)}`
+      : `VEND-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+
+    // Build description with vehicle info if available
+    let description = template.description;
+    if (vehicle) {
+      const vehicleInfo = vehicle.year
+        ? `${vehicle.year} ${vehicle.make || ""} ${vehicle.model || ""} - ${vehicle.vin}`
+        : `${vehicle.make || ""} ${vehicle.model || ""} - ${vehicle.vin}`;
+      description = `${template.description}\nVehicle: ${vehicleInfo.trim()}`;
+      
+      if (vendor && template.direction === TransactionDirection.OUTGOING) {
+        description += `\nVendor: ${vendor.name}`;
+      }
+    }
+
+    try {
+      await prisma.transaction.create({
+        data: {
+          direction: template.direction,
+          type: template.type,
+          amount: amount,
+          currency: "JPY",
+          date: transactionDate,
+          description: description,
+          vendorId: vendor?.id || null,
+          customerId: customer?.id || null,
+          vehicleId: vehicle?.id || null,
+          invoiceId: invoiceId || null,
+          referenceNumber: referenceNumber,
+          notes: Math.random() > 0.7 ? `Transaction notes: ${template.type} payment processed` : null,
+          createdById: createdUser?.id || null,
+        },
+      });
+      transactionsCreated++;
+    } catch (error) {
+      console.error(`❌ Error creating transaction:`, error);
+    }
   }
+
+  console.log(`\n✨ Seeding completed!`);
+  console.log(`💰 Created ${transactionsCreated} transactions`);
+  console.log(`📊 Breakdown:`);
+  
+  // Count by direction
+  const incomingCount = await prisma.transaction.count({
+    where: { direction: TransactionDirection.INCOMING },
+  });
+  const outgoingCount = await prisma.transaction.count({
+    where: { direction: TransactionDirection.OUTGOING },
+  });
+  
+  console.log(`   - Incoming: ${incomingCount}`);
+  console.log(`   - Outgoing: ${outgoingCount}`);
 }
 
 main()
   .catch((e) => {
-    console.error(e);
+    console.error("❌ Error seeding transactions:", e);
     process.exit(1);
   })
   .finally(async () => {

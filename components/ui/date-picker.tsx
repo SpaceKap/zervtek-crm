@@ -1,69 +1,116 @@
 "use client";
 
 import * as React from "react";
+import { format, parse, isValid } from "date-fns";
 import { cn } from "@/lib/utils";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 export interface DatePickerProps extends Omit<
-  React.InputHTMLAttributes<HTMLInputElement>,
-  "type"
-> {}
+  React.HTMLAttributes<HTMLDivElement>,
+  "value" | "onChange"
+> {
+  value?: string;
+  onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  placeholder?: string;
+  disabled?: boolean;
+  required?: boolean;
+  id?: string;
+}
 
-const DatePicker = React.forwardRef<HTMLInputElement, DatePickerProps>(
-  ({ className, id, ...props }, ref) => {
-    const inputRef = React.useRef<HTMLInputElement | null>(null);
-    const combinedRef = React.useCallback(
-      (node: HTMLInputElement | null) => {
-        if (ref) {
-          if (typeof ref === "function") {
-            ref(node);
-          } else {
-            ref.current = node;
-          }
-        }
-        inputRef.current = node;
-      },
-      [ref],
-    );
+function toDate(value: string | undefined): Date | undefined {
+  if (!value) return undefined;
+  const parsed = parse(value, "yyyy-MM-dd", new Date());
+  return isValid(parsed) ? parsed : undefined;
+}
 
-    const handleIconClick = () => {
-      if (inputRef.current) {
-        // Try to use showPicker() if available (modern browsers)
-        if (typeof inputRef.current.showPicker === "function") {
-          inputRef.current.showPicker();
-        } else {
-          // Fallback: focus the input to open the date picker
-          inputRef.current.focus();
-          inputRef.current.click();
-        }
-      }
+function toValue(date: Date | undefined): string {
+  return date ? format(date, "yyyy-MM-dd") : "";
+}
+
+const DatePicker = React.forwardRef<HTMLDivElement, DatePickerProps>(
+  (
+    {
+      className,
+      value,
+      onChange,
+      placeholder = "Select date",
+      disabled = false,
+      required = false,
+      id,
+      ...props
+    },
+    ref
+  ) => {
+    const [open, setOpen] = React.useState(false);
+    const selectedDate = toDate(value);
+
+    const handleSelect = (date: Date | undefined) => {
+      const str = toValue(date);
+      onChange?.({
+        target: { value: str },
+      } as React.ChangeEvent<HTMLInputElement>);
+      if (date) setOpen(false);
     };
 
+    const displayValue = value
+      ? (() => {
+          const d = toDate(value);
+          return d ? format(d, "MMM dd, yyyy") : value;
+        })()
+      : "";
+
     return (
-      <div className="relative">
-        <input
-          type="date"
-          id={id}
-          ref={combinedRef}
-          className={cn(
-            "flex h-10 w-full rounded-md border border-input bg-background pl-10 pr-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
-            className,
-          )}
-          {...props}
-        />
-        <button
-          type="button"
-          onClick={handleIconClick}
-          className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-          tabIndex={-1}
-          aria-label="Open date picker"
-        >
-          <span className="material-symbols-outlined text-lg">
-            calendar_today
-          </span>
-        </button>
-      </div>
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <div
+            ref={ref}
+            id={id}
+            role="combobox"
+            aria-expanded={open}
+            aria-haspopup="dialog"
+            aria-label="Select date"
+            className={cn(
+              "flex h-10 w-full items-center rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background",
+              "focus-within:outline-none focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2",
+              "disabled:cursor-not-allowed disabled:opacity-50",
+              "cursor-pointer",
+              className
+            )}
+            onClick={() => !disabled && setOpen(true)}
+            {...props}
+          >
+            <span className="material-symbols-outlined text-lg text-muted-foreground mr-2 shrink-0">
+              calendar_today
+            </span>
+            <span
+              className={cn(
+                "flex-1 text-left",
+                !displayValue && "text-muted-foreground"
+              )}
+            >
+              {displayValue || placeholder}
+            </span>
+            {required && !value && (
+              <span className="text-destructive">*</span>
+            )}
+          </div>
+        </PopoverTrigger>
+        <PopoverContent className="w-auto p-0" align="start">
+          <Calendar
+            mode="single"
+            selected={selectedDate}
+            onSelect={handleSelect}
+            initialFocus
+          />
+        </PopoverContent>
+      </Popover>
     );
-  },
+  }
 );
 DatePicker.displayName = "DatePicker";
 

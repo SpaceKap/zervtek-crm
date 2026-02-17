@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { requireAuth, canViewVehicles } from "@/lib/permissions"
-import { ShippingStage, PurchaseSource } from "@prisma/client"
+import { ShippingStage, PurchaseSource, UserRole } from "@prisma/client"
 import { convertDecimalsToNumbers } from "@/lib/decimal"
 
 export async function GET(request: NextRequest) {
@@ -24,6 +24,7 @@ export async function GET(request: NextRequest) {
     const stage = searchParams.get("stage") as ShippingStage | null
     const startDate = searchParams.get("startDate")
     const endDate = searchParams.get("endDate")
+    const filterType = searchParams.get("filterType") // "all" | "mine" for Manager/Admin/BackOffice
 
     const where: any = {}
     if (vin) {
@@ -43,6 +44,54 @@ export async function GET(request: NextRequest) {
     if (stage) {
       where.currentShippingStage = stage
     }
+
+    // Role-based: Sales=own, Manager=own+sales+unassigned, Admin/BackOffice=all
+    if (!customerId) {
+      const isAdmin = session.user.role === UserRole.ADMIN
+      const isManager = session.user.role === UserRole.MANAGER
+      const isBackOffice = session.user.role === UserRole.BACK_OFFICE_STAFF
+      const isSales = session.user.role === UserRole.SALES
+
+      let roleWhere: any = {}
+      if (isSales) {
+        roleWhere.customer = { assignedToId: session.user.id }
+      } else if (isManager) {
+        if (filterType === "mine") {
+          roleWhere.customer = { assignedToId: session.user.id }
+        } else {
+          const salesIds = await prisma.user.findMany({
+            where: { role: UserRole.SALES },
+            select: { id: true },
+          })
+          const allowedIds = [session.user.id, ...salesIds.map((u) => u.id)]
+          roleWhere.OR = [
+            { customerId: null },
+            {
+              customer: {
+                OR: [
+                  { assignedToId: { in: allowedIds } },
+                  { assignedToId: null },
+                ],
+              },
+            },
+          ]
+        }
+      } else if (filterType === "mine" && (isAdmin || isBackOffice)) {
+        roleWhere.customer = { assignedToId: session.user.id }
+      }
+
+      if (Object.keys(roleWhere).length > 0) {
+        where.AND = where.AND || []
+        where.AND.push(roleWhere)
+      }
+    }
+    
+    // Remove any empty where conditions to avoid query issues
+    Object.keys(where).forEach(key => {
+      if (where[key] === undefined || where[key] === null) {
+        delete where[key]
+      }
+    })
 
     if (startDate || endDate) {
       where.createdAt = {}
@@ -97,15 +146,18 @@ export async function GET(request: NextRequest) {
       take: 100,
     })
 
-    return NextResponse.json(convertDecimalsToNumbers(vehicles))
+    const convertedVehicles = convertDecimalsToNumbers(vehicles)
+    console.log(`[Vehicles API] Returning ${convertedVehicles.length} vehicles`)
+    return NextResponse.json(convertedVehicles)
   } catch (error: any) {
-    console.error("Error fetching vehicles:", error)
+    console.error("[Vehicles API] Error fetching vehicles:", error)
     // Return more detailed error for debugging
     return NextResponse.json(
       { 
         error: "Failed to fetch vehicles",
         details: error.message || String(error),
-        code: error.code || "UNKNOWN"
+        code: error.code || "UNKNOWN",
+        stack: process.env.NODE_ENV === "development" ? error.stack : undefined
       },
       { status: 500 }
     )

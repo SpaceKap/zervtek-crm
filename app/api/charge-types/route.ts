@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
 
     const chargeType = await prisma.chargeType.create({
       data: {
-        name,
+        name: String(name),
         category: (category as ChargeCategory) || ChargeCategory.CUSTOM,
       },
     })

@@ -21,6 +21,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { DatePicker } from "@/components/ui/date-picker";
 
 interface Customer {
   id: string;
@@ -557,8 +558,7 @@ export default function NewVehiclePage() {
 
               <div className="space-y-2">
                 <Label>Purchase Date</Label>
-                <Input
-                  type="date"
+                <DatePicker
                   value={formData.purchaseDate}
                   onChange={(e) =>
                     setFormData((prev) => ({
@@ -566,6 +566,7 @@ export default function NewVehiclePage() {
                       purchaseDate: e.target.value,
                     }))
                   }
+                  placeholder="Select date"
                   className="h-11"
                 />
               </div>

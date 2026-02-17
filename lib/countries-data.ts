@@ -260,27 +260,87 @@ export const COUNTRIES_DATA: CountryData[] = [
   { name: "Åland Islands", alpha2: "AX", alpha3: "ALA", numeric: "248", phoneCode: "+358" },
 ];
 
+/** Convert ISO 3166-1 alpha-2 code (e.g. "US") to flag emoji 🇺🇸 */
+export function getFlagEmoji(alpha2: string): string {
+  if (!alpha2 || alpha2.length !== 2) return "🌐";
+  const a = alpha2.toUpperCase().charCodeAt(0) - 0x41;
+  const b = alpha2.toUpperCase().charCodeAt(1) - 0x41;
+  if (a < 0 || a > 25 || b < 0 || b > 25) return "🌐";
+  return String.fromCodePoint(0x1f1e6 + a, 0x1f1e6 + b);
+}
+
+/** Phone code option for picker: code, flag, and display label */
+export interface PhoneCodeOption {
+  code: string;
+  flag: string;
+  label: string;
+}
+
+/** Priority codes to show first; preferred display country when code is shared */
+const PRIORITY_DISPLAY: Record<string, string> = {
+  "+1": "United States",
+  "+44": "United Kingdom",
+  "+61": "Australia",
+  "+64": "New Zealand",
+};
+
+/** All unique phone codes with flag and label for dropdown (uses first country's flag per code) */
+export function getCountriesForPhonePicker(): PhoneCodeOption[] {
+  const codeMap = new Map<
+    string,
+    { countries: string[]; alpha2: string }
+  >();
+  COUNTRIES_DATA.forEach((country) => {
+    if (!codeMap.has(country.phoneCode)) {
+      codeMap.set(country.phoneCode, {
+        countries: [],
+        alpha2: country.alpha2,
+      });
+    }
+    const entry = codeMap.get(country.phoneCode)!;
+    entry.countries.push(country.name);
+  });
+  const priorityCodes = ["+1", "+44", "+81", "+86", "+91", "+49", "+33", "+61", "+55", "+52", "+82", "+39", "+34", "+31", "+971", "+966", "+20"];
+  const options = Array.from(codeMap.entries()).map(([code, { countries, alpha2 }]) => {
+    const preferred = PRIORITY_DISPLAY[code];
+    const displayCountry = preferred && countries.includes(preferred) ? preferred : countries[0];
+    const displayAlpha2 = COUNTRIES_DATA.find((c) => c.name === displayCountry)?.alpha2 ?? alpha2;
+    return {
+      code,
+      flag: getFlagEmoji(displayAlpha2),
+      label:
+        countries.length > 1
+          ? `${code} ${displayCountry} (+${countries.length - 1} more)`
+          : `${code} ${displayCountry}`,
+    };
+  });
+  return options.sort((a, b) => {
+    const aPri = priorityCodes.indexOf(a.code);
+    const bPri = priorityCodes.indexOf(b.code);
+    if (aPri >= 0 && bPri >= 0) return aPri - bPri;
+    if (aPri >= 0) return -1;
+    if (bPri >= 0) return 1;
+    if (a.code.length !== b.code.length) return a.code.length - b.code.length;
+    return a.code.localeCompare(b.code);
+  });
+}
+
 // Get unique phone codes (some countries share codes like +1)
 export function getUniquePhoneCodes(): Array<{ code: string; countries: string[] }> {
   const codeMap = new Map<string, string[]>();
-  
   COUNTRIES_DATA.forEach((country) => {
     if (!codeMap.has(country.phoneCode)) {
       codeMap.set(country.phoneCode, []);
     }
     codeMap.get(country.phoneCode)!.push(country.name);
   });
-  
   return Array.from(codeMap.entries())
     .map(([code, countries]) => ({
       code,
       countries: countries.sort(),
     }))
     .sort((a, b) => {
-      // Sort by code length first, then alphabetically
-      if (a.code.length !== b.code.length) {
-        return a.code.length - b.code.length;
-      }
+      if (a.code.length !== b.code.length) return a.code.length - b.code.length;
       return a.code.localeCompare(b.code);
     });
 }

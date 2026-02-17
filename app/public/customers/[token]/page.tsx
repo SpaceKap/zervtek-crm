@@ -166,9 +166,9 @@ export default function PublicCustomerPortalPage() {
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
                 {data.customer.name}
-              </h1>
+          </h1>
               <p className="text-gray-600 dark:text-gray-400">
                 Vehicle Tracking Portal
               </p>
@@ -183,7 +183,7 @@ export default function PublicCustomerPortalPage() {
             </div>
           </div>
         </div>
-      </div>
+                </div>
 
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {data.vehicles.length === 0 ? (
@@ -382,8 +382,8 @@ export default function PublicCustomerPortalPage() {
                               </div>
                             </div>
                           </div>
-                        </div>
-                      )}
+                </div>
+              )}
 
                       {/* Quick Stats */}
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -399,7 +399,7 @@ export default function PublicCustomerPortalPage() {
                                 {currentVehicle.documents.length}
                               </div>
                               <div className="text-xs text-gray-600 dark:text-gray-400">
-                                Documents
+                    Documents
                               </div>
                             </div>
                           </div>
@@ -456,7 +456,7 @@ export default function PublicCustomerPortalPage() {
                       </span>
                       <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
                         No Documents Available
-                      </h3>
+                  </h3>
                       <p className="text-gray-600 dark:text-gray-400">
                         Documents will appear here once they are uploaded.
                       </p>
@@ -480,7 +480,7 @@ export default function PublicCustomerPortalPage() {
                           </div>
                           <div className="flex-1 min-w-0">
                             <h4 className="font-semibold text-gray-900 dark:text-white mb-1 truncate">
-                              {doc.name}
+                        {doc.name}
                             </h4>
                             {doc.category && (
                               <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
@@ -500,8 +500,8 @@ export default function PublicCustomerPortalPage() {
                         </div>
                       </a>
                     ))}
-                  </div>
-                )}
+                </div>
+              )}
               </TabsContent>
 
               {/* Invoices Tab */}
@@ -514,7 +514,7 @@ export default function PublicCustomerPortalPage() {
                       </span>
                       <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
                         No Invoices Available
-                      </h3>
+                  </h3>
                       <p className="text-gray-600 dark:text-gray-400">
                         Invoices will appear here once they are finalized.
                       </p>
@@ -537,7 +537,7 @@ export default function PublicCustomerPortalPage() {
 
                       return (
                         <Card
-                          key={invoice.id}
+                        key={invoice.id}
                           className="border-0 shadow-lg hover:shadow-xl transition-shadow"
                         >
                           <CardContent className="p-6">
@@ -547,8 +547,8 @@ export default function PublicCustomerPortalPage() {
                                   <div className="p-2 rounded-lg bg-primary/10 dark:bg-primary/20">
                                     <span className="material-symbols-outlined text-primary dark:text-[#D4AF37]">
                                       receipt_long
-                                    </span>
-                                  </div>
+                        </span>
+                      </div>
                                   <div>
                                     <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
                                       {invoice.invoiceNumber}
@@ -609,10 +609,10 @@ export default function PublicCustomerPortalPage() {
                                     </div>
                                     <div className="text-xl font-bold text-gray-900 dark:text-white">
                                       ¥{totalAmount.toLocaleString()}
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
+                  </div>
+                </div>
+              )}
+            </div>
                             </div>
                           </CardContent>
                         </Card>
@@ -622,7 +622,7 @@ export default function PublicCustomerPortalPage() {
                 )}
               </TabsContent>
             </Tabs>
-          </div>
+        </div>
         )}
       </div>
     </div>

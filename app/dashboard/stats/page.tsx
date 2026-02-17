@@ -11,7 +11,6 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { InvoicesAndTransactionsTab } from "@/components/InvoicesAndTransactionsTab";
 import { FailedLeadsTab } from "@/components/FailedLeadsTab";
 import { InquiryTypeStats } from "@/components/InquiryTypeStats";
 
@@ -60,11 +59,6 @@ export default async function StatsPage() {
   ) {
     redirect("/dashboard");
   }
-
-  // Transactions tab is only visible to admins and back-office staff
-  const canViewTransactions =
-    session.user.role === UserRole.ADMIN ||
-    session.user.role === UserRole.BACK_OFFICE_STAFF;
 
   // Get all sales staff
   const salesStaff = await prisma.user.findMany({
@@ -204,15 +198,10 @@ export default async function StatsPage() {
       </div>
 
       <Tabs defaultValue="sales" className="w-full">
-        <TabsList className="grid w-full max-w-md grid-cols-3 mb-6">
+        <TabsList className="grid w-full max-w-md grid-cols-2 mb-6">
           <TabsTrigger value="sales" className="text-sm font-medium">
             Sales Performance
           </TabsTrigger>
-          {canViewTransactions && (
-            <TabsTrigger value="transactions" className="text-sm font-medium">
-              Transactions
-            </TabsTrigger>
-          )}
           <TabsTrigger value="failed-leads" className="text-sm font-medium">
             Failed Leads
           </TabsTrigger>
@@ -507,12 +496,6 @@ export default async function StatsPage() {
             )}
           </div>
         </TabsContent>
-
-        {canViewTransactions && (
-          <TabsContent value="transactions" className="mt-6">
-            <InvoicesAndTransactionsTab />
-          </TabsContent>
-        )}
 
         <TabsContent value="failed-leads" className="mt-6">
           <FailedLeadsTab />

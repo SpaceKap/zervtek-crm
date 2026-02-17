@@ -35,6 +35,22 @@ export default async function InquiryDetailPage({
           email: true,
         },
       },
+      vehicles: {
+        select: {
+          id: true,
+          vin: true,
+          make: true,
+          model: true,
+          year: true,
+          customer: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
+        },
+      },
       history: {
         include: {
           user: {
@@ -207,6 +223,55 @@ export default async function InquiryDetailPage({
           </CardContent>
         </Card>
       </div>
+
+      {/* Related Vehicles */}
+      {inquiry.vehicles && inquiry.vehicles.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Related Vehicles</CardTitle>
+            <CardDescription>
+              Vehicles created from this inquiry
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {inquiry.vehicles.map((vehicle) => (
+                <div
+                  key={vehicle.id}
+                  className="flex items-center justify-between p-3 bg-gray-50 dark:bg-[#2C2C2C] rounded-lg border border-gray-200 dark:border-gray-800"
+                >
+                  <div className="flex-1">
+                    <div className="font-medium">
+                      {vehicle.make && vehicle.model && vehicle.year
+                        ? `${vehicle.make} ${vehicle.model} ${vehicle.year}`
+                        : vehicle.vin || "Unknown Vehicle"}
+                    </div>
+                    <div className="text-sm text-gray-600 dark:text-[#A1A1A1] font-mono">
+                      VIN: {vehicle.vin}
+                    </div>
+                    {vehicle.customer && (
+                      <div className="text-sm text-gray-600 dark:text-[#A1A1A1] mt-1">
+                        Customer:{" "}
+                        <Link
+                          href={`/dashboard/customers/${vehicle.customer.id}`}
+                          className="text-primary dark:text-[#D4AF37] hover:underline"
+                        >
+                          {vehicle.customer.name}
+                        </Link>
+                      </div>
+                    )}
+                  </div>
+                  <Link href={`/dashboard/vehicles/${vehicle.id}`}>
+                    <Button variant="outline" size="sm">
+                      View Vehicle
+                    </Button>
+                  </Link>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>

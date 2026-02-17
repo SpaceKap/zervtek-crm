@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useForm, useFieldArray } from "react-hook-form";
+import { useForm, useFieldArray, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
@@ -31,7 +31,7 @@ import {
 import { CustomerForm } from "@/components/CustomerForm";
 const invoiceSchema = z
   .object({
-  customerId: z.string().min(1, "Customer is required"),
+    customerId: z.string().optional(), // Made optional - can be created during invoice creation
     vehicleId: z.string().optional(), // Required when VEHICLE charge type is selected
     status: z.enum(["DRAFT", "PENDING_APPROVAL", "APPROVED", "FINALIZED"]),
     issueDate: z.string().min(1, "Issue date is required"),
@@ -48,6 +48,7 @@ const invoiceSchema = z
           "SHIPPING",
           "RECYCLE_FEES",
           "DISCOUNT",
+          "DEPOSIT",
           "CUSTOM",
         ]),
         description: z.string().optional(),
@@ -85,7 +86,12 @@ const invoiceSchema = z
       message: "Description is required",
       path: ["charges"],
     },
-  );
+  )
+  .refine((data) => {
+    // Customer is required before finalizing, but can be created during invoice creation
+    // This validation will be handled in the submit handler instead
+    return true;
+  });
 
 type InvoiceFormData = z.infer<typeof invoiceSchema>;
 
@@ -226,15 +232,13 @@ export function InvoiceForm({ invoice }: InvoiceFormProps = {}) {
         // Auto-add vehicle charge if vehicle is selected
         const currentCharges = watch("charges");
         const hasVehicleCharge = currentCharges.some(
-          (c: any) => c.chargeType === "VEHICLE"
+          (c: any) => c.chargeType === "VEHICLE",
         );
         if (!hasVehicleCharge) {
           append({
             chargeType: "VEHICLE",
             description: "",
-            amount: vehicle.price
-              ? vehicle.price.toLocaleString("en-US")
-              : "",
+            amount: vehicle.price ? vehicle.price.toLocaleString("en-US") : "",
           });
         }
       }
@@ -281,15 +285,17 @@ export function InvoiceForm({ invoice }: InvoiceFormProps = {}) {
       if (invoice.charges && invoice.charges.length > 0) {
         const formattedCharges = invoice.charges.map((charge: any) => {
           // Handle chargeType - it can be an object with name property or a string
-          const chargeTypeName =
-            charge.chargeType?.name || charge.chargeType || "CUSTOM";
-          // Map to enum values
+          const chargeTypeName = (
+            charge.chargeType?.name || charge.chargeType || "CUSTOM"
+          ).toString().toUpperCase();
+          // Map to enum values (case-insensitive - DB may store "Discount" vs "DISCOUNT")
           const chargeTypeEnum = [
             "VEHICLE",
             "EXPORT_FEES",
             "SHIPPING",
             "RECYCLE_FEES",
             "DISCOUNT",
+            "DEPOSIT",
             "CUSTOM",
           ].includes(chargeTypeName)
             ? chargeTypeName
@@ -322,7 +328,7 @@ export function InvoiceForm({ invoice }: InvoiceFormProps = {}) {
           if (!customer && inquiry.customerName) {
             // Create customer from inquiry
             const customerResponse = await fetch("/api/customers", {
-        method: "POST",
+              method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
                 name: inquiry.customerName,
@@ -443,6 +449,13 @@ export function InvoiceForm({ invoice }: InvoiceFormProps = {}) {
   };
 
   const onSubmit = async (data: InvoiceFormData) => {
+    // Check if customer is required but not provided
+    if (!data.customerId) {
+      // Show customer form dialog to create/select customer
+      setShowCustomerForm(true);
+      return;
+    }
+
     setSaving(true);
     try {
       const chargesToSubmit = data.charges
@@ -459,12 +472,6 @@ export function InvoiceForm({ invoice }: InvoiceFormProps = {}) {
         return;
       }
 
-      if (!data.vehicleId) {
-        alert("Please select a vehicle");
-        setSaving(false);
-        return;
-      }
-
       const url = invoice ? `/api/invoices/${invoice.id}` : "/api/invoices";
       const method = invoice ? "PATCH" : "POST";
 
@@ -475,7 +482,7 @@ export function InvoiceForm({ invoice }: InvoiceFormProps = {}) {
         },
         body: JSON.stringify({
           customerId: data.customerId,
-          vehicleId: data.vehicleId,
+          vehicleId: data.vehicleId || null,
           status: data.status,
           issueDate: data.issueDate
             ? new Date(data.issueDate).toISOString()
@@ -565,32 +572,34 @@ export function InvoiceForm({ invoice }: InvoiceFormProps = {}) {
     }
   }, [selectedCustomerId, customers]);
 
-  // Calculate totals - separate regular charges from discounts
-  const { subtotal: chargesSubtotal, discountTotal } = charges.reduce(
+  // Calculate totals - separate regular charges, discounts, and deposits
+  const { subtotal: chargesSubtotal, discountTotal, depositTotal } = charges.reduce(
     (acc, charge) => {
       const amount = parseFloat(charge.amount?.replace(/,/g, "") || "0");
       if (charge.chargeType === "DISCOUNT") {
         acc.discountTotal += amount;
+      } else if (charge.chargeType === "DEPOSIT") {
+        acc.depositTotal += amount;
       } else {
         acc.subtotal += amount;
       }
       return acc;
     },
-    { subtotal: 0, discountTotal: 0 },
+    { subtotal: 0, discountTotal: 0, depositTotal: 0 },
   );
 
+  const subtotalAfterDeductions = chargesSubtotal - discountTotal - depositTotal;
   const taxAmount = watch("taxEnabled")
-    ? chargesSubtotal * (watch("taxRate") / 100)
+    ? subtotalAfterDeductions * (watch("taxRate") / 100)
     : 0;
 
   const total =
-    chargesSubtotal -
-    discountTotal +
+    subtotalAfterDeductions +
     taxAmount +
     parseFloat(recycleFee.replace(/,/g, "") || "0");
 
   if (loadingInquiry) {
-  return (
+    return (
       <div className="flex-1 p-6 overflow-y-auto border-r border-gray-200 dark:border-gray-700 lg:w-full">
         <div className="max-w-6xl mx-auto">
           <div className="p-8 text-center text-muted-foreground">
@@ -604,7 +613,7 @@ export function InvoiceForm({ invoice }: InvoiceFormProps = {}) {
   return (
     <div className="flex-1 p-6 overflow-y-auto border-r border-gray-200 dark:border-gray-700 lg:w-full">
       <div className="max-w-6xl mx-auto">
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
           {/* Header */}
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
@@ -750,7 +759,7 @@ export function InvoiceForm({ invoice }: InvoiceFormProps = {}) {
                     </span>
                   </Button>
                 </div>
-            {errors.customerId && (
+                {errors.customerId && (
                   <p className="text-xs text-red-500 mt-1">
                     {errors.customerId.message}
                   </p>
@@ -797,7 +806,7 @@ export function InvoiceForm({ invoice }: InvoiceFormProps = {}) {
                   </div>
                 )}
               </div>
-          </div>
+            </div>
 
             {/* Shipping Address Section */}
             <div>
@@ -900,10 +909,18 @@ export function InvoiceForm({ invoice }: InvoiceFormProps = {}) {
                 >
                   Issue Date <span className="text-red-500">*</span>
                 </Label>
-                <DatePicker
-                  id="issueDate"
-                  {...register("issueDate")}
-                  className="w-full border border-gray-300 dark:border-gray-600 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400"
+                <Controller
+                  name="issueDate"
+                  control={control}
+                  render={({ field }) => (
+                    <DatePicker
+                      id="issueDate"
+                      value={field.value}
+                      onChange={field.onChange}
+                      required
+                      className="w-full border border-gray-300 dark:border-gray-600 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400"
+                    />
+                  )}
                 />
                 {errors.issueDate && (
                   <p className="text-xs text-red-500 mt-1">
@@ -918,10 +935,17 @@ export function InvoiceForm({ invoice }: InvoiceFormProps = {}) {
                 >
                   Due Date
                 </Label>
-                <DatePicker
-                  id="dueDate"
-                  {...register("dueDate")}
-                  className="w-full border border-gray-300 dark:border-gray-600 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400"
+                <Controller
+                  name="dueDate"
+                  control={control}
+                  render={({ field }) => (
+                    <DatePicker
+                      id="dueDate"
+                      value={field.value}
+                      onChange={field.onChange}
+                      className="w-full border border-gray-300 dark:border-gray-600 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400"
+                    />
+                  )}
                 />
               </div>
             </div>
@@ -984,6 +1008,7 @@ export function InvoiceForm({ invoice }: InvoiceFormProps = {}) {
                                     | "SHIPPING"
                                     | "RECYCLE_FEES"
                                     | "DISCOUNT"
+                                    | "DEPOSIT"
                                     | "CUSTOM";
 
                                   // Set charge type first
@@ -1028,6 +1053,15 @@ export function InvoiceForm({ invoice }: InvoiceFormProps = {}) {
                                     setValue(
                                       `charges.${index}.description`,
                                       "Discount",
+                                      {
+                                        shouldValidate: true,
+                                        shouldDirty: true,
+                                      },
+                                    );
+                                  } else if (value === "DEPOSIT") {
+                                    setValue(
+                                      `charges.${index}.description`,
+                                      "Deposit",
                                       {
                                         shouldValidate: true,
                                         shouldDirty: true,
@@ -1087,6 +1121,7 @@ export function InvoiceForm({ invoice }: InvoiceFormProps = {}) {
                                       currentDesc === "Shipping" ||
                                       currentDesc === "Recycle Fee" ||
                                       currentDesc === "Discount" ||
+                                      currentDesc === "Deposit" ||
                                       currentDesc === "Vehicle"
                                     ) {
                                       setValue(
@@ -1119,6 +1154,9 @@ export function InvoiceForm({ invoice }: InvoiceFormProps = {}) {
                                   </SelectItem>
                                   <SelectItem value="DISCOUNT">
                                     Discount
+                                  </SelectItem>
+                                  <SelectItem value="DEPOSIT">
+                                    Deposit
                                   </SelectItem>
                                   <SelectItem value="CUSTOM">Custom</SelectItem>
                                 </SelectContent>
@@ -1212,7 +1250,7 @@ export function InvoiceForm({ invoice }: InvoiceFormProps = {}) {
                                     )}
                                     className="h-9 border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400"
                                   />
-          <div className="space-y-2">
+                                  <div className="space-y-2">
                                     <div className="grid grid-cols-3 gap-2">
                                       <div>
                                         <Label className="text-xs">
@@ -1539,8 +1577,8 @@ export function InvoiceForm({ invoice }: InvoiceFormProps = {}) {
                                             className="h-8 text-xs"
                                           />
                                         </div>
-            )}
-          </div>
+                                      )}
+                                    </div>
                                   </div>
                                 </div>
                               ) : (
@@ -1683,6 +1721,17 @@ export function InvoiceForm({ invoice }: InvoiceFormProps = {}) {
                   </span>
                 </div>
               )}
+              {depositTotal > 0 && (
+                <div className="flex justify-between py-2">
+                  <span className="text-sm text-gray-700 dark:text-gray-300">
+                    Deposit
+                  </span>
+                  <span className="text-sm font-medium text-red-600 dark:text-red-400">
+                    -{getCurrencySymbol()}
+                    {depositTotal.toLocaleString("en-US")}
+                  </span>
+                </div>
+              )}
               <div className="flex items-center justify-between py-2">
                 <div className="flex items-center gap-2">
                   <Checkbox
@@ -1769,14 +1818,14 @@ export function InvoiceForm({ invoice }: InvoiceFormProps = {}) {
           {/* Actions */}
           <div className="flex items-center justify-end pt-4 border-t border-gray-200 dark:border-gray-700">
             <div className="flex gap-3">
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => router.back()}
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => router.back()}
                 className="h-10 px-6"
-        >
-          Cancel
-        </Button>
+              >
+                Cancel
+              </Button>
               <Button type="submit" disabled={saving} className="h-10 px-6">
                 {saving
                   ? invoice
@@ -1805,6 +1854,11 @@ export function InvoiceForm({ invoice }: InvoiceFormProps = {}) {
               shouldValidate: true,
             });
             setShowCustomerForm(false);
+            // Automatically submit the form after customer is created
+            // Use setTimeout to ensure form state is updated
+            setTimeout(() => {
+              handleSubmit(onSubmit)();
+            }, 100);
           }}
         />
       )}
@@ -2159,13 +2213,13 @@ function VehicleForm({
             </div>
             <div className="flex justify-end gap-2">
               <Button type="button" variant="outline" onClick={onClose}>
-          Cancel
-        </Button>
-        <Button type="submit" disabled={saving}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={saving}>
                 {saving ? "Creating..." : "Create"}
-        </Button>
-      </div>
-    </form>
+              </Button>
+            </div>
+          </form>
         </CardContent>
       </Card>
     </div>

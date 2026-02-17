@@ -1,18 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { ShippingStage } from "@prisma/client";
 import { Button } from "./ui/button";
-
-// ShippingStage enum - TODO: Add to Prisma schema
-enum ShippingStage {
-  PURCHASE = "PURCHASE",
-  TRANSPORT = "TRANSPORT",
-  REPAIR = "REPAIR",
-  DOCUMENTS = "DOCUMENTS",
-  BOOKING = "BOOKING",
-  SHIPPED = "SHIPPED",
-  DHL = "DHL",
-}
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import {
@@ -32,6 +22,7 @@ import {
 import { Textarea } from "./ui/textarea";
 import { Checkbox } from "./ui/checkbox";
 import { DialogDescription } from "./ui/dialog";
+import { DatePicker } from "./ui/date-picker";
 
 interface Vendor {
   id: string;
@@ -583,9 +574,8 @@ export function VehicleCostsManager({
                         (Optional)
                       </span>
                     </Label>
-                    <Input
+                    <DatePicker
                       id="paymentDeadline"
-                      type="date"
                       value={formData.paymentDeadline}
                       onChange={(e) =>
                         setFormData((prev) => ({
@@ -606,9 +596,8 @@ export function VehicleCostsManager({
                         (Optional)
                       </span>
                     </Label>
-                    <Input
+                    <DatePicker
                       id="paymentDate"
-                      type="date"
                       value={formData.paymentDate}
                       onChange={(e) =>
                         setFormData((prev) => ({

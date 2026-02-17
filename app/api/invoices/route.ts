@@ -125,6 +125,7 @@ export async function GET(request: NextRequest) {
         id: true,
         invoiceNumber: true,
         status: true,
+        paymentStatus: true,
         createdAt: true,
         customer: {
           select: {
@@ -218,21 +219,15 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       )
     }
-    if (!vehicleId) {
-      return NextResponse.json(
-        { error: "Vehicle ID is required" },
-        { status: 400 }
-      )
-    }
-    
-    // Validate that IDs are strings
+
+    // Validate that customerId is string; vehicleId is optional (for container/shipping invoices)
     if (typeof customerId !== 'string') {
       return NextResponse.json(
         { error: `Invalid customer ID type: ${typeof customerId}. Expected string.` },
         { status: 400 }
       )
     }
-    if (typeof vehicleId !== 'string') {
+    if (vehicleId != null && typeof vehicleId !== 'string') {
       return NextResponse.json(
         { error: `Invalid vehicle ID type: ${typeof vehicleId}. Expected string.` },
         { status: 400 }
@@ -282,36 +277,50 @@ export async function POST(request: NextRequest) {
     // Default Wise payment link (can be overridden by admin later)
     const defaultWiseLink = process.env.DEFAULT_WISE_PAYMENT_LINK || "https://wise.com/pay/business/ugoigd";
 
-    const invoice = await prisma.invoice.create({
-      data: {
-        invoiceNumber,
-        customerId,
-        vehicleId,
-        createdById: user.id,
-        status: invoiceStatus,
-        issueDate: issueDate ? (typeof issueDate === 'string' ? new Date(issueDate) : issueDate) : new Date(),
-        dueDate: dueDate ? (typeof dueDate === 'string' ? new Date(dueDate) : dueDate) : null,
-        taxEnabled: taxEnabled || false,
-        taxRate: taxRate ? parseFloat(taxRate.toString()) : 10,
-        notes: notes || null,
-        isCIF: false, // CIF is now handled via description text
-        customerUsesInJapan: customerUsesInJapan !== undefined ? customerUsesInJapan : (taxEnabled || false),
-        metadata: metadata || null,
-        wisePaymentLink: defaultWiseLink,
-        charges: {
-          create: charges.map((charge: any) => ({
-            chargeTypeId: null, // No longer using chargeTypeId, chargeType is stored in description prefix
-            description: charge.description,
-            amount: typeof charge.amount === "number" ? charge.amount : parseFloat(charge.amount),
-          })),
+    // Create invoice and update vehicle's customerId if not already set (when vehicle linked)
+    const invoice = await prisma.$transaction(async (tx) => {
+      // Create the invoice (vehicleId optional for container/shipping invoices)
+      const newInvoice = await tx.invoice.create({
+        data: {
+          invoiceNumber,
+          customerId,
+          vehicleId: vehicleId || null,
+          createdById: user.id,
+          status: invoiceStatus,
+          issueDate: issueDate ? (typeof issueDate === 'string' ? new Date(issueDate) : issueDate) : new Date(),
+          dueDate: dueDate ? (typeof dueDate === 'string' ? new Date(dueDate) : dueDate) : null,
+          taxEnabled: taxEnabled || false,
+          taxRate: taxRate ? parseFloat(taxRate.toString()) : 10,
+          notes: notes || null,
+          isCIF: false, // CIF is now handled via description text
+          customerUsesInJapan: customerUsesInJapan !== undefined ? customerUsesInJapan : (taxEnabled || false),
+          metadata: metadata || null,
+          wisePaymentLink: defaultWiseLink,
+          charges: {
+            create: charges.map((charge: any) => ({
+              chargeTypeId: null, // No longer using chargeTypeId, chargeType is stored in description prefix
+              description: charge.description,
+              amount: typeof charge.amount === "number" ? charge.amount : parseFloat(charge.amount),
+            })),
+          },
         },
-      },
-      include: {
-        customer: true,
-        vehicle: true,
-        charges: true,
-      },
-    })
+        include: {
+          customer: true,
+          vehicle: true,
+          charges: true,
+        },
+      });
+
+      // Update vehicle's customerId if invoice has a vehicle
+      if (vehicleId) {
+        await tx.vehicle.update({
+          where: { id: vehicleId },
+          data: { customerId: customerId },
+        });
+      }
+
+      return newInvoice;
+    });
 
     return NextResponse.json(convertDecimalsToNumbers(invoice), { status: 201 })
   } catch (error: any) {
