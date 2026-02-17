@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Card,
   CardContent,
@@ -8,7 +8,17 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { format } from "date-fns";
+import { format, subDays, startOfMonth, endOfMonth, subMonths } from "date-fns";
+import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 interface FailedLead {
   id: string;
@@ -35,30 +45,67 @@ interface FailedLead {
   attemptCount: number;
 }
 
-export function FailedLeadsTab() {
+interface FailedLeadsTabProps {
+  users?: Array<{ id: string; name: string | null; email: string }>;
+}
+
+export function FailedLeadsTab({ users = [] }: FailedLeadsTabProps) {
   const [failedLeads, setFailedLeads] = useState<FailedLead[]>([]);
   const [loading, setLoading] = useState(true);
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [periodPreset, setPeriodPreset] = useState<string>("all");
+  const [previouslyTriedById, setPreviouslyTriedById] = useState<string>("all");
 
-  useEffect(() => {
-    fetchFailedLeads();
-  }, []);
-
-  const fetchFailedLeads = async () => {
+  const fetchFailedLeads = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await fetch("/api/inquiries/failed-leads");
+      const params = new URLSearchParams();
+      if (startDate) params.set("startDate", startDate);
+      if (endDate) params.set("endDate", endDate);
+      if (previouslyTriedById && previouslyTriedById !== "all") {
+        params.set("previouslyTriedById", previouslyTriedById);
+      }
+      const response = await fetch(`/api/inquiries/failed-leads?${params}`);
       if (response.ok) {
         const data = await response.json();
         setFailedLeads(data);
-      } else {
-        console.error("Failed to fetch failed leads");
       }
     } catch (error) {
       console.error("Error fetching failed leads:", error);
     } finally {
       setLoading(false);
     }
-  };
+  }, [startDate, endDate, previouslyTriedById]);
+
+  useEffect(() => {
+    fetchFailedLeads();
+  }, [fetchFailedLeads]);
+
+  useEffect(() => {
+    const today = new Date();
+    if (periodPreset === "today") {
+      const d = format(today, "yyyy-MM-dd");
+      setStartDate(d);
+      setEndDate(d);
+    } else if (periodPreset === "last7") {
+      setStartDate(format(subDays(today, 7), "yyyy-MM-dd"));
+      setEndDate(format(today, "yyyy-MM-dd"));
+    } else if (periodPreset === "last30") {
+      setStartDate(format(subDays(today, 30), "yyyy-MM-dd"));
+      setEndDate(format(today, "yyyy-MM-dd"));
+    } else if (periodPreset === "thisMonth") {
+      setStartDate(format(startOfMonth(today), "yyyy-MM-dd"));
+      setEndDate(format(endOfMonth(today), "yyyy-MM-dd"));
+    } else if (periodPreset === "lastMonth") {
+      const lm = subMonths(today, 1);
+      setStartDate(format(startOfMonth(lm), "yyyy-MM-dd"));
+      setEndDate(format(endOfMonth(lm), "yyyy-MM-dd"));
+    } else {
+      setStartDate("");
+      setEndDate("");
+    }
+  }, [periodPreset]);
 
   const getSourceLabel = (source: string) => {
     const sourceLabels: Record<string, string> = {
@@ -82,7 +129,7 @@ export function FailedLeadsTab() {
     return statusLabels[status] || status;
   };
 
-  if (loading) {
+  if (loading && failedLeads.length === 0) {
     return (
       <Card className="dark:bg-[#1E1E1E] dark:border-[#2C2C2C]">
         <CardContent className="py-12 text-center">
@@ -100,11 +147,71 @@ export function FailedLeadsTab() {
             Failed Leads
           </CardTitle>
           <CardDescription>
-            Inquiries that were tried twice but did not result in a closed won
-            status
+            Inquiries moved to trash from the pipeline (archived with full details)
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
+          {/* Filters */}
+          <div className="flex flex-wrap gap-4 items-end">
+            <div className="space-y-2">
+              <Label className="text-sm">Time period</Label>
+              <Select value={periodPreset} onValueChange={setPeriodPreset}>
+                <SelectTrigger className="w-[160px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All time</SelectItem>
+                  <SelectItem value="today">Today</SelectItem>
+                  <SelectItem value="last7">Last 7 days</SelectItem>
+                  <SelectItem value="last30">Last 30 days</SelectItem>
+                  <SelectItem value="thisMonth">This month</SelectItem>
+                  <SelectItem value="lastMonth">Last month</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {periodPreset !== "all" && (
+              <>
+                <div className="space-y-2">
+                  <Label className="text-sm">From</Label>
+                  <Input
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    className="w-[140px]"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-sm">To</Label>
+                  <Input
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    className="w-[140px]"
+                  />
+                </div>
+              </>
+            )}
+            <div className="space-y-2">
+              <Label className="text-sm">Previously tried by</Label>
+              <Select value={previouslyTriedById} onValueChange={setPreviouslyTriedById}>
+                <SelectTrigger className="w-[200px]">
+                  <SelectValue placeholder="All" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All</SelectItem>
+                  {users.map((u) => (
+                    <SelectItem key={u.id} value={u.id}>
+                      {u.name || u.email}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <Button variant="outline" onClick={fetchFailedLeads}>
+              Apply
+            </Button>
+          </div>
+
           {failedLeads.length === 0 ? (
             <div className="py-12 text-center">
               <span className="material-symbols-outlined text-6xl text-gray-300 dark:text-[#2C2C2C] mb-4 block">

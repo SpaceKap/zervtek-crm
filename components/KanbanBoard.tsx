@@ -16,6 +16,7 @@ import {
   PointerSensor,
   useSensor,
   useSensors,
+  useDroppable,
 } from "@dnd-kit/core";
 import {
   SortableContext,
@@ -57,6 +58,34 @@ interface KanbanBoardProps {
   users?: Array<{ id: string; name: string | null; email: string }>;
   currentUserId?: string;
   currentUserEmail?: string;
+}
+
+function TrashDropZone() {
+  const { setNodeRef, isOver } = useDroppable({ id: "trash" });
+  return (
+    <div
+      ref={setNodeRef}
+      className={`min-w-[120px] flex flex-col items-center justify-center flex-shrink-0 rounded-lg border-2 border-dashed transition-colors ${
+        isOver
+          ? "bg-red-50 dark:bg-red-900/20 border-red-400 dark:border-red-600"
+          : "border-gray-300 dark:border-[#2C2C2C] hover:border-red-300 dark:hover:border-red-700/50"
+      }`}
+    >
+      <span
+        className={`material-symbols-outlined text-3xl mb-1 ${
+          isOver ? "text-red-600 dark:text-red-400" : "text-gray-400 dark:text-[#A1A1A1]"
+        }`}
+      >
+        delete
+      </span>
+      <span className="text-xs font-medium text-gray-500 dark:text-[#A1A1A1]">
+        Trash
+      </span>
+      <span className="text-[10px] text-gray-400 dark:text-[#6B6B6B] mt-0.5">
+        Failed leads
+      </span>
+    </div>
+  );
 }
 
 export function KanbanBoard({
@@ -256,6 +285,26 @@ export function KanbanBoard({
     const inquiryId = active.id as string;
     const targetStageId = over.id as string;
 
+    // Trash zone - move to failed leads
+    if (targetStageId === "trash") {
+      setActiveId(null);
+      try {
+        const response = await fetch(`/api/inquiries/${inquiryId}/to-failed-lead`, {
+          method: "POST",
+        });
+        if (response.ok) {
+          fetchBoard();
+        } else {
+          const err = await response.json();
+          alert(err.error || "Failed to move to failed leads");
+        }
+      } catch (error) {
+        console.error("Error moving to failed leads:", error);
+        alert("Failed to move to failed leads");
+      }
+      return;
+    }
+
     // Find the target stage
     const targetStage = stages.find((stage) => stage.id === targetStageId);
     if (!targetStage) {
@@ -430,6 +479,8 @@ export function KanbanBoard({
             />
           ))}
         </SortableContext>
+        {/* Trash - drag inquiries here to move to failed leads */}
+        <TrashDropZone />
         {/* Add Column Button */}
         <div className="min-w-[360px] flex items-center justify-center flex-shrink-0">
           <button className="w-full h-12 border-2 border-dashed border-gray-300 dark:border-[#2C2C2C] rounded-lg hover:border-gray-400 dark:hover:border-[#49454F] hover:bg-gray-50 dark:hover:bg-[#1E1E1E] transition-colors flex items-center justify-center gap-2 text-gray-500 dark:text-[#A1A1A1]">

@@ -20,12 +20,11 @@ export async function GET(request: NextRequest) {
     const customerId = searchParams.get("customerId")
     const filterType = searchParams.get("filterType") // "all" or "mine"
 
-    // Define shipping stages in order
+    // Define shipping stages in order (DOCUMENTS excluded from pipeline but still exists as stage)
     const shippingStages: ShippingStage[] = [
       ShippingStage.PURCHASE,
       ShippingStage.TRANSPORT,
       ShippingStage.REPAIR,
-      ShippingStage.DOCUMENTS,
       ShippingStage.BOOKING,
       ShippingStage.SHIPPED,
       ShippingStage.DHL,
@@ -91,6 +90,12 @@ export async function GET(request: NextRequest) {
                 name: true,
               },
             },
+            freightVendor: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
           },
         },
         _count: {
@@ -104,9 +109,10 @@ export async function GET(request: NextRequest) {
       orderBy: { createdAt: "desc" },
     })
 
-    // Group vehicles by shipping stage
+    // Group vehicles by shipping stage (DOCUMENTS vehicles excluded - no column in pipeline)
     const vehiclesByStage = vehicles.reduce((acc, vehicle) => {
       const stage = vehicle.currentShippingStage || ShippingStage.PURCHASE
+      if (stage === ShippingStage.DOCUMENTS) return acc // Skip - Documents not shown in pipeline
       if (!acc[stage]) {
         acc[stage] = []
       }

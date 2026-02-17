@@ -1,11 +1,6 @@
 "use client";
 
-import { useDroppable } from "@dnd-kit/core";
-import {
-  SortableContext,
-  verticalListSortingStrategy,
-} from "@dnd-kit/sortable";
-import { SortableVehicleCard } from "./SortableVehicleCard";
+import { VehicleCard } from "./VehicleCard";
 import { ShippingStage } from "@prisma/client";
 
 interface Vehicle {
@@ -23,6 +18,19 @@ interface Vehicle {
   } | null;
   shippingStage: {
     yard: {
+      id: string;
+      name: string;
+    } | null;
+    etd?: string | null;
+    eta?: string | null;
+    vesselName?: string | null;
+    voyageNo?: string | null;
+    totalCharges?: any;
+    totalReceived?: any;
+    purchasePaid?: boolean;
+    bookingType?: string | null;
+    bookingStatus?: string | null;
+    freightVendor?: {
       id: string;
       name: string;
     } | null;
@@ -50,19 +58,6 @@ export function ShippingKanbanColumn({
   vehicles,
   onView,
 }: ShippingKanbanColumnProps) {
-  const { setNodeRef, isOver } = useDroppable({
-    id,
-    data: {
-      droppableId: id,
-      type: "column",
-    },
-  });
-
-  const dropZoneClass = isOver
-    ? "bg-blue-50 dark:bg-blue-900/20 border-blue-300 dark:border-blue-700"
-    : "";
-
-  // Get color dot based on stage
   const getStatusDot = () => {
     const stageColors: Record<string, string> = {
       PURCHASE: "bg-yellow-400",
@@ -77,8 +72,7 @@ export function ShippingKanbanColumn({
   };
 
   return (
-    <div className={`flex flex-col h-full min-w-[360px] max-w-[400px] bg-gray-50 dark:bg-[#1E1E1E] rounded-lg flex-shrink-0 border-2 transition-colors duration-200 ${dropZoneClass || "border-gray-200 dark:border-[#2C2C2C]"}`}>
-      {/* Column Header */}
+    <div className="flex flex-col h-full min-w-[360px] max-w-[400px] bg-gray-50 dark:bg-[#1E1E1E] rounded-lg flex-shrink-0 border-2 border-gray-200 dark:border-[#2C2C2C]">
       <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-[#2C2C2C] bg-white dark:bg-[#1E1E1E] rounded-t-lg flex-shrink-0">
         <div className="flex items-center gap-2">
           <div className={`w-2 h-2 rounded-full ${getStatusDot()}`} />
@@ -98,23 +92,14 @@ export function ShippingKanbanColumn({
         </div>
       </div>
 
-      {/* Column Content */}
-      <div
-        ref={setNodeRef}
-        className="flex-1 p-3 space-y-3 overflow-y-auto overflow-x-hidden scrollbar-modern-vertical"
-      >
-        <SortableContext
-          items={vehicles.map((v) => v.id)}
-          strategy={verticalListSortingStrategy}
-        >
-          {vehicles.map((vehicle) => (
-            <SortableVehicleCard
-              key={vehicle.id}
-              vehicle={vehicle}
-              onView={onView}
-            />
-          ))}
-        </SortableContext>
+      <div className="flex-1 p-3 space-y-3 overflow-y-auto overflow-x-hidden scrollbar-modern-vertical">
+        {vehicles.map((vehicle) => (
+          <VehicleCard
+            key={vehicle.id}
+            vehicle={vehicle}
+            onView={onView}
+          />
+        ))}
         {vehicles.length === 0 && (
           <div className="w-full flex flex-col items-center justify-center py-12 text-center">
             <div className="w-12 h-12 rounded-full bg-gray-100 dark:bg-[#2C2C2C] flex items-center justify-center mb-3">

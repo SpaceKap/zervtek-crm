@@ -59,11 +59,7 @@ export function SortableVehicleCard({
 
   return (
     <div ref={setNodeRef} style={style}>
-      <VehicleCard
-        vehicle={vehicle}
-        onView={onView}
-        dragHandleProps={{ ...attributes, ...listeners }}
-      />
+      <VehicleCard vehicle={vehicle} onView={onView} />
     </div>
   );
 }

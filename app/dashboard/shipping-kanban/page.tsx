@@ -56,7 +56,7 @@ export default async function ShippingKanbanPage() {
                 Shipping Pipeline
               </h1>
               <p className="text-muted-foreground mt-1">
-                Drag and drop vehicles between stages to update their status
+                View vehicle pipeline by stage — click cards for details
               </p>
             </div>
           </div>

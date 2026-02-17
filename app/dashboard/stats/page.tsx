@@ -498,7 +498,7 @@ export default async function StatsPage() {
         </TabsContent>
 
         <TabsContent value="failed-leads" className="mt-6">
-          <FailedLeadsTab />
+          <FailedLeadsTab users={salesStaff} />
         </TabsContent>
       </Tabs>
     </div>
