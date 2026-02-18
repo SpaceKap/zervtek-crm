@@ -58,7 +58,7 @@ export async function GET(request: NextRequest) {
       
       if (process.env.NODE_ENV === "development") {
         console.log("UnassignedOnly query - AND conditions:", JSON.stringify(andConditions, null, 2))
-      }("UnassignedOnly query - AND conditions:", JSON.stringify(andConditions, null, 2))
+      }
     } else if (canViewAll) {
       // Add status and source filters
       if (status) {
