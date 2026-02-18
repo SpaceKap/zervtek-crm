@@ -7,7 +7,12 @@
  * - Are older than 7 days
  *
  * Usage:
- *   npx tsx scripts/cleanup-unassigned-inquiries.ts [--dry-run]
+ *   Local (with DATABASE_URL pointing at DB):
+ *     npm run cleanup-unassigned-inquiries -- [--dry-run]
+ *
+ *   On VPS with Docker (run inside app container so it can reach postgres):
+ *     docker compose exec inquiry-pooler npm run cleanup-unassigned-inquiries -- --dry-run
+ *     docker compose exec inquiry-pooler npm run cleanup-unassigned-inquiries
  *
  * Options:
  *   --dry-run    Show what would be deleted without actually deleting
