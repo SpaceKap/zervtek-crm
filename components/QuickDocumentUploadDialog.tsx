@@ -107,7 +107,6 @@ export function QuickDocumentUploadDialog({
           category,
           stage: stage || null,
           fileUrl: uploadData.url,
-          paperlessDocumentId: uploadData.paperlessDocumentId ?? null,
           fileType: file.type || null,
           fileSize: file.size || null,
           description: description || null,

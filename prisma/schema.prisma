@@ -769,7 +769,6 @@ model VehicleDocument {
   description         String?          @db.Text
   uploadedById        String? // User who uploaded
   visibleToCustomer   Boolean          @default(false) // Whether customer can see this in portal
-  paperlessDocumentId String? // Paperless-ngx document ID if integrated
   createdAt           DateTime         @default(now())
   updatedAt           DateTime         @updatedAt
 
@@ -779,15 +778,6 @@ model VehicleDocument {
   @@index([stage])
   @@index([category])
   @@index([visibleToCustomer])
-  @@index([paperlessDocumentId])
-  @@schema("inquiry_pooler")
-}
-
-model VehiclePaperlessPath {
-  vehicleId     String   @id
-  storagePathId Int
-  createdAt     DateTime @default(now())
-
   @@schema("inquiry_pooler")
 }
 

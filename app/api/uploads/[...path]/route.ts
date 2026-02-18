@@ -27,11 +27,25 @@ export async function GET(
     // The filename is already clean (no "uploads/" prefix since rewrite handles it)
     const cleanFilename = filename
 
-    // Construct file path
-    const filepath = join(process.cwd(), "public", "uploads", cleanFilename)
+    // Construct file path - handle both development and production (standalone) modes
+    // In standalone mode, files might be in different locations
+    const possiblePaths = [
+      join(process.cwd(), "public", "uploads", cleanFilename), // Standard location
+      join(process.cwd(), "uploads", cleanFilename), // Standalone without public
+      join(process.cwd(), "..", "public", "uploads", cleanFilename), // Relative to app
+    ]
+    
+    let filepath: string | null = null
+    for (const path of possiblePaths) {
+      if (existsSync(path)) {
+        filepath = path
+        break
+      }
+    }
 
     // Check if file exists
-    if (!existsSync(filepath)) {
+    if (!filepath || !existsSync(filepath)) {
+      console.error(`File not found: ${cleanFilename}. Tried paths:`, possiblePaths)
       return NextResponse.json({ error: "File not found" }, { status: 404 })
     }
 

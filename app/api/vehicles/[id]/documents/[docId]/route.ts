@@ -20,7 +20,7 @@ export async function PATCH(
     }
 
     const body = await request.json()
-    const { stage, category, name, fileUrl, fileType, fileSize, description, visibleToCustomer, paperlessDocumentId } = body
+    const { stage, category, name, fileUrl, fileType, fileSize, description, visibleToCustomer } = body
 
     const updateData: any = {
       stage: stage ? (stage as ShippingStage) : null,
@@ -31,9 +31,6 @@ export async function PATCH(
       fileSize: fileSize || null,
       description: description || null,
       visibleToCustomer: visibleToCustomer || false,
-    }
-    if (paperlessDocumentId !== undefined) {
-      updateData.paperlessDocumentId = paperlessDocumentId || null
     }
 
     const document = await prisma.vehicleDocument.update({

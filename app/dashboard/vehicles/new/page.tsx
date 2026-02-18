@@ -262,7 +262,7 @@ export default function NewVehiclePage() {
         ? parseFloat(formData.price.replace(/,/g, ""))
         : null;
 
-      // Create vehicle first (without file URLs) so we get vehicleId for Paperless folder
+      // Create vehicle first (without file URLs)
       const response = await fetch("/api/vehicles", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -298,7 +298,7 @@ export default function NewVehiclePage() {
       if (response.ok) {
         const vehicle = await response.json();
 
-        // Upload files with vehicleId for Paperless folder, then PATCH vehicle
+        // Upload files, then PATCH vehicle
         let finalAuctionSheetUrl: string | null = null;
         let finalPurchasePhotoUrl: string | null = null;
 

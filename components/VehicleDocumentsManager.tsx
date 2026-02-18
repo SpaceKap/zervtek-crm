@@ -35,8 +35,6 @@ interface Document {
   fileSize: number | null;
   description: string | null;
   visibleToCustomer: boolean;
-  paperlessDocumentId?: string | null;
-  paperlessUrl?: string | null;
   createdAt: string;
 }
 
@@ -98,7 +96,6 @@ export function VehicleDocumentsManager({
     category: "" as DocumentCategory | "",
     name: "",
     fileUrl: "",
-    paperlessDocumentId: null as string | null,
     description: "",
     visibleToCustomer: false,
   });
@@ -188,7 +185,6 @@ export function VehicleDocumentsManager({
           ...prev,
           name: selectedFile.name,
           fileUrl: uploadData.url,
-          paperlessDocumentId: uploadData.paperlessDocumentId ?? null,
         }));
       } else {
         const errorData = await uploadResponse.json().catch(() => ({}));
@@ -251,7 +247,6 @@ export function VehicleDocumentsManager({
         category: doc.category,
         name: doc.name,
         fileUrl: doc.fileUrl,
-        paperlessDocumentId: doc.paperlessDocumentId ?? null,
         description: doc.description || "",
         visibleToCustomer: doc.visibleToCustomer,
       });
@@ -262,7 +257,6 @@ export function VehicleDocumentsManager({
         category: "" as DocumentCategory | "",
         name: "",
         fileUrl: "",
-        paperlessDocumentId: null,
         description: "",
         visibleToCustomer: false,
       });
@@ -320,7 +314,6 @@ export function VehicleDocumentsManager({
           body: JSON.stringify({
             ...formData,
             fileUrl: formData.fileUrl,
-            paperlessDocumentId: formData.paperlessDocumentId || null,
             stage: formData.stage || null,
             fileType: file?.type || null,
             fileSize: file?.size || null,
@@ -425,16 +418,6 @@ export function VehicleDocumentsManager({
               >
                 View
               </a>
-              {doc.paperlessUrl && (
-                <a
-                  href={doc.paperlessUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-muted-foreground hover:underline text-sm"
-                >
-                  Open in Paperless
-                </a>
-              )}
               <Button
                 size="sm"
                 variant="outline"

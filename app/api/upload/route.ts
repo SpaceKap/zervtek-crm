@@ -4,14 +4,6 @@ import { authOptions } from "@/lib/auth"
 import { writeFile, mkdir } from "fs/promises"
 import { join } from "path"
 import { existsSync } from "fs"
-import {
-  isPaperlessConfigured,
-  postDocument,
-  getDocumentUrl,
-  getOrCreateVehicleStoragePath,
-  getOrCreateExpensesStoragePath,
-} from "@/lib/paperless"
-import { prisma } from "@/lib/prisma"
 
 export async function POST(request: NextRequest) {
   try {
@@ -53,46 +45,11 @@ export async function POST(request: NextRequest) {
     await writeFile(filepath, buffer)
 
     const fileUrl = `/uploads/${filename}`
-    const response: Record<string, unknown> = {
+    const response = {
       url: fileUrl,
       filename: file.name,
       size: file.size,
       type: file.type,
-    }
-
-    if (isPaperlessConfigured()) {
-      try {
-        const isVehicleFolder =
-          folder === "vehicle" ||
-          (folder !== "expense" && (context === "vehicle" || vehicleId))
-
-        let storagePathId: number | undefined
-        let created: Date | string | undefined
-
-        if (isVehicleFolder && vehicleId) {
-          if (!vin) {
-            const vehicle = await prisma.vehicle.findUnique({
-              where: { id: vehicleId },
-              select: { vin: true },
-            })
-            vin = vehicle?.vin ?? ""
-          }
-          storagePathId = await getOrCreateVehicleStoragePath(vehicleId, vin)
-        } else {
-          storagePathId = await getOrCreateExpensesStoragePath()
-          created = expenseDate ? new Date(expenseDate) : new Date()
-        }
-
-        const docId = await postDocument(buffer, file.name, {
-          title: title || file.name,
-          storagePathId,
-          created,
-        })
-        response.paperlessDocumentId = String(docId)
-        response.paperlessUrl = getDocumentUrl(docId)
-      } catch (err) {
-        console.warn("Paperless sync failed (upload succeeded):", err instanceof Error ? err.message : err)
-      }
     }
 
     return NextResponse.json(response)
