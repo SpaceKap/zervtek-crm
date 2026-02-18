@@ -82,6 +82,10 @@ export default async function InvoiceDetailPage({
           },
         },
       },
+      transactions: {
+        where: { direction: "INCOMING" },
+        orderBy: { date: "desc" },
+      },
     },
   });
 

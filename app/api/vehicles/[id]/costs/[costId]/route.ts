@@ -20,7 +20,7 @@ export async function PATCH(
     }
 
     const body = await request.json()
-    const { costType, amount, vendorId, currency, paymentDeadline, paymentDate } = body
+    const { costType, amount, vendorId, currency, paymentDeadline, paymentDate, invoiceUrl } = body
 
     const updateData: any = {}
     if (costType !== undefined) updateData.costType = costType
@@ -30,6 +30,7 @@ export async function PATCH(
     if (paymentDeadline !== undefined) updateData.paymentDeadline = paymentDeadline ? new Date(paymentDeadline) : null
     const paymentDateValue = paymentDate ? new Date(paymentDate) : null
     if (paymentDate !== undefined) updateData.paymentDate = paymentDateValue
+    if (invoiceUrl !== undefined) updateData.invoiceUrl = invoiceUrl || null
 
     const cost = await prisma.$transaction(async (tx) => {
       const updated = await tx.vehicleStageCost.update({

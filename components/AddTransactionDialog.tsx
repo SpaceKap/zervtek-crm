@@ -105,6 +105,7 @@ export function AddTransactionDialog({
   const [vendorDropdownOpen, setVendorDropdownOpen] = useState(false);
   const [uploadedFileUrl, setUploadedFileUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
   const vendorDropdownRef = useRef<HTMLDivElement>(null);
 
   const [formData, setFormData] = useState({
@@ -299,12 +300,17 @@ export function AddTransactionDialog({
   const handleFileUpload = async (file: File) => {
     try {
       setUploading(true);
-      const formData = new FormData();
-      formData.append("file", file);
+      const uploadFormData = new FormData();
+      uploadFormData.append("file", file);
+      uploadFormData.append("context", "transaction");
+      uploadFormData.append(
+        "expenseDate",
+        formData.date || new Date().toISOString().split("T")[0],
+      );
 
       const response = await fetch("/api/upload", {
         method: "POST",
-        body: formData,
+        body: uploadFormData,
       });
 
       if (response.ok) {
@@ -677,6 +683,44 @@ export function AddTransactionDialog({
               <>
                 <div>
                   <Label className="text-sm font-medium">
+                    Customer
+                  </Label>
+                  <Select
+                    value={formData.customerId || undefined}
+                    onValueChange={(value) =>
+                      setFormData({
+                        ...formData,
+                        customerId: value || "",
+                        invoiceId: "",
+                      })
+                    }
+                  >
+                    <SelectTrigger className="mt-1.5">
+                      <SelectValue
+                        placeholder={
+                          defaultVehicleId
+                            ? "Pre-filled from vehicle"
+                            : "Select customer to filter invoices"
+                        }
+                      />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {customers.map((customer) => (
+                        <SelectItem key={customer.id} value={customer.id}>
+                          {customer.name}{" "}
+                          {customer.email && `(${customer.email})`}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {defaultVehicleId && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Customer and invoice are pre-filled from the vehicle
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <Label className="text-sm font-medium">
                     Link to Invoice
                   </Label>
                   <Select
@@ -692,7 +736,13 @@ export function AddTransactionDialog({
                     }}
                   >
                     <SelectTrigger className="mt-1.5">
-                      <SelectValue placeholder="Select invoice to link payment (INV-0xxxx)" />
+                      <SelectValue
+                        placeholder={
+                          formData.customerId
+                            ? "Select invoice for this customer"
+                            : "Select customer first"
+                        }
+                      />
                     </SelectTrigger>
                     <SelectContent>
                       {customerInvoices.map((inv) => (
@@ -706,36 +756,9 @@ export function AddTransactionDialog({
                   </Select>
                   {customerInvoices.length === 0 && (
                     <p className="text-xs text-muted-foreground mt-1">
-                      No unpaid invoices found{defaultVehicleId ? " for this vehicle" : ""}.
+                      No unpaid invoices found{defaultVehicleId ? " for this vehicle" : formData.customerId ? " for this customer" : ""}.
                     </p>
                   )}
-                </div>
-                <div>
-                  <Label className="text-sm font-medium">
-                    Customer (Optional - auto-filled from invoice)
-                  </Label>
-                  <Select
-                    value={formData.customerId || undefined}
-                    onValueChange={(value) =>
-                      setFormData({
-                        ...formData,
-                        customerId: value || "",
-                        invoiceId: "",
-                      })
-                    }
-                  >
-                    <SelectTrigger className="mt-1.5">
-                      <SelectValue placeholder="Filter by customer (optional)" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {customers.map((customer) => (
-                        <SelectItem key={customer.id} value={customer.id}>
-                          {customer.name}{" "}
-                          {customer.email && `(${customer.email})`}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
                 </div>
               </>
             )}
@@ -939,14 +962,37 @@ export function AddTransactionDialog({
               <div>
                 <Label className="text-sm font-medium">Invoice Document</Label>
                 <div className="mt-1.5 space-y-2">
-                  <Input
-                    ref={fileInputRef}
-                    type="file"
-                    accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
-                    onChange={handleFileChange}
-                    className="cursor-pointer"
-                    disabled={uploading}
-                  />
+                  <div className="flex gap-2">
+                    <Input
+                      ref={fileInputRef}
+                      type="file"
+                      accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                      onChange={handleFileChange}
+                      className="cursor-pointer flex-1"
+                      disabled={uploading}
+                    />
+                    <input
+                      ref={cameraInputRef}
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      onChange={handleFileChange}
+                      className="hidden"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      onClick={() => cameraInputRef.current?.click()}
+                      disabled={uploading}
+                      className="shrink-0"
+                      aria-label="Take photo with camera"
+                    >
+                      <span className="material-symbols-outlined text-lg">
+                        camera
+                      </span>
+                    </Button>
+                  </div>
                   {uploading && (
                     <p className="text-sm text-muted-foreground">
                       Uploading...
@@ -971,9 +1017,9 @@ export function AddTransactionDialog({
                         size="sm"
                         onClick={() => {
                           setUploadedFileUrl(null);
-                          if (fileInputRef.current) {
-                            fileInputRef.current.value = "";
-                          }
+                          if (fileInputRef.current) fileInputRef.current.value = "";
+                          if (cameraInputRef.current)
+                            cameraInputRef.current.value = "";
                         }}
                         className="h-6 px-2"
                       >

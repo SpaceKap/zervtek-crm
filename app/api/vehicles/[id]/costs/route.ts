@@ -99,6 +99,7 @@ export async function GET(
       paymentDeadline: toDateStr(c.paymentDeadline),
       paymentDate: toDateStr(c.paymentDate),
       stage: c.stage,
+      invoiceUrl: c.invoiceUrl,
       createdAt: toDateStr(c.createdAt),
       source: "vehicle" as const,
     }))
@@ -136,7 +137,7 @@ export async function POST(
     }
 
     const body = await request.json()
-    const { stage, costType, amount, vendorId, currency, paymentDeadline, paymentDate } = body
+    const { stage, costType, amount, vendorId, currency, paymentDeadline, paymentDate, invoiceUrl } = body
 
     if (!costType || !amount || !vendorId) {
       return NextResponse.json(
@@ -155,6 +156,7 @@ export async function POST(
         currency: currency || "JPY",
         paymentDeadline: paymentDeadline ? new Date(paymentDeadline) : null,
         paymentDate: paymentDate ? new Date(paymentDate) : null,
+        invoiceUrl: invoiceUrl || null,
       },
       include: {
         vendor: true,

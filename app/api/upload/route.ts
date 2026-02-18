@@ -4,6 +4,14 @@ import { authOptions } from "@/lib/auth"
 import { writeFile, mkdir } from "fs/promises"
 import { join } from "path"
 import { existsSync } from "fs"
+import {
+  isPaperlessConfigured,
+  postDocument,
+  getDocumentUrl,
+  getOrCreateVehicleStoragePath,
+  getOrCreateExpensesStoragePath,
+} from "@/lib/paperless"
+import { prisma } from "@/lib/prisma"
 
 export async function POST(request: NextRequest) {
   try {
@@ -18,6 +26,13 @@ export async function POST(request: NextRequest) {
     if (!file) {
       return NextResponse.json({ error: "No file provided" }, { status: 400 })
     }
+
+    const context = (formData.get("context") as string) || ""
+    const vehicleId = (formData.get("vehicleId") as string) || ""
+    let vin = (formData.get("vin") as string) || ""
+    const folder = (formData.get("folder") as string) || ""
+    const expenseDate = (formData.get("expenseDate") as string) || ""
+    const title = (formData.get("title") as string) || file.name
 
     // Create uploads directory if it doesn't exist
     const uploadsDir = join(process.cwd(), "public", "uploads")
@@ -37,15 +52,50 @@ export async function POST(request: NextRequest) {
     const buffer = Buffer.from(bytes)
     await writeFile(filepath, buffer)
 
-    // Return the public URL
     const fileUrl = `/uploads/${filename}`
-
-    return NextResponse.json({
+    const response: Record<string, unknown> = {
       url: fileUrl,
       filename: file.name,
       size: file.size,
       type: file.type,
-    })
+    }
+
+    if (isPaperlessConfigured()) {
+      try {
+        const isVehicleFolder =
+          folder === "vehicle" ||
+          (folder !== "expense" && (context === "vehicle" || vehicleId))
+
+        let storagePathId: number | undefined
+        let created: Date | string | undefined
+
+        if (isVehicleFolder && vehicleId) {
+          if (!vin) {
+            const vehicle = await prisma.vehicle.findUnique({
+              where: { id: vehicleId },
+              select: { vin: true },
+            })
+            vin = vehicle?.vin ?? ""
+          }
+          storagePathId = await getOrCreateVehicleStoragePath(vehicleId, vin)
+        } else {
+          storagePathId = await getOrCreateExpensesStoragePath()
+          created = expenseDate ? new Date(expenseDate) : new Date()
+        }
+
+        const docId = await postDocument(buffer, file.name, {
+          title: title || file.name,
+          storagePathId,
+          created,
+        })
+        response.paperlessDocumentId = String(docId)
+        response.paperlessUrl = getDocumentUrl(docId)
+      } catch (err) {
+        console.warn("Paperless sync failed (upload succeeded):", err instanceof Error ? err.message : err)
+      }
+    }
+
+    return NextResponse.json(response)
   } catch (error) {
     console.error("Error uploading file:", error)
     return NextResponse.json(

@@ -206,7 +206,7 @@ export async function GET(request: NextRequest) {
         vehicleId: cost.vehicleId,
         invoiceId: cost.invoiceId || null, // Include invoiceId from vehicle stage cost
         invoiceNumber: linkedInvoice?.invoiceNumber || null,
-        invoiceUrl: null,
+        invoiceUrl: cost.invoiceUrl || null, // Vendor invoice/receipt attachment
         documentId: null,
         referenceNumber: null,
         notes: null,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -47,6 +47,9 @@ export default function GeneralCostsPage() {
     invoiceUrl: "",
     notes: "",
   });
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetchCosts();
@@ -392,15 +395,112 @@ export default function GeneralCostsPage() {
               </Select>
             </div>
             <div>
-              <Label>Invoice URL (Optional)</Label>
-              <Input
-                type="url"
-                value={formData.invoiceUrl}
-                onChange={(e) =>
-                  setFormData({ ...formData, invoiceUrl: e.target.value })
-                }
-                placeholder="https://..."
-              />
+              <Label>Vendor Invoice (Optional)</Label>
+              <div className="flex gap-2 mt-1">
+                <Input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    setUploading(true);
+                    try {
+                      const fd = new FormData();
+                      fd.append("file", file);
+                      fd.append("context", "general-cost");
+                      fd.append("expenseDate", formData.date);
+                      const res = await fetch("/api/upload", {
+                        method: "POST",
+                        body: fd,
+                      });
+                      if (res.ok) {
+                        const d = await res.json();
+                        setFormData((prev) => ({ ...prev, invoiceUrl: d.url }));
+                      }
+                    } finally {
+                      setUploading(false);
+                    }
+                  }}
+                  className="flex-1 cursor-pointer"
+                  disabled={uploading}
+                />
+                <input
+                  ref={cameraInputRef}
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    setUploading(true);
+                    try {
+                      const fd = new FormData();
+                      fd.append("file", file);
+                      fd.append("context", "general-cost");
+                      fd.append("expenseDate", formData.date);
+                      const res = await fetch("/api/upload", {
+                        method: "POST",
+                        body: fd,
+                      });
+                      if (res.ok) {
+                        const d = await res.json();
+                        setFormData((prev) => ({ ...prev, invoiceUrl: d.url }));
+                      }
+                    } finally {
+                      setUploading(false);
+                    }
+                  }}
+                  className="hidden"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  onClick={() => cameraInputRef.current?.click()}
+                  disabled={uploading}
+                  className="shrink-0"
+                  aria-label="Scan invoice with camera"
+                >
+                  <span className="material-symbols-outlined text-lg">
+                    document_scanner
+                  </span>
+                </Button>
+              </div>
+              {formData.invoiceUrl && (
+                <div className="flex items-center gap-2 p-2 bg-muted rounded-md mt-2">
+                  <span className="material-symbols-outlined text-sm">
+                    description
+                  </span>
+                  <a
+                    href={formData.invoiceUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-primary hover:underline flex-1"
+                  >
+                    View invoice
+                  </a>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setFormData((prev) => ({ ...prev, invoiceUrl: "" }));
+                      if (fileInputRef.current) fileInputRef.current.value = "";
+                      if (cameraInputRef.current)
+                        cameraInputRef.current.value = "";
+                    }}
+                    className="h-6 px-2"
+                  >
+                    Remove
+                  </Button>
+                </div>
+              )}
+              {uploading && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  Uploading...
+                </p>
+              )}
             </div>
             <div>
               <Label>Notes (Optional)</Label>

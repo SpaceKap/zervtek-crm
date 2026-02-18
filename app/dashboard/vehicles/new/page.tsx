@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -76,6 +76,8 @@ export default function NewVehiclePage() {
   const [auctionSheetUrl, setAuctionSheetUrl] = useState<string>("");
   const [purchasePhotoUrl, setPurchasePhotoUrl] = useState<string>("");
   const [createInvoice, setCreateInvoice] = useState(false);
+  const auctionSheetCameraRef = useRef<HTMLInputElement>(null);
+  const purchasePhotoCameraRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetchCustomers();
@@ -197,11 +199,18 @@ export default function NewVehiclePage() {
   const handleFileUpload = async (
     file: File,
     type: "auctionSheet" | "purchasePhoto",
+    vehicleId?: string,
+    vin?: string,
   ) => {
     setUploading(true);
     try {
       const uploadFormData = new FormData();
       uploadFormData.append("file", file);
+      if (vehicleId && vin) {
+        uploadFormData.append("context", "vehicle");
+        uploadFormData.append("vehicleId", vehicleId);
+        uploadFormData.append("vin", vin);
+      }
 
       const response = await fetch("/api/upload", {
         method: "POST",
@@ -248,28 +257,12 @@ export default function NewVehiclePage() {
     try {
       setLoading(true);
 
-      // Upload files if they exist
-      let finalAuctionSheetUrl = auctionSheetUrl;
-      let finalPurchasePhotoUrl = purchasePhotoUrl;
-
-      if (formData.auctionSheetFile && formData.purchaseSource === "AUCTION") {
-        finalAuctionSheetUrl = await handleFileUpload(
-          formData.auctionSheetFile,
-          "auctionSheet",
-        );
-      }
-      if (formData.purchasePhotoFile && formData.purchaseSource === "DEALER") {
-        finalPurchasePhotoUrl = await handleFileUpload(
-          formData.purchasePhotoFile,
-          "purchasePhoto",
-        );
-      }
-
       // Remove commas from price before sending
       const priceValue = formData.price
         ? parseFloat(formData.price.replace(/,/g, ""))
         : null;
 
+      // Create vehicle first (without file URLs) so we get vehicleId for Paperless folder
       const response = await fetch("/api/vehicles", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -290,18 +283,12 @@ export default function NewVehiclePage() {
             formData.purchaseSource === "AUCTION"
               ? formData.lotNo || null
               : null,
-          auctionSheetUrl:
-            formData.purchaseSource === "AUCTION"
-              ? finalAuctionSheetUrl || null
-              : null,
+          auctionSheetUrl: null,
           purchaseVendorId:
             formData.purchaseSource === "DEALER"
               ? formData.purchaseVendorId || null
               : null,
-          purchasePhotoUrl:
-            formData.purchaseSource === "DEALER"
-              ? finalPurchasePhotoUrl || null
-              : null,
+          purchasePhotoUrl: null,
           purchaseDate: formData.purchaseDate || null,
           customerId: formData.customerId || null,
           isRegistered: formData.isRegistered === "true",
@@ -310,6 +297,38 @@ export default function NewVehiclePage() {
 
       if (response.ok) {
         const vehicle = await response.json();
+
+        // Upload files with vehicleId for Paperless folder, then PATCH vehicle
+        let finalAuctionSheetUrl: string | null = null;
+        let finalPurchasePhotoUrl: string | null = null;
+
+        if (formData.auctionSheetFile && formData.purchaseSource === "AUCTION") {
+          finalAuctionSheetUrl = await handleFileUpload(
+            formData.auctionSheetFile,
+            "auctionSheet",
+            vehicle.id,
+            formData.vin,
+          );
+        }
+        if (formData.purchasePhotoFile && formData.purchaseSource === "DEALER") {
+          finalPurchasePhotoUrl = await handleFileUpload(
+            formData.purchasePhotoFile,
+            "purchasePhoto",
+            vehicle.id,
+            formData.vin,
+          );
+        }
+
+        if (finalAuctionSheetUrl || finalPurchasePhotoUrl) {
+          await fetch(`/api/vehicles/${vehicle.id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              auctionSheetUrl: finalAuctionSheetUrl || undefined,
+              purchasePhotoUrl: finalPurchasePhotoUrl || undefined,
+            }),
+          });
+        }
         // Check if user wants to create invoice
         if (createInvoice && vehicle.customerId) {
           router.push(
@@ -657,20 +676,50 @@ export default function NewVehiclePage() {
 
                   <div className="space-y-2 md:col-span-2">
                     <Label>Auction Sheet Image</Label>
-                    <Input
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                          setFormData((prev) => ({
-                            ...prev,
-                            auctionSheetFile: file,
-                          }));
-                        }
-                      }}
-                      className="h-11"
-                    />
+                    <div className="flex gap-2">
+                      <Input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            setFormData((prev) => ({
+                              ...prev,
+                              auctionSheetFile: file,
+                            }));
+                          }
+                        }}
+                        className="h-11 flex-1"
+                      />
+                      <input
+                        ref={auctionSheetCameraRef}
+                        type="file"
+                        accept="image/*"
+                        capture="environment"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            setFormData((prev) => ({
+                              ...prev,
+                              auctionSheetFile: file,
+                            }));
+                          }
+                        }}
+                        className="hidden"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        onClick={() => auctionSheetCameraRef.current?.click()}
+                        className="h-11 shrink-0"
+                        aria-label="Scan auction sheet with camera"
+                      >
+                        <span className="material-symbols-outlined text-lg">
+                          document_scanner
+                        </span>
+                      </Button>
+                    </div>
                     {formData.auctionSheetFile && (
                       <p className="text-xs text-muted-foreground">
                         Selected: {formData.auctionSheetFile.name}
@@ -713,20 +762,50 @@ export default function NewVehiclePage() {
 
                   <div className="space-y-2">
                     <Label>Purchase Photo</Label>
-                    <Input
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                          setFormData((prev) => ({
-                            ...prev,
-                            purchasePhotoFile: file,
-                          }));
-                        }
-                      }}
-                      className="h-11"
-                    />
+                    <div className="flex gap-2">
+                      <Input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            setFormData((prev) => ({
+                              ...prev,
+                              purchasePhotoFile: file,
+                            }));
+                          }
+                        }}
+                        className="h-11 flex-1"
+                      />
+                      <input
+                        ref={purchasePhotoCameraRef}
+                        type="file"
+                        accept="image/*"
+                        capture="environment"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            setFormData((prev) => ({
+                              ...prev,
+                              purchasePhotoFile: file,
+                            }));
+                          }
+                        }}
+                        className="hidden"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        onClick={() => purchasePhotoCameraRef.current?.click()}
+                        className="h-11 shrink-0"
+                        aria-label="Take purchase photo with camera"
+                      >
+                        <span className="material-symbols-outlined text-lg">
+                          document_scanner
+                        </span>
+                      </Button>
+                    </div>
                     {formData.purchasePhotoFile && (
                       <p className="text-xs text-muted-foreground">
                         Selected: {formData.purchasePhotoFile.name}

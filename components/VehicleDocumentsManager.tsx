@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+
 import { ShippingStage, DocumentCategory } from "@prisma/client";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
@@ -34,6 +35,8 @@ interface Document {
   fileSize: number | null;
   description: string | null;
   visibleToCustomer: boolean;
+  paperlessDocumentId?: string | null;
+  paperlessUrl?: string | null;
   createdAt: string;
 }
 
@@ -95,6 +98,7 @@ export function VehicleDocumentsManager({
     category: "" as DocumentCategory | "",
     name: "",
     fileUrl: "",
+    paperlessDocumentId: null as string | null,
     description: "",
     visibleToCustomer: false,
   });
@@ -102,10 +106,15 @@ export function VehicleDocumentsManager({
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const dropZoneRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetchDocuments();
   }, [vehicleId]);
+
 
   const fetchDocuments = async () => {
     try {
@@ -122,54 +131,116 @@ export function VehicleDocumentsManager({
     }
   };
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const validateAndProcessFile = async (selectedFile: File) => {
     setError(null);
-    if (e.target.files && e.target.files[0]) {
-      const selectedFile = e.target.files[0];
-      const maxSize = 10 * 1024 * 1024; // 10MB
-      if (selectedFile.size > maxSize) {
-        setError("File size must be less than 10MB");
-        return;
-      }
-      setFile(selectedFile);
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    const allowedTypes = [
+      "application/pdf",
+      "image/jpeg",
+      "image/jpg",
+      "image/png",
+      "application/msword",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    ];
+    const allowedExtensions = [".pdf", ".jpg", ".jpeg", ".png", ".doc", ".docx"];
 
-      // Set name immediately
-      setFormData((prev) => ({ ...prev, name: selectedFile.name }));
+    // Check file size
+    if (selectedFile.size > maxSize) {
+      setError("File size must be less than 10MB");
+      return;
+    }
 
-      // Upload file to server
-      try {
-        setUploading(true);
-        const uploadFormData = new FormData();
-        uploadFormData.append("file", selectedFile);
+    // Check file type
+    const fileExtension = selectedFile.name
+      .toLowerCase()
+      .substring(selectedFile.name.lastIndexOf("."));
+    if (
+      !allowedTypes.includes(selectedFile.type) &&
+      !allowedExtensions.includes(fileExtension)
+    ) {
+      setError(
+        "Invalid file type. Accepted formats: PDF, JPG, PNG, DOC, DOCX",
+      );
+      return;
+    }
 
-        const uploadResponse = await fetch("/api/upload", {
-          method: "POST",
-          body: uploadFormData,
-        });
+    setFile(selectedFile);
 
-        if (uploadResponse.ok) {
-          const uploadData = await uploadResponse.json();
-          setFormData((prev) => ({
-            ...prev,
-            name: selectedFile.name,
-            fileUrl: uploadData.url,
-          }));
-        } else {
-          const errorData = await uploadResponse.json().catch(() => ({}));
-          setError(
-            errorData.error || "Failed to upload file. Please try again.",
-          );
-          setFile(null);
-        }
-      } catch (error) {
-        console.error("Error uploading file:", error);
-        setError("Failed to upload file. Please try again.");
+    // Set name immediately
+    setFormData((prev) => ({ ...prev, name: selectedFile.name }));
+
+    // Upload file to server
+    try {
+      setUploading(true);
+      const uploadFormData = new FormData();
+      uploadFormData.append("file", selectedFile);
+      uploadFormData.append("context", "vehicle");
+      uploadFormData.append("vehicleId", vehicleId);
+
+      const uploadResponse = await fetch("/api/upload", {
+        method: "POST",
+        body: uploadFormData,
+      });
+
+      if (uploadResponse.ok) {
+        const uploadData = await uploadResponse.json();
+        setFormData((prev) => ({
+          ...prev,
+          name: selectedFile.name,
+          fileUrl: uploadData.url,
+          paperlessDocumentId: uploadData.paperlessDocumentId ?? null,
+        }));
+      } else {
+        const errorData = await uploadResponse.json().catch(() => ({}));
+        setError(
+          errorData.error || "Failed to upload file. Please try again.",
+        );
         setFile(null);
-      } finally {
-        setUploading(false);
       }
+    } catch (error) {
+      console.error("Error uploading file:", error);
+      setError("Failed to upload file. Please try again.");
+      setFile(null);
+    } finally {
+      setUploading(false);
     }
   };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      await validateAndProcessFile(e.target.files[0]);
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!editingDocument) {
+      setIsDragging(true);
+    }
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+
+    if (editingDocument) return;
+
+    const droppedFile = e.dataTransfer.files?.[0];
+    if (droppedFile) {
+      await validateAndProcessFile(droppedFile);
+    }
+  };
+
+
+
 
   const handleOpenDialog = (doc?: Document) => {
     setError(null);
@@ -180,6 +251,7 @@ export function VehicleDocumentsManager({
         category: doc.category,
         name: doc.name,
         fileUrl: doc.fileUrl,
+        paperlessDocumentId: doc.paperlessDocumentId ?? null,
         description: doc.description || "",
         visibleToCustomer: doc.visibleToCustomer,
       });
@@ -190,11 +262,13 @@ export function VehicleDocumentsManager({
         category: "" as DocumentCategory | "",
         name: "",
         fileUrl: "",
+        paperlessDocumentId: null,
         description: "",
         visibleToCustomer: false,
       });
     }
     setFile(null);
+    setIsDragging(false);
     setDialogOpen(true);
   };
 
@@ -246,6 +320,7 @@ export function VehicleDocumentsManager({
           body: JSON.stringify({
             ...formData,
             fileUrl: formData.fileUrl,
+            paperlessDocumentId: formData.paperlessDocumentId || null,
             stage: formData.stage || null,
             fileType: file?.type || null,
             fileSize: file?.size || null,
@@ -350,6 +425,16 @@ export function VehicleDocumentsManager({
               >
                 View
               </a>
+              {doc.paperlessUrl && (
+                <a
+                  href={doc.paperlessUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-muted-foreground hover:underline text-sm"
+                >
+                  Open in Paperless
+                </a>
+              )}
               <Button
                 size="sm"
                 variant="outline"
@@ -404,73 +489,191 @@ export function VehicleDocumentsManager({
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader className="space-y-3">
-            <DialogTitle className="text-xl font-semibold">
+          <DialogHeader className="space-y-2">
+            <DialogTitle className="text-xl font-semibold flex items-center gap-2">
+              <span className="material-symbols-outlined text-xl">
+                {editingDocument ? "edit_document" : "upload_file"}
+              </span>
               {editingDocument ? "Edit Document" : "Upload Document"}
             </DialogTitle>
             <DialogDescription className="text-sm text-muted-foreground">
               {editingDocument
                 ? "Update document information. File cannot be changed."
-                : "Upload a new document. Accepted formats: PDF, JPG, PNG, DOC, DOCX (max 10MB). File upload is required."}
+                : "Upload a new document. Accepted formats: PDF, JPG, PNG, DOC, DOCX (max 10MB)."}
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-5 py-2">
+          <div className="space-y-6 px-6 pb-4">
             {/* File Upload */}
-            <div className="space-y-2">
-              <Label htmlFor="file" className="text-sm font-medium">
-                File <span className="text-destructive">*</span>
+            <div className="space-y-3">
+              <Label htmlFor="file" className="text-sm font-semibold flex items-center gap-2">
+                <span className="material-symbols-outlined text-base">attach_file</span>
+                File Upload
+                <span className="text-destructive">*</span>
               </Label>
               {editingDocument ? (
-                <div className="p-3 rounded-md bg-muted/50 border border-border flex items-start gap-2">
-                  <span className="material-symbols-outlined text-lg text-primary mt-0.5">
-                    description
-                  </span>
+                <div className="p-4 rounded-lg bg-muted/50 border-2 border-border flex items-start gap-3">
+                  <div className="p-2 rounded-md bg-primary/10 dark:bg-primary/20">
+                    <span className="material-symbols-outlined text-xl text-primary">
+                      description
+                    </span>
+                  </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-foreground truncate">
+                    <p className="text-sm font-semibold text-foreground truncate">
                       {editingDocument.name}
                     </p>
-                    <p className="text-xs text-muted-foreground mt-0.5">
+                    <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                      <span className="material-symbols-outlined text-xs">info</span>
                       File cannot be changed when editing
                     </p>
                   </div>
                 </div>
               ) : (
                 <>
-                  <div className="relative">
-                    <Input
+                  {/* Drag and Drop Zone */}
+                  <div
+                    ref={dropZoneRef}
+                    onDragOver={handleDragOver}
+                    onDragLeave={handleDragLeave}
+                    onDrop={handleDrop}
+                    className={`relative border-2 border-dashed rounded-lg transition-all duration-200 ${
+                      isDragging
+                        ? "border-primary bg-primary/5 dark:bg-primary/10"
+                        : "border-border hover:border-primary/50 hover:bg-muted/30"
+                    } ${uploading ? "opacity-50 pointer-events-none" : "cursor-pointer"}`}
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    <input
+                      ref={fileInputRef}
                       id="file"
                       type="file"
                       onChange={handleFileChange}
                       accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
                       disabled={uploading}
-                      className="h-11 cursor-pointer file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
+                      className="hidden"
                     />
-                  </div>
-                  {file && (
-                    <div className="mt-2 p-3 rounded-md bg-muted/50 border border-border flex items-start gap-2">
-                      <span className="material-symbols-outlined text-lg text-primary mt-0.5">
-                        description
-                      </span>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-foreground truncate">
-                          {file.name}
-                        </p>
-                        <p className="text-xs text-muted-foreground mt-0.5">
-                          {formatFileSize(file.size)}
-                          {uploading && " • Uploading..."}
-                          {formData.fileUrl && !uploading && " • Uploaded"}
-                        </p>
-                      </div>
+                    <input
+                      ref={cameraInputRef}
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      onChange={handleFileChange}
+                      className="hidden"
+                    />
+                    <div className="p-8 text-center">
+                      {file && formData.fileUrl && !uploading ? (
+                        <div className="space-y-3">
+                          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-100 dark:bg-green-900/30">
+                            <span className="material-symbols-outlined text-3xl text-green-600 dark:text-green-400">
+                              check_circle
+                            </span>
+                          </div>
+                          <div>
+                            <p className="text-sm font-semibold text-foreground">
+                              {file.name}
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {formatFileSize(file.size)} • Uploaded successfully
+                            </p>
+                          </div>
+                        </div>
+                      ) : uploading ? (
+                        <div className="space-y-3">
+                          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/10 dark:bg-primary/20">
+                            <span className="material-symbols-outlined text-3xl text-primary animate-spin">
+                              sync
+                            </span>
+                          </div>
+                          <div>
+                            <p className="text-sm font-semibold text-foreground">
+                              {file?.name || "Uploading..."}
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Please wait while we upload your file
+                            </p>
+                          </div>
+                        </div>
+                      ) : file ? (
+                        <div className="space-y-3">
+                          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/10 dark:bg-primary/20">
+                            <span className="material-symbols-outlined text-3xl text-primary">
+                              description
+                            </span>
+                          </div>
+                          <div>
+                            <p className="text-sm font-semibold text-foreground">
+                              {file.name}
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {formatFileSize(file.size)} • Ready to upload
+                            </p>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-muted">
+                            <span className="material-symbols-outlined text-3xl text-muted-foreground">
+                              cloud_upload
+                            </span>
+                          </div>
+                          <div>
+                            <p className="text-sm font-semibold text-foreground">
+                              Drop your file here, or{" "}
+                              <span className="text-primary underline">browse</span>
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              PDF, JPG, PNG, DOC, DOCX (max 10MB)
+                            </p>
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  )}
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="flex items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={uploading}
+                      className="flex-1 h-10"
+                    >
+                      <span className="material-symbols-outlined text-base mr-2">
+                        folder_open
+                      </span>
+                      Choose File
+                    </Button>
+                    <input
+                      ref={cameraInputRef}
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      onChange={handleFileChange}
+                      className="hidden"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => cameraInputRef.current?.click()}
+                      disabled={uploading}
+                      className="h-10 px-4"
+                      aria-label="Take photo with camera"
+                    >
+                      <span className="material-symbols-outlined text-base">
+                        camera
+                      </span>
+                    </Button>
+                  </div>
                 </>
               )}
             </div>
 
             {/* Document Name */}
             <div className="space-y-2">
-              <Label htmlFor="documentName" className="text-sm font-medium">
-                Document Name <span className="text-destructive">*</span>
+              <Label htmlFor="documentName" className="text-sm font-semibold flex items-center gap-2">
+                <span className="material-symbols-outlined text-base">title</span>
+                Document Name
+                <span className="text-destructive">*</span>
               </Label>
               <Input
                 id="documentName"
@@ -485,8 +688,10 @@ export function VehicleDocumentsManager({
 
             {/* Category */}
             <div className="space-y-2">
-              <Label htmlFor="category" className="text-sm font-medium">
-                Category <span className="text-destructive">*</span>
+              <Label htmlFor="category" className="text-sm font-semibold flex items-center gap-2">
+                <span className="material-symbols-outlined text-base">category</span>
+                Category
+                <span className="text-destructive">*</span>
               </Label>
               <Select
                 value={formData.category || undefined}
@@ -517,9 +722,10 @@ export function VehicleDocumentsManager({
 
             {/* Stage Tag */}
             <div className="space-y-2">
-              <Label htmlFor="stageTag" className="text-sm font-medium">
-                Stage Tag{" "}
-                <span className="text-muted-foreground text-xs">
+              <Label htmlFor="stageTag" className="text-sm font-semibold flex items-center gap-2">
+                <span className="material-symbols-outlined text-base">local_offer</span>
+                Stage Tag
+                <span className="text-muted-foreground text-xs font-normal">
                   (Optional)
                 </span>
               </Label>
@@ -557,9 +763,10 @@ export function VehicleDocumentsManager({
 
             {/* Description */}
             <div className="space-y-2">
-              <Label htmlFor="description" className="text-sm font-medium">
-                Description{" "}
-                <span className="text-muted-foreground text-xs">
+              <Label htmlFor="description" className="text-sm font-semibold flex items-center gap-2">
+                <span className="material-symbols-outlined text-base">notes</span>
+                Description
+                <span className="text-muted-foreground text-xs font-normal">
                   (Optional)
                 </span>
               </Label>
@@ -606,56 +813,61 @@ export function VehicleDocumentsManager({
 
             {/* Error Message */}
             {error && (
-              <div className="rounded-md bg-destructive/10 border border-destructive/20 p-3 flex items-start gap-2">
-                <span className="material-symbols-outlined text-destructive text-sm mt-0.5">
+              <div className="rounded-lg bg-destructive/10 dark:bg-destructive/20 border-2 border-destructive/30 dark:border-destructive/40 p-4 flex items-start gap-3">
+                <span className="material-symbols-outlined text-destructive text-lg mt-0.5">
                   error
                 </span>
-                <p className="text-sm text-destructive flex-1">{error}</p>
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-destructive">Error</p>
+                  <p className="text-sm text-destructive/90 mt-1">{error}</p>
+                </div>
               </div>
             )}
           </div>
-          <DialogFooter className="gap-2 sm:gap-0">
-            <Button
-              variant="outline"
-              onClick={() => {
-                setDialogOpen(false);
-                setError(null);
-              }}
-              disabled={saving || uploading}
-              className="h-10"
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleSaveDocument}
-              disabled={
-                saving ||
-                uploading ||
-                !formData.name ||
-                !formData.category ||
-                !formData.fileUrl
-              }
-              className="h-10 min-w-[120px]"
-            >
-              {saving ? (
-                <span className="flex items-center gap-2">
-                  <span className="material-symbols-outlined text-sm animate-spin">
-                    sync
+          <DialogFooter className="gap-3">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setDialogOpen(false);
+                  setError(null);
+                  setIsDragging(false);
+                }}
+                disabled={saving || uploading}
+                className="h-11 min-w-[100px]"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleSaveDocument}
+                disabled={
+                  saving ||
+                  uploading ||
+                  !formData.name ||
+                  !formData.category ||
+                  !formData.fileUrl
+                }
+                className="h-11 min-w-[140px]"
+              >
+                {saving ? (
+                  <span className="flex items-center gap-2">
+                    <span className="material-symbols-outlined text-sm animate-spin">
+                      sync
+                    </span>
+                    {editingDocument ? "Updating..." : "Saving..."}
                   </span>
-                  {editingDocument ? "Updating..." : "Saving..."}
-                </span>
-              ) : (
-                <span className="flex items-center gap-2">
-                  <span className="material-symbols-outlined text-sm">
-                    save
+                ) : (
+                  <span className="flex items-center gap-2">
+                    <span className="material-symbols-outlined text-sm">
+                      {editingDocument ? "edit" : "upload_file"}
+                    </span>
+                    {editingDocument ? "Update" : "Upload"} Document
                   </span>
-                  {editingDocument ? "Update" : "Save"} Document
-                </span>
-              )}
-            </Button>
-          </DialogFooter>
+                )}
+              </Button>
+            </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
   );
+
 }

@@ -98,14 +98,14 @@ export function VehicleCard({
   return (
     <Card
       onClick={handleCardClick}
-      className={`bg-white dark:bg-[#1E1E1E] border border-gray-200 dark:border-[#2C2C2C] transition-all group h-full flex flex-col ${
+      className={`bg-white dark:bg-[#1E1E1E] border border-gray-200 dark:border-[#2C2C2C] transition-all group ${
         onView
           ? "hover:border-gray-300 dark:hover:border-[#49454F] hover:shadow-md dark:hover:shadow-lg dark:hover:shadow-black/20 cursor-pointer"
           : "cursor-default"
       }`}
     >
-      <CardContent className="p-4 flex flex-col flex-1 min-h-0">
-        <div className="flex flex-col space-y-3 flex-shrink-0">
+      <CardContent className="p-4">
+        <div className="flex flex-col space-y-3">
           {vehicle.currentShippingStage && (
             <span
               className={`text-xs font-medium px-2 py-1 rounded border w-fit ${
@@ -123,7 +123,7 @@ export function VehicleCard({
           </div>
         </div>
 
-        <div className="flex flex-col space-y-2.5 flex-1 min-h-[60px] mt-1">
+        <div className="flex flex-col space-y-2.5 mt-1">
           <div className="text-xs text-gray-600 dark:text-[#A1A1A1]">
             <span className="font-medium text-gray-700 dark:text-[#D0D0D0]">
               VIN:
@@ -231,7 +231,7 @@ export function VehicleCard({
           )}
         </div>
 
-        <div className="flex items-center justify-between pt-3 border-t border-gray-100 dark:border-[#2C2C2C] flex-shrink-0 mt-auto">
+        <div className="flex items-center justify-between pt-3 border-t border-gray-100 dark:border-[#2C2C2C]">
           <div className="flex items-center gap-3 text-xs text-gray-500 dark:text-[#A1A1A1]">
             <span className="flex items-center gap-1">
               <span className="material-symbols-outlined text-sm">description</span>

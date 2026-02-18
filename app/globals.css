@@ -59,6 +59,20 @@
     font-family: var(--font-inter), sans-serif;
   }
 
+  /* Improve touch responsiveness on mobile */
+  button,
+  a,
+  input,
+  select,
+  textarea {
+    touch-action: manipulation;
+  }
+
+  /* Responsive page titles - use text-2xl sm:text-3xl for h1 in dashboard */
+  .page-title {
+    @apply text-2xl sm:text-3xl font-bold;
+  }
+
   /* JetBrains Mono for code – clear, readable monospace */
   code,
   pre,
@@ -228,5 +242,12 @@
   .font-mono-numbers {
     font-family: var(--font-jetbrains-mono), monospace;
     font-variant-numeric: tabular-nums;
+  }
+
+  /* Mobile: smooth touch scrolling */
+  .touch-scroll,
+  .overflow-x-auto,
+  .overflow-auto {
+    -webkit-overflow-scrolling: touch;
   }
 }

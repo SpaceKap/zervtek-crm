@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Button } from "./ui/button";
 import {
   Card,
@@ -48,6 +48,7 @@ interface Expense {
   paymentDeadline: string | null;
   paymentDate: string | null;
   stage: string | null;
+  invoiceUrl?: string | null;
   createdAt: string;
   source?: "vehicle" | "invoice";
   invoiceId?: string;
@@ -89,9 +90,13 @@ export function VehicleExpensesManager({
     vendorId: "",
     paymentDeadline: "",
     paymentDate: "",
+    invoiceUrl: "",
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
 
   const fetchExpenses = useCallback(async () => {
     try {
@@ -158,6 +163,7 @@ export function VehicleExpensesManager({
               return isNaN(d.getTime()) ? "" : format(d, "yyyy-MM-dd");
             })()
           : "",
+        invoiceUrl: expense.invoiceUrl || "",
       });
     } else {
       setEditingExpense(null);
@@ -168,6 +174,7 @@ export function VehicleExpensesManager({
         vendorId: "",
         paymentDeadline: "",
         paymentDate: "",
+        invoiceUrl: "",
       });
     }
     setDialogOpen(true);
@@ -196,6 +203,7 @@ export function VehicleExpensesManager({
         vendorId: formData.vendorId,
         paymentDeadline: formData.paymentDeadline || null,
         paymentDate: formData.paymentDate || null,
+        invoiceUrl: formData.invoiceUrl || null,
         stage: null, // We don't restrict by stage anymore
       };
 
@@ -558,6 +566,120 @@ export function VehicleExpensesManager({
                   Optional - set when paid
                 </p>
               </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">
+                Vendor Invoice (Optional)
+              </Label>
+              <div className="flex gap-2">
+                <Input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    setUploading(true);
+                    try {
+                      const fd = new FormData();
+                      fd.append("file", file);
+                      fd.append("context", "general-cost");
+                      fd.append(
+                        "expenseDate",
+                        formData.paymentDate || formData.paymentDeadline || new Date().toISOString().split("T")[0],
+                      );
+                      const res = await fetch("/api/upload", {
+                        method: "POST",
+                        body: fd,
+                      });
+                      if (res.ok) {
+                        const d = await res.json();
+                        setFormData((prev) => ({ ...prev, invoiceUrl: d.url }));
+                      }
+                    } finally {
+                      setUploading(false);
+                    }
+                  }}
+                  className="flex-1 cursor-pointer"
+                  disabled={uploading}
+                />
+                <input
+                  ref={cameraInputRef}
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    setUploading(true);
+                    try {
+                      const fd = new FormData();
+                      fd.append("file", file);
+                      fd.append("context", "general-cost");
+                      fd.append(
+                        "expenseDate",
+                        formData.paymentDate || formData.paymentDeadline || new Date().toISOString().split("T")[0],
+                      );
+                      const res = await fetch("/api/upload", {
+                        method: "POST",
+                        body: fd,
+                      });
+                      if (res.ok) {
+                        const d = await res.json();
+                        setFormData((prev) => ({ ...prev, invoiceUrl: d.url }));
+                      }
+                    } finally {
+                      setUploading(false);
+                    }
+                  }}
+                  className="hidden"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  onClick={() => cameraInputRef.current?.click()}
+                  disabled={uploading}
+                  className="h-11 shrink-0"
+                  aria-label="Take photo with camera"
+                >
+                  <span className="material-symbols-outlined text-lg">
+                    camera
+                  </span>
+                </Button>
+              </div>
+              {formData.invoiceUrl && (
+                <div className="flex items-center gap-2 p-2 bg-muted rounded-md">
+                  <span className="material-symbols-outlined text-sm">
+                    description
+                  </span>
+                  <a
+                    href={formData.invoiceUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-primary hover:underline flex-1"
+                  >
+                    View invoice
+                  </a>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setFormData((prev) => ({ ...prev, invoiceUrl: "" }));
+                      if (fileInputRef.current) fileInputRef.current.value = "";
+                      if (cameraInputRef.current) cameraInputRef.current.value = "";
+                    }}
+                    className="h-6 px-2"
+                  >
+                    Remove
+                  </Button>
+                </div>
+              )}
+              {uploading && (
+                <p className="text-xs text-muted-foreground">Uploading...</p>
+              )}
             </div>
 
             {error && (

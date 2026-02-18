@@ -61,7 +61,7 @@ export async function PATCH(
     }
 
     const body = await request.json()
-    const { isRegistered, customerId } = body
+    const { isRegistered, customerId, auctionSheetUrl, purchasePhotoUrl } = body
 
     const updateData: any = {}
     if (isRegistered !== undefined) {
@@ -69,6 +69,12 @@ export async function PATCH(
     }
     if (customerId !== undefined) {
       updateData.customerId = customerId || null
+    }
+    if (auctionSheetUrl !== undefined) {
+      updateData.auctionSheetUrl = auctionSheetUrl || null
+    }
+    if (purchasePhotoUrl !== undefined) {
+      updateData.purchasePhotoUrl = purchasePhotoUrl || null
     }
 
     // Sync customerId changes to all related invoices

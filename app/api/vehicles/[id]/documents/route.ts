@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { canManageVehicleStages } from "@/lib/permissions"
+import { getDocumentUrl } from "@/lib/paperless"
 import { ShippingStage, DocumentCategory } from "@prisma/client"
 
 export async function GET(
@@ -32,7 +33,18 @@ export async function GET(
       orderBy: { createdAt: "desc" },
     })
 
-    return NextResponse.json(documents)
+    const withPaperlessUrl = documents.map((doc) => {
+      const base = { ...doc }
+      if (doc.paperlessDocumentId) {
+        const id = parseInt(doc.paperlessDocumentId, 10)
+        if (!isNaN(id)) {
+          ;(base as any).paperlessUrl = getDocumentUrl(id)
+        }
+      }
+      return base
+    })
+
+    return NextResponse.json(withPaperlessUrl)
   } catch (error) {
     console.error("Error fetching documents:", error)
     return NextResponse.json(
@@ -66,6 +78,7 @@ export async function POST(
       fileSize,
       description,
       visibleToCustomer,
+      paperlessDocumentId,
     } = body
 
     if (!name || !fileUrl || !category) {
@@ -86,6 +99,7 @@ export async function POST(
         fileSize: fileSize || null,
         description: description || null,
         visibleToCustomer: visibleToCustomer || false,
+        paperlessDocumentId: paperlessDocumentId || null,
         uploadedById: session.user.id,
       },
     })

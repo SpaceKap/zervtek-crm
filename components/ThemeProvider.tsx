@@ -53,6 +53,12 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     } else {
       document.documentElement.classList.remove("dark");
     }
+    
+    // Update favicon based on theme
+    const favicon = document.querySelector('link[rel="icon"]') as HTMLLinkElement;
+    if (favicon) {
+      favicon.href = newTheme === "dark" ? "/favicon-dark.svg" : "/favicon-light.svg";
+    }
   };
 
   const toggleTheme = () => {

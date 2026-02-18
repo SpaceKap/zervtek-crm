@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { DocumentCategory, ShippingStage } from "@prisma/client";
 import {
   Dialog,
@@ -39,6 +39,7 @@ export function QuickDocumentUploadDialog({
   const [error, setError] = useState<string | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [description, setDescription] = useState("");
+  const cameraInputRef = useRef<HTMLInputElement>(null);
 
   // Reset form when dialog closes
   useEffect(() => {
@@ -82,6 +83,8 @@ export function QuickDocumentUploadDialog({
       // Upload file first
       const uploadFormData = new FormData();
       uploadFormData.append("file", file);
+      uploadFormData.append("context", "vehicle");
+      uploadFormData.append("vehicleId", vehicleId);
 
       const uploadResponse = await fetch("/api/upload", {
         method: "POST",
@@ -104,6 +107,7 @@ export function QuickDocumentUploadDialog({
           category,
           stage: stage || null,
           fileUrl: uploadData.url,
+          paperlessDocumentId: uploadData.paperlessDocumentId ?? null,
           fileType: file.type || null,
           fileSize: file.size || null,
           description: description || null,
@@ -148,14 +152,34 @@ export function QuickDocumentUploadDialog({
             <Label htmlFor="file" className="text-sm font-medium">
               File <span className="text-destructive">*</span>
             </Label>
-            <div className="relative">
+            <div className="flex gap-2">
               <Input
                 id="file"
                 type="file"
                 onChange={handleFileChange}
                 accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
-                className="h-11 cursor-pointer file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
+                className="h-11 flex-1 cursor-pointer file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
               />
+              <input
+                ref={cameraInputRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                onChange={handleFileChange}
+                className="hidden"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                onClick={() => cameraInputRef.current?.click()}
+                className="h-11 shrink-0"
+                aria-label="Take photo with camera"
+              >
+                <span className="material-symbols-outlined text-lg">
+                  camera
+                </span>
+              </Button>
             </div>
             {file && (
               <div className="mt-2 p-3 rounded-md bg-muted/50 border border-border flex items-start gap-2">

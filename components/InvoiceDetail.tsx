@@ -1006,6 +1006,58 @@ export function InvoiceDetail({
                         </p>
                       )}
                     </div>
+                    {invoice.transactions &&
+                      invoice.transactions.length > 0 && (
+                        <div>
+                          <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                            Payment History
+                          </Label>
+                          <div className="mt-2 space-y-2">
+                            {invoice.transactions.map((t: any) => (
+                              <div
+                                key={t.id}
+                                className="flex items-center justify-between p-3 rounded-lg border bg-muted/30"
+                              >
+                                <div>
+                                  <span className="font-medium">
+                                    {new Intl.NumberFormat("ja-JP", {
+                                      style: "currency",
+                                      currency: t.currency || "JPY",
+                                      minimumFractionDigits: 0,
+                                      maximumFractionDigits: 0,
+                                    }).format(parseFloat(t.amount))}
+                                  </span>
+                                  <span className="text-muted-foreground text-sm ml-2">
+                                    {format(new Date(t.date), "MMM dd, yyyy")}
+                                  </span>
+                                  {t.type && (
+                                    <span className="text-muted-foreground text-xs ml-2">
+                                      • {t.type.replace(/_/g, " ")}
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  {t.referenceNumber && (
+                                    <span className="text-xs text-muted-foreground">
+                                      Ref: {t.referenceNumber}
+                                    </span>
+                                  )}
+                                  {t.invoiceUrl && (
+                                    <a
+                                      href={t.invoiceUrl}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-primary hover:underline text-xs"
+                                    >
+                                      View receipt
+                                    </a>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     {currentUser.role === "ADMIN" && (
                       <div className="space-y-2">
                         <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">

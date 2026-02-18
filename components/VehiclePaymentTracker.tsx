@@ -16,8 +16,10 @@ interface PaymentData {
   totalCharges: string;
   totalReceived: string;
   balanceDue: string;
+  customerId?: string | null;
   invoices: Array<{
     id: string;
+    customerId?: string;
     invoiceNumber: string;
     charges: Array<{
       id: string;
@@ -266,6 +268,18 @@ export function VehiclePaymentTracker({
         }}
         defaultDirection={transactionDirection}
         defaultVehicleId={vehicleId}
+        defaultCustomerId={
+          paymentData?.customerId ??
+          paymentData?.invoices?.[0]?.customerId ??
+          undefined
+        }
+        defaultInvoiceId={
+          paymentData?.invoices?.find(
+            (inv) =>
+              inv.paymentStatus === "PENDING" ||
+              inv.paymentStatus === "PARTIALLY_PAID",
+          )?.id
+        }
       />
     </div>
   );

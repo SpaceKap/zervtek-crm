@@ -19,6 +19,7 @@ export async function GET(
       where: { id: params.id },
       select: {
         id: true,
+        customerId: true,
         shippingStage: {
           select: {
             totalCharges: true,
@@ -29,6 +30,7 @@ export async function GET(
           where: { status: { in: ["APPROVED", "FINALIZED"] } },
           select: {
             id: true,
+            customerId: true,
             invoiceNumber: true,
             charges: {
               select: {
@@ -137,6 +139,7 @@ export async function GET(
       totalCharges: totalCharges.toString(),
       totalReceived: totalReceived.toString(),
       balanceDue: balanceDue.toString(),
+      customerId: vehicle.customerId,
       invoices: vehicle.invoices,
     })
   } catch (error) {
