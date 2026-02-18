@@ -26,14 +26,11 @@ export async function GET(request: NextRequest) {
     const where: any = {}
 
     // Exclude failed leads filter (defined early so we can use it)
-    const failedLeadsFilter = {
-      NOT: {
-        metadata: {
-          path: ["isFailedLead"],
-          equals: true,
-        },
-      },
-    }
+    // IMPORTANT: Prisma JSON path queries can fail with null/undefined metadata
+    // We'll filter failed leads client-side after fetching to ensure reliability
+    // For now, we'll skip the Prisma-level filter and rely on client-side filtering
+    // This ensures inquiries with null metadata are included
+    const failedLeadsFilter = null // Temporarily disabled - using client-side filter only
 
     // Handle user filtering for managers
     if (unassignedOnly) {
@@ -41,8 +38,11 @@ export async function GET(request: NextRequest) {
       // Build AND clause with all conditions
       const andConditions: any[] = [
         { assignedToId: null },
-        failedLeadsFilter,
       ]
+      // Only add failed leads filter if it's defined (currently disabled)
+      if (failedLeadsFilter) {
+        andConditions.push(failedLeadsFilter)
+      }
       
       // Add status filter if provided
       if (status) {
@@ -104,7 +104,8 @@ export async function GET(request: NextRequest) {
     }
 
     // Exclude failed leads - add to AND clause (unless already added for unassignedOnly)
-    if (!unassignedOnly) {
+    // Currently disabled - relying on client-side filter for reliability
+    if (!unassignedOnly && failedLeadsFilter) {
       if (Object.keys(where).length === 0) {
         // If where is empty, just use the failed leads filter
         where.AND = [failedLeadsFilter]
