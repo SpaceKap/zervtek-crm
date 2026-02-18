@@ -10,9 +10,9 @@
  *   Local (with DATABASE_URL pointing at DB):
  *     npm run cleanup-unassigned-inquiries -- [--dry-run]
  *
- *   On VPS with Docker (run inside app container so it can reach postgres):
- *     docker compose exec inquiry-pooler npm run cleanup-unassigned-inquiries -- --dry-run
- *     docker compose exec inquiry-pooler npm run cleanup-unassigned-inquiries
+ *   On VPS with Docker (run on host; container image has no scripts/ or tsx):
+ *     ./scripts/run-cleanup-on-vps.sh --dry-run
+ *     ./scripts/run-cleanup-on-vps.sh
  *
  * Options:
  *   --dry-run    Show what would be deleted without actually deleting

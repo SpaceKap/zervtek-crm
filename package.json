@@ -22,7 +22,8 @@
         "change-role": "tsx scripts/change-role.ts",
         "list-users": "tsx scripts/change-role.ts --list",
         "check-kanban": "tsx scripts/check-kanban-stages.ts",
-        "delete-customers-vehicles": "tsx scripts/delete-all-customers-vehicles.ts"
+        "delete-customers-vehicles": "tsx scripts/delete-all-customers-vehicles.ts",
+        "cleanup-unassigned-inquiries": "tsx scripts/cleanup-unassigned-inquiries.ts"
     },
     "dependencies": {
         "@auth/prisma-adapter": "^2.6.0",
