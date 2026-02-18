@@ -231,12 +231,20 @@ export function VehicleExpensesManager({
         setDialogOpen(false);
         setError(null);
       } else {
-        const errorData = await response.json();
-        setError(errorData.error || "Failed to save expense");
+        let errorMessage = "Failed to save expense";
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorMessage;
+        } catch (e) {
+          // If JSON parsing fails, use status text
+          errorMessage = response.statusText || errorMessage;
+        }
+        setError(errorMessage);
+        console.error("Error response:", response.status, errorMessage);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error saving expense:", error);
-      setError("Failed to save expense. Please try again.");
+      setError(error?.message || "Failed to save expense. Please try again.");
     } finally {
       setSaving(false);
     }

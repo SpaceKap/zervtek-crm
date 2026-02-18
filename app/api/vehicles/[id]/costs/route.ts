@@ -146,12 +146,43 @@ export async function POST(
       )
     }
 
+    // Validate vehicle exists
+    const vehicle = await prisma.vehicle.findUnique({
+      where: { id: params.id },
+    })
+    if (!vehicle) {
+      return NextResponse.json(
+        { error: "Vehicle not found" },
+        { status: 404 }
+      )
+    }
+
+    // Validate vendor exists
+    const vendor = await prisma.vendor.findUnique({
+      where: { id: vendorId },
+    })
+    if (!vendor) {
+      return NextResponse.json(
+        { error: "Vendor not found" },
+        { status: 400 }
+      )
+    }
+
+    // Parse and validate amount
+    const parsedAmount = parseFloat(String(amount))
+    if (isNaN(parsedAmount) || parsedAmount <= 0) {
+      return NextResponse.json(
+        { error: "Invalid amount. Must be a positive number" },
+        { status: 400 }
+      )
+    }
+
     const cost = await prisma.vehicleStageCost.create({
       data: {
         vehicleId: params.id,
         stage: stage || null, // Stage is optional for unified expenses
         costType,
-        amount: parseFloat(amount),
+        amount: parsedAmount,
         vendorId,
         currency: currency || "JPY",
         paymentDeadline: paymentDeadline ? new Date(paymentDeadline) : null,
@@ -164,10 +195,27 @@ export async function POST(
     })
 
     return NextResponse.json(cost, { status: 201 })
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error creating cost:", error)
+    
+    // Return more specific error messages
+    if (error.code === "P2003") {
+      return NextResponse.json(
+        { error: "Invalid vendor or vehicle reference" },
+        { status: 400 }
+      )
+    }
+    if (error.code === "P2002") {
+      return NextResponse.json(
+        { error: "A cost with these details already exists" },
+        { status: 409 }
+      )
+    }
+    
+    // Return the actual error message if available
+    const errorMessage = error?.message || "Failed to create cost"
     return NextResponse.json(
-      { error: "Failed to create cost" },
+      { error: errorMessage },
       { status: 500 }
     )
   }
