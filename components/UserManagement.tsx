@@ -93,12 +93,13 @@ export function UserManagement() {
     if (name) {
       return name
         .split(" ")
+        .filter((n) => n.length > 0)
         .map((n) => n[0])
         .join("")
         .toUpperCase()
         .slice(0, 2)
     }
-    return email[0].toUpperCase()
+    return email && email.length > 0 ? email[0].toUpperCase() : "?"
   }
 
   if (loading) {

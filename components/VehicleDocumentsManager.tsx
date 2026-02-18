@@ -1,7 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-
+import { useState, useEffect, useRef, useCallback } from "react";
 import { ShippingStage, DocumentCategory } from "@prisma/client";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
@@ -108,12 +107,7 @@ export function VehicleDocumentsManager({
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const dropZoneRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    fetchDocuments();
-  }, [vehicleId]);
-
-
-  const fetchDocuments = async () => {
+  const fetchDocuments = useCallback(async () => {
     try {
       // Fetch ALL documents (no stage filter)
       const response = await fetch(`/api/vehicles/${vehicleId}/documents`);
@@ -126,7 +120,11 @@ export function VehicleDocumentsManager({
     } finally {
       setLoading(false);
     }
-  };
+  }, [vehicleId]);
+
+  useEffect(() => {
+    fetchDocuments();
+  }, [fetchDocuments]);
 
   const validateAndProcessFile = async (selectedFile: File) => {
     setError(null);
@@ -148,9 +146,10 @@ export function VehicleDocumentsManager({
     }
 
     // Check file type
-    const fileExtension = selectedFile.name
-      .toLowerCase()
-      .substring(selectedFile.name.lastIndexOf("."));
+    const lastDotIndex = selectedFile.name.lastIndexOf(".");
+    const fileExtension = lastDotIndex >= 0
+      ? selectedFile.name.toLowerCase().substring(lastDotIndex)
+      : "";
     if (
       !allowedTypes.includes(selectedFile.type) &&
       !allowedExtensions.includes(fileExtension)
@@ -349,10 +348,19 @@ export function VehicleDocumentsManager({
       );
       if (response.ok) {
         fetchDocuments();
+      } else {
+        let errorMessage = "Failed to delete document";
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorMessage;
+        } catch (e) {
+          errorMessage = response.statusText || errorMessage;
+        }
+        alert(errorMessage);
       }
     } catch (error) {
       console.error("Error deleting document:", error);
-      alert("Failed to delete document");
+      alert("Failed to delete document. Please try again.");
     }
   };
 

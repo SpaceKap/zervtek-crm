@@ -50,11 +50,13 @@ export async function GET(request: NextRequest) {
     try {
       const validStatuses = Object.values(InquiryStatus);
       const statusList = validStatuses.map(s => `'${s}'`).join(',');
-      const deleteResult = await prisma.$executeRawUnsafe(`
+      await prisma.$executeRawUnsafe(`
         DELETE FROM inquiry_pooler."KanbanStage"
         WHERE status NOT IN (${statusList})
       `);
-      console.log(`[Kanban API] Cleaned up invalid stages`);
+      if (process.env.NODE_ENV === "development") {
+        console.log(`[Kanban API] Cleaned up invalid stages`);
+      }
     } catch (cleanupError) {
       console.error("[Kanban API] Error cleaning up invalid stages:", cleanupError);
       // Continue anyway
@@ -67,14 +69,18 @@ export async function GET(request: NextRequest) {
         FROM inquiry_pooler."KanbanStage"
         ORDER BY "order" ASC
       ` as any;
-      console.log(`[Kanban API] Raw query succeeded, found ${stages.length} stages`);
+      if (process.env.NODE_ENV === "development") {
+        console.log(`[Kanban API] Raw query succeeded, found ${stages.length} stages`);
+      }
     } catch (error) {
       console.error("[Kanban API] Raw query failed:", error);
       // Return empty array - sync logic will create stages
       stages = [];
     }
 
-    console.log(`[Kanban API] Found ${stages.length} existing stages`)
+    if (process.env.NODE_ENV === "development") {
+      console.log(`[Kanban API] Found ${stages.length} existing stages`)
+    }
 
     // Define default stages
     const defaultStages = [
@@ -89,7 +95,9 @@ export async function GET(request: NextRequest) {
 
     // If no stages exist, create default ones
     if (stages.length === 0) {
-      console.log("[Kanban API] No stages found, creating default stages")
+      if (process.env.NODE_ENV === "development") {
+        console.log("[Kanban API] No stages found, creating default stages")
+      }
       await prisma.kanbanStage.createMany({
         data: defaultStages,
       })
@@ -99,7 +107,9 @@ export async function GET(request: NextRequest) {
         FROM inquiry_pooler."KanbanStage"
         ORDER BY "order" ASC
       ` as any;
-      console.log(`[Kanban API] Created ${stages.length} stages`)
+      if (process.env.NODE_ENV === "development") {
+        console.log(`[Kanban API] Created ${stages.length} stages`)
+      }
     } else {
       // Sync existing stages with default values (upsert)
       console.log("[Kanban API] Syncing stages with default values")

@@ -96,6 +96,13 @@ export async function PATCH(
       },
     })
 
+    if (!currentTransaction) {
+      return NextResponse.json(
+        { error: "Transaction not found" },
+        { status: 404 }
+      )
+    }
+
     const updateData: any = {}
     if (direction !== undefined) updateData.direction = direction
     if (type !== undefined) updateData.type = type
@@ -287,6 +294,13 @@ export async function DELETE(
       where: { id: params.id },
       select: { invoiceId: true, vehicleId: true, direction: true },
     })
+
+    if (!transaction) {
+      return NextResponse.json(
+        { error: "Transaction not found" },
+        { status: 404 }
+      )
+    }
 
     await prisma.$transaction(async (tx) => {
       // Delete transaction

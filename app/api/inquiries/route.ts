@@ -40,11 +40,9 @@ export async function GET(request: NextRequest) {
       // Explicitly request only unassigned inquiries
       // Build AND clause with all conditions
       const andConditions: any[] = [
-        { assignedToId: null }
+        { assignedToId: null },
+        failedLeadsFilter,
       ]
-      
-      // Temporarily comment out failed leads filter to test
-      // andConditions.push(failedLeadsFilter)
       
       // Add status filter if provided
       if (status) {
@@ -58,7 +56,9 @@ export async function GET(request: NextRequest) {
       
       where.AND = andConditions
       
-      console.log("UnassignedOnly query - AND conditions:", JSON.stringify(andConditions, null, 2))
+      if (process.env.NODE_ENV === "development") {
+        console.log("UnassignedOnly query - AND conditions:", JSON.stringify(andConditions, null, 2))
+      }("UnassignedOnly query - AND conditions:", JSON.stringify(andConditions, null, 2))
     } else if (canViewAll) {
       // Add status and source filters
       if (status) {
@@ -111,7 +111,17 @@ export async function GET(request: NextRequest) {
       } else if (where.AND) {
         where.AND.push(failedLeadsFilter)
       } else {
-        where.AND = [failedLeadsFilter]
+        // Convert existing direct properties to AND array to properly combine with failed leads filter
+        const existingConditions: any[] = []
+        // Collect all direct properties (not AND/OR) into conditions
+        Object.keys(where).forEach((key) => {
+          if (key !== "AND" && key !== "OR" && where[key as keyof typeof where] !== undefined) {
+            existingConditions.push({ [key]: where[key as keyof typeof where] })
+            delete (where as any)[key]
+          }
+        })
+        existingConditions.push(failedLeadsFilter)
+        where.AND = existingConditions
       }
     }
 
@@ -159,10 +169,6 @@ export async function GET(request: NextRequest) {
       console.log(`After filtering failed leads: ${filteredInquiries.length} inquiries`)
       console.log(`Unassigned inquiries: ${filteredInquiries.filter(i => !i.assignedToId).length}`)
     }
-    
-    // Debug: Check if any inquiries have assignedToId = null
-    const unassignedCount = inquiries.filter((i) => !i.assignedToId).length
-    console.log(`Raw unassigned count from DB: ${unassignedCount}`)
 
     return NextResponse.json(filteredInquiries)
   } catch (error) {

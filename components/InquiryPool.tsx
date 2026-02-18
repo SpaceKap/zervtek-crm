@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { InquiryCard } from "./InquiryCard";
 import { Button } from "@/components/ui/button";
 import { InquirySource, InquiryStatus } from "@prisma/client";
@@ -100,22 +100,15 @@ export function InquiryPool({
 
   // Update internal state when external props change
   useEffect(() => {
-    if (externalFilterSource !== undefined)
-      setFilterSource(externalFilterSource);
-    if (externalFilterStatus !== undefined)
-      setFilterStatus(externalFilterStatus);
-    if (externalFilterUserId !== undefined)
-      setFilterUserId(externalFilterUserId);
-  }, [externalFilterSource, externalFilterStatus, externalFilterUserId]);
-
-  // Update filterUserId when userId prop changes
-  useEffect(() => {
+    if (externalFilterSource !== undefined) setFilterSource(externalFilterSource);
+    if (externalFilterStatus !== undefined) setFilterStatus(externalFilterStatus);
+    if (externalFilterUserId !== undefined) setFilterUserId(externalFilterUserId);
     if (userId !== undefined && externalFilterUserId === undefined) {
       setFilterUserId(userId || "all");
     }
-  }, [userId, externalFilterUserId]);
+  }, [externalFilterSource, externalFilterStatus, externalFilterUserId, userId]);
 
-  const fetchInquiries = async () => {
+  const fetchInquiries = useCallback(async () => {
     try {
       setLoading(true);
       const params = new URLSearchParams();
@@ -151,7 +144,9 @@ export function InquiryPool({
         if (showUnassignedOnly) {
           // Show ONLY unassigned inquiries (assignedToId is null)
           const unassigned = data.filter((inq: Inquiry) => !inq.assignedToId);
-          console.log("Unassigned inquiries after filter:", unassigned.length);
+          if (process.env.NODE_ENV === "development") {
+            console.log("Unassigned inquiries after filter:", unassigned.length);
+          }
           setInquiries(unassigned);
         } else {
           setInquiries(data);
@@ -170,15 +165,14 @@ export function InquiryPool({
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentFilterSource, currentFilterStatus, currentFilterUserId, showUnassignedOnly, isManager]);
 
   useEffect(() => {
     fetchInquiries();
     // Refresh every 30 seconds
     const interval = setInterval(fetchInquiries, 30000);
     return () => clearInterval(interval);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentFilterSource, currentFilterStatus, currentFilterUserId]);
+  }, [fetchInquiries]);
 
   const handleAssign = async (inquiryId: string) => {
     try {
@@ -190,8 +184,14 @@ export function InquiryPool({
         setInquiries(inquiries.filter((inq) => inq.id !== inquiryId));
         router.refresh();
       } else {
-        const error = await response.json();
-        alert(error.error || "Failed to assign inquiry");
+        let errorMessage = "Failed to assign inquiry";
+        try {
+          const error = await response.json();
+          errorMessage = error.error || errorMessage;
+        } catch (e) {
+          errorMessage = response.statusText || errorMessage;
+        }
+        alert(errorMessage);
       }
     } catch (error) {
       console.error("Error assigning inquiry:", error);
@@ -222,8 +222,14 @@ export function InquiryPool({
         fetchInquiries();
         router.refresh();
       } else {
-        const error = await response.json();
-        alert(error.error || "Failed to release inquiry");
+        let errorMessage = "Failed to release inquiry";
+        try {
+          const error = await response.json();
+          errorMessage = error.error || errorMessage;
+        } catch (e) {
+          errorMessage = response.statusText || errorMessage;
+        }
+        alert(errorMessage);
       }
     } catch (error) {
       console.error("Error releasing inquiry:", error);
@@ -243,8 +249,14 @@ export function InquiryPool({
         setInquiries(inquiries.filter((inq) => inq.id !== inquiryId));
         router.refresh();
       } else {
-        const error = await response.json();
-        alert(error.error || "Failed to delete inquiry");
+        let errorMessage = "Failed to delete inquiry";
+        try {
+          const error = await response.json();
+          errorMessage = error.error || errorMessage;
+        } catch (e) {
+          errorMessage = response.statusText || errorMessage;
+        }
+        alert(errorMessage);
       }
     } catch (error) {
       console.error("Error deleting inquiry:", error);

@@ -136,7 +136,16 @@ export async function POST(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
-    const body = await request.json()
+    let body: any
+    try {
+      body = await request.json()
+    } catch (error) {
+      return NextResponse.json(
+        { error: "Invalid JSON in request body" },
+        { status: 400 }
+      )
+    }
+
     const { stage, costType, amount, vendorId, currency, paymentDeadline, paymentDate, invoiceUrl } = body
 
     if (!costType || !amount || !vendorId) {

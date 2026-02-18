@@ -558,7 +558,7 @@ export function FinancialOperationsView({
         description: cost.description,
         amount: cost.amount,
         currency: cost.currency || "JPY",
-        date: cost.date.split("T")[0],
+        date: cost.date ? cost.date.split("T")[0] : new Date().toISOString().split("T")[0],
         vendorId: cost.vendor?.id || "",
         invoiceUrl: cost.invoiceUrl || "",
         notes: cost.notes || "",
@@ -629,11 +629,18 @@ export function FinancialOperationsView({
       if (response.ok) {
         fetchCosts();
       } else {
-        alert("Failed to delete cost");
+        let errorMessage = "Failed to delete cost";
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorMessage;
+        } catch (e) {
+          errorMessage = response.statusText || errorMessage;
+        }
+        alert(errorMessage);
       }
     } catch (error) {
       console.error("Error deleting cost:", error);
-      alert("Failed to delete cost");
+      alert("Failed to delete cost. Please try again.");
     }
   };
 
@@ -2334,14 +2341,14 @@ export function FinancialOperationsView({
                                                   if (response.ok) {
                                                     fetchTransactions();
                                                   } else {
-                                                    const errorData =
-                                                      await response
-                                                        .json()
-                                                        .catch(() => ({}));
-                                                    alert(
-                                                      errorData.error ||
-                                                        "Failed to delete transaction",
-                                                    );
+                                                    let errorMessage = "Failed to delete transaction";
+                                                    try {
+                                                      const errorData = await response.json();
+                                                      errorMessage = errorData.error || errorMessage;
+                                                    } catch (e) {
+                                                      errorMessage = response.statusText || errorMessage;
+                                                    }
+                                                    alert(errorMessage);
                                                   }
                                                 } catch (error) {
                                                   console.error(
@@ -2349,7 +2356,7 @@ export function FinancialOperationsView({
                                                     error,
                                                   );
                                                   alert(
-                                                    "Failed to delete transaction",
+                                                    "Failed to delete transaction. Please try again.",
                                                   );
                                                 }
                                               };
@@ -2479,14 +2486,14 @@ export function FinancialOperationsView({
                                                   if (response.ok) {
                                                     fetchTransactions();
                                                   } else {
-                                                    const errorData =
-                                                      await response
-                                                        .json()
-                                                        .catch(() => ({}));
-                                                    alert(
-                                                      errorData.error ||
-                                                        "Failed to delete transaction",
-                                                    );
+                                                    let errorMessage = "Failed to delete transaction";
+                                                    try {
+                                                      const errorData = await response.json();
+                                                      errorMessage = errorData.error || errorMessage;
+                                                    } catch (e) {
+                                                      errorMessage = response.statusText || errorMessage;
+                                                    }
+                                                    alert(errorMessage);
                                                   }
                                                 } catch (error) {
                                                   console.error(
@@ -2494,7 +2501,7 @@ export function FinancialOperationsView({
                                                     error,
                                                   );
                                                   alert(
-                                                    "Failed to delete transaction",
+                                                    "Failed to delete transaction. Please try again.",
                                                   );
                                                 }
                                               };

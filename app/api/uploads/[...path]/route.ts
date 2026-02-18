@@ -44,7 +44,7 @@ export async function GET(
     }
 
     // Check if file exists
-    if (!filepath || !existsSync(filepath)) {
+    if (!filepath) {
       console.error(`File not found: ${cleanFilename}. Tried paths:`, possiblePaths)
       return NextResponse.json({ error: "File not found" }, { status: 404 })
     }
@@ -53,7 +53,7 @@ export async function GET(
     const fileBuffer = await readFile(filepath)
 
     // Determine content type based on file extension
-    const extension = cleanFilename.split(".").pop()?.toLowerCase()
+    const extension = cleanFilename.split(".").pop()?.toLowerCase() || ""
     const contentTypeMap: Record<string, string> = {
       pdf: "application/pdf",
       jpg: "image/jpeg",
@@ -63,7 +63,7 @@ export async function GET(
       doc: "application/msword",
       docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     }
-    const contentType = contentTypeMap[extension || ""] || "application/octet-stream"
+    const contentType = contentTypeMap[extension] || "application/octet-stream"
 
     // Return file with appropriate headers
     return new NextResponse(fileBuffer, {

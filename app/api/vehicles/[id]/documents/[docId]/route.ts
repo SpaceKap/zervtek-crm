@@ -19,8 +19,28 @@ export async function PATCH(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
-    const body = await request.json()
+    let body: any
+    try {
+      body = await request.json()
+    } catch (error) {
+      return NextResponse.json(
+        { error: "Invalid JSON in request body" },
+        { status: 400 }
+      )
+    }
+
     const { stage, category, name, fileUrl, fileType, fileSize, description, visibleToCustomer } = body
+
+    const existingDocument = await prisma.vehicleDocument.findUnique({
+      where: { id: params.docId },
+    })
+
+    if (!existingDocument) {
+      return NextResponse.json(
+        { error: "Document not found" },
+        { status: 404 }
+      )
+    }
 
     const updateData: any = {
       stage: stage ? (stage as ShippingStage) : null,
@@ -60,6 +80,17 @@ export async function DELETE(
 
     if (!canManageVehicleStages(session.user.role)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    }
+
+    const document = await prisma.vehicleDocument.findUnique({
+      where: { id: params.docId },
+    })
+
+    if (!document) {
+      return NextResponse.json(
+        { error: "Document not found" },
+        { status: 404 }
+      )
     }
 
     await prisma.vehicleDocument.delete({

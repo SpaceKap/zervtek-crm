@@ -23,6 +23,17 @@ export async function PATCH(
       notes,
     } = body
 
+    const existingCost = await prisma.generalCost.findUnique({
+      where: { id: params.id },
+    })
+
+    if (!existingCost) {
+      return NextResponse.json(
+        { error: "General cost not found" },
+        { status: 404 }
+      )
+    }
+
     const updateData: any = {}
     if (description !== undefined) updateData.description = description
     if (amount !== undefined) updateData.amount = parseFloat(amount.toString())
@@ -63,6 +74,17 @@ export async function DELETE(
 ) {
   try {
     await requireAuth()
+
+    const generalCost = await prisma.generalCost.findUnique({
+      where: { id: params.id },
+    })
+
+    if (!generalCost) {
+      return NextResponse.json(
+        { error: "General cost not found" },
+        { status: 404 }
+      )
+    }
 
     await prisma.generalCost.delete({
       where: { id: params.id },

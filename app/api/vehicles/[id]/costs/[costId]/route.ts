@@ -22,6 +22,17 @@ export async function PATCH(
     const body = await request.json()
     const { costType, amount, vendorId, currency, paymentDeadline, paymentDate, invoiceUrl } = body
 
+    const existingCost = await prisma.vehicleStageCost.findUnique({
+      where: { id: params.costId },
+    })
+
+    if (!existingCost) {
+      return NextResponse.json(
+        { error: "Cost not found" },
+        { status: 404 }
+      )
+    }
+
     const updateData: any = {}
     if (costType !== undefined) updateData.costType = costType
     if (amount !== undefined) updateData.amount = parseFloat(amount)
@@ -89,6 +100,17 @@ export async function DELETE(
 
     if (!canManageVehicleStages(session.user.role)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    }
+
+    const cost = await prisma.vehicleStageCost.findUnique({
+      where: { id: params.costId },
+    })
+
+    if (!cost) {
+      return NextResponse.json(
+        { error: "Cost not found" },
+        { status: 404 }
+      )
     }
 
     await prisma.vehicleStageCost.delete({

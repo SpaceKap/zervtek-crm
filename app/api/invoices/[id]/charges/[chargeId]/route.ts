@@ -82,6 +82,17 @@ export async function DELETE(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
+    const charge = await prisma.invoiceCharge.findUnique({
+      where: { id: params.chargeId },
+    })
+
+    if (!charge) {
+      return NextResponse.json(
+        { error: "Charge not found" },
+        { status: 404 }
+      )
+    }
+
     await prisma.invoiceCharge.delete({
       where: { id: params.chargeId },
     })

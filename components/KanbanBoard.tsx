@@ -222,8 +222,14 @@ export function KanbanBoard({
         router.push("/dashboard");
         router.refresh();
       } else {
-        const error = await response.json();
-        alert(error.error || "Failed to release inquiry");
+        let errorMessage = "Failed to release inquiry";
+        try {
+          const error = await response.json();
+          errorMessage = error.error || errorMessage;
+        } catch (e) {
+          errorMessage = response.statusText || errorMessage;
+        }
+        alert(errorMessage);
       }
     } catch (error) {
       console.error("Error releasing inquiry:", error);
