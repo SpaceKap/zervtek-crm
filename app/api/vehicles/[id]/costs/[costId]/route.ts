@@ -102,6 +102,14 @@ export async function DELETE(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
+    // Prevent deletion of invoice cost items (they have prefixed IDs)
+    if (params.costId.startsWith("invoice-cost-")) {
+      return NextResponse.json(
+        { error: "Invoice costs cannot be deleted from this interface. Please delete them from the invoice page." },
+        { status: 400 }
+      )
+    }
+
     const cost = await prisma.vehicleStageCost.findUnique({
       where: { id: params.costId },
     })
@@ -113,8 +121,28 @@ export async function DELETE(
       )
     }
 
-    await prisma.vehicleStageCost.delete({
-      where: { id: params.costId },
+    // Delete associated transaction if it exists (created when cost was marked as paid)
+    await prisma.$transaction(async (tx) => {
+      // Find and delete associated transaction
+      const associatedTransaction = await tx.transaction.findFirst({
+        where: { vehicleStageCostId: params.costId },
+      })
+
+      if (associatedTransaction) {
+        try {
+          await tx.transaction.delete({
+            where: { id: associatedTransaction.id },
+          })
+        } catch (txError: any) {
+          // If transaction was already deleted or doesn't exist, continue with cost deletion
+          console.warn("Transaction deletion warning:", txError?.message || txError)
+        }
+      }
+
+      // Delete the cost
+      await tx.vehicleStageCost.delete({
+        where: { id: params.costId },
+      })
     })
 
     return NextResponse.json({ success: true })

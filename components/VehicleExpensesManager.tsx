@@ -290,6 +290,15 @@ export function VehicleExpensesManager({
       if (response.ok) {
         await fetchExpenses();
         if (onUpdate) onUpdate();
+      } else {
+        let errorMessage = "Failed to delete expense";
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorMessage;
+        } catch (e) {
+          errorMessage = response.statusText || errorMessage;
+        }
+        alert(errorMessage);
       }
     } catch (error) {
       console.error("Error deleting expense:", error);
