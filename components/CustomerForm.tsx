@@ -595,7 +595,7 @@ export function CustomerForm({
                             </p>
                           )}
                         </div>
-                        <div className="flex-1">
+                        <div className="flex-1 min-w-[180px]">
                           <Input
                             id="phone"
                             type="tel"

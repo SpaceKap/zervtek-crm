@@ -142,7 +142,11 @@ export function FinancialOperationsView({
   const searchParams = useSearchParams();
   const sectionParam = searchParams.get("section");
 
-  const getInitialSection = (): "transactions" | "vehicles" | "customers" | "invoices" => {
+  const getInitialSection = ():
+    | "transactions"
+    | "vehicles"
+    | "customers"
+    | "invoices" => {
     if (sectionParam === "vehicles") {
       return "vehicles";
     }
@@ -558,7 +562,9 @@ export function FinancialOperationsView({
         description: cost.description,
         amount: cost.amount,
         currency: cost.currency || "JPY",
-        date: cost.date ? cost.date.split("T")[0] : new Date().toISOString().split("T")[0],
+        date: cost.date
+          ? cost.date.split("T")[0]
+          : new Date().toISOString().split("T")[0],
         vendorId: cost.vendor?.id || "",
         invoiceUrl: cost.invoiceUrl || "",
         notes: cost.notes || "",
@@ -878,6 +884,7 @@ export function FinancialOperationsView({
     });
 
   const canViewVehicles =
+    currentUser.role === UserRole.SALES ||
     currentUser.role === UserRole.MANAGER ||
     currentUser.role === UserRole.ADMIN ||
     currentUser.role === UserRole.BACK_OFFICE_STAFF ||
@@ -930,9 +937,7 @@ export function FinancialOperationsView({
         onValueChange={(v) => setActiveSection(v as typeof activeSection)}
         className="w-full"
       >
-        <TabsList
-          className="h-10 items-center justify-start rounded-md bg-muted p-1 text-muted-foreground flex flex-wrap gap-1 mb-6"
-        >
+        <TabsList className="h-10 items-center justify-start rounded-md bg-muted p-1 text-muted-foreground flex flex-wrap gap-1 mb-6">
           {canViewTransactions && (
             <TabsTrigger value="transactions" className="flex-1 min-w-[120px]">
               Transactions
@@ -976,1643 +981,1623 @@ export function FinancialOperationsView({
                         onClick={() => setActiveSection("invoices")}
                         className="inline-flex items-center gap-2"
                       >
-                        <span className="material-symbols-outlined">receipt</span>
+                        <span className="material-symbols-outlined">
+                          receipt
+                        </span>
                         View Invoices
                       </Button>
                     )}
                   </div>
                 </div>
                 <div className="flex gap-2 border-b">
-                    <button
-                      onClick={() => setTransactionTab("INCOMING")}
-                      className={`px-6 py-3 font-medium transition-colors relative ${
-                        transactionTab === "INCOMING"
-                          ? "text-primary"
-                          : "text-muted-foreground hover:text-foreground"
-                      }`}
-                    >
-                      Incoming Payments
-                      {transactionTab === "INCOMING" && (
-                        <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
-                      )}
-                    </button>
-                    <button
-                      onClick={() => setTransactionTab("OUTGOING")}
-                      className={`px-6 py-3 font-medium transition-colors relative ${
-                        transactionTab === "OUTGOING"
-                          ? "text-primary"
-                          : "text-muted-foreground hover:text-foreground"
-                      }`}
-                    >
-                      Expenses
-                      {transactionTab === "OUTGOING" && (
-                        <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
-                      )}
-                    </button>
-                  </div>
+                  <button
+                    onClick={() => setTransactionTab("INCOMING")}
+                    className={`px-6 py-3 font-medium transition-colors relative ${
+                      transactionTab === "INCOMING"
+                        ? "text-primary"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    Incoming Payments
+                    {transactionTab === "INCOMING" && (
+                      <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
+                    )}
+                  </button>
+                  <button
+                    onClick={() => setTransactionTab("OUTGOING")}
+                    className={`px-6 py-3 font-medium transition-colors relative ${
+                      transactionTab === "OUTGOING"
+                        ? "text-primary"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    Expenses
+                    {transactionTab === "OUTGOING" && (
+                      <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
+                    )}
+                  </button>
+                </div>
               </CardHeader>
               <CardContent className="pt-6">
                 <>
-                    {/* Enhanced Filters */}
-                    <div className="space-y-4 mb-6">
-                      {/* Search and Quick Filters Row */}
-                      <div className="flex gap-4 flex-wrap items-end">
-                        <div className="flex-1 min-w-[250px]">
-                          <Label
-                            htmlFor="search"
-                            className="text-xs mb-1.5 block"
-                          >
-                            Search
-                          </Label>
-                          <Input
-                            id="search"
-                            type="text"
-                            placeholder="Search by description, invoice #, customer, vendor..."
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full"
-                          />
-                        </div>
-                        <div className="min-w-[180px]">
-                          <Label
-                            htmlFor="date-preset"
-                            className="text-xs mb-1.5 block"
-                          >
-                            Quick Date Range
-                          </Label>
-                          <Select
-                            value={datePreset}
-                            onValueChange={applyDatePreset}
-                          >
-                            <SelectTrigger id="date-preset" className="w-full">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="custom">
-                                Custom Range
-                              </SelectItem>
-                              <SelectItem value="today">Today</SelectItem>
-                              <SelectItem value="thisWeek">
-                                This Week
-                              </SelectItem>
-                              <SelectItem value="thisMonth">
-                                This Month
-                              </SelectItem>
-                              <SelectItem value="lastMonth">
-                                Last Month
-                              </SelectItem>
-                              <SelectItem value="thisYear">
-                                This Year
-                              </SelectItem>
-                              <SelectItem value="all">All Time</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        {(datePreset === "custom" || datePreset === "all") && (
-                          <>
-                            <div className="min-w-[150px]">
-                              <Label
-                                htmlFor="start-date"
-                                className="text-xs mb-1.5 block"
-                              >
-                                Start Date
-                              </Label>
-                              <DatePicker
-                                id="start-date"
-                                value={startDate}
-                                onChange={(e) => {
-                                  setStartDate(e.target.value);
-                                  setDatePreset("custom");
-                                }}
-                                className="w-full"
-                              />
-                            </div>
-                            <div className="min-w-[150px]">
-                              <Label
-                                htmlFor="end-date"
-                                className="text-xs mb-1.5 block"
-                              >
-                                End Date
-                              </Label>
-                              <DatePicker
-                                id="end-date"
-                                value={endDate}
-                                onChange={(e) => {
-                                  setEndDate(e.target.value);
-                                  setDatePreset("custom");
-                                }}
-                                className="w-full"
-                              />
-                            </div>
-                          </>
-                        )}
+                  {/* Enhanced Filters */}
+                  <div className="space-y-4 mb-6">
+                    {/* Search and Quick Filters Row */}
+                    <div className="flex gap-4 flex-wrap items-end">
+                      <div className="flex-1 min-w-[250px]">
+                        <Label
+                          htmlFor="search"
+                          className="text-xs mb-1.5 block"
+                        >
+                          Search
+                        </Label>
+                        <Input
+                          id="search"
+                          type="text"
+                          placeholder="Search by description, invoice #, customer, vendor..."
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                          className="w-full"
+                        />
                       </div>
-
-                      {/* Advanced Filters Row */}
-                      <div className="flex gap-4 flex-wrap items-end">
-                        <div className="min-w-[180px]">
-                          <Label
-                            htmlFor="type-filter"
-                            className="text-xs mb-1.5 block"
-                          >
-                            Transaction Type
-                          </Label>
-                          <Select
-                            value={typeFilter}
-                            onValueChange={setTypeFilter}
-                          >
-                            <SelectTrigger id="type-filter" className="w-full">
-                              <SelectValue placeholder="All Types" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="all">All Types</SelectItem>
-                              {Object.entries(typeLabels).map(
-                                ([value, label]) => (
-                                  <SelectItem key={value} value={value}>
-                                    {label}
-                                  </SelectItem>
-                                ),
-                              )}
-                            </SelectContent>
-                          </Select>
-                        </div>
-
-                        {transactionTab === "INCOMING" && (
-                          <div className="min-w-[200px]">
+                      <div className="min-w-[180px]">
+                        <Label
+                          htmlFor="date-preset"
+                          className="text-xs mb-1.5 block"
+                        >
+                          Quick Date Range
+                        </Label>
+                        <Select
+                          value={datePreset}
+                          onValueChange={applyDatePreset}
+                        >
+                          <SelectTrigger id="date-preset" className="w-full">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="custom">Custom Range</SelectItem>
+                            <SelectItem value="today">Today</SelectItem>
+                            <SelectItem value="thisWeek">This Week</SelectItem>
+                            <SelectItem value="thisMonth">
+                              This Month
+                            </SelectItem>
+                            <SelectItem value="lastMonth">
+                              Last Month
+                            </SelectItem>
+                            <SelectItem value="thisYear">This Year</SelectItem>
+                            <SelectItem value="all">All Time</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      {(datePreset === "custom" || datePreset === "all") && (
+                        <>
+                          <div className="min-w-[150px]">
                             <Label
-                              htmlFor="customer-filter"
+                              htmlFor="start-date"
                               className="text-xs mb-1.5 block"
                             >
-                              Customer
+                              Start Date
                             </Label>
-                            <Select
-                              value={customerFilter}
-                              onValueChange={setCustomerFilter}
-                            >
-                              <SelectTrigger
-                                id="customer-filter"
-                                className="w-full"
-                              >
-                                <SelectValue placeholder="All Customers" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="all">
-                                  All Customers
-                                </SelectItem>
-                                {customers.map((customer) => (
-                                  <SelectItem
-                                    key={customer.id}
-                                    value={customer.id}
-                                  >
-                                    {customer.name || customer.email}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
+                            <DatePicker
+                              id="start-date"
+                              value={startDate}
+                              onChange={(e) => {
+                                setStartDate(e.target.value);
+                                setDatePreset("custom");
+                              }}
+                              className="w-full"
+                            />
                           </div>
-                        )}
-
-                        {transactionTab === "OUTGOING" && (
-                          <div className="min-w-[200px]">
+                          <div className="min-w-[150px]">
                             <Label
-                              htmlFor="vendor-filter"
+                              htmlFor="end-date"
                               className="text-xs mb-1.5 block"
                             >
-                              Vendor
+                              End Date
                             </Label>
-                            <Select
-                              value={vendorFilter}
-                              onValueChange={setVendorFilter}
-                            >
-                              <SelectTrigger
-                                id="vendor-filter"
-                                className="w-full"
-                              >
-                                <SelectValue placeholder="All Vendors" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="all">All Vendors</SelectItem>
-                                {vendors.map((vendor) => (
-                                  <SelectItem key={vendor.id} value={vendor.id}>
-                                    {vendor.name}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
+                            <DatePicker
+                              id="end-date"
+                              value={endDate}
+                              onChange={(e) => {
+                                setEndDate(e.target.value);
+                                setDatePreset("custom");
+                              }}
+                              className="w-full"
+                            />
                           </div>
-                        )}
-
-                        <div className="min-w-[180px]">
-                          <Label
-                            htmlFor="payment-status-filter"
-                            className="text-xs mb-1.5 block"
-                          >
-                            Payment Status
-                          </Label>
-                          <Select
-                            value={paymentStatusFilter}
-                            onValueChange={setPaymentStatusFilter}
-                          >
-                            <SelectTrigger
-                              id="payment-status-filter"
-                              className="w-full"
-                            >
-                              <SelectValue placeholder="All Statuses" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="all">All Statuses</SelectItem>
-                              <SelectItem value="paid">Paid</SelectItem>
-                              <SelectItem value="pending">Pending</SelectItem>
-                              <SelectItem value="overdue">Overdue</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-
-                        <div className="min-w-[150px]">
-                          <Label
-                            htmlFor="sort-field"
-                            className="text-xs mb-1.5 block"
-                          >
-                            Sort By
-                          </Label>
-                          <Select
-                            value={sortField}
-                            onValueChange={setSortField}
-                          >
-                            <SelectTrigger id="sort-field" className="w-full">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="date">Date</SelectItem>
-                              <SelectItem value="amount">Amount</SelectItem>
-                              {transactionTab === "INCOMING" && (
-                                <SelectItem value="customer">
-                                  Customer
-                                </SelectItem>
-                              )}
-                              {transactionTab === "OUTGOING" && (
-                                <SelectItem value="vendor">Vendor</SelectItem>
-                              )}
-                            </SelectContent>
-                          </Select>
-                        </div>
-
-                        <div className="min-w-[120px]">
-                          <Label
-                            htmlFor="sort-direction"
-                            className="text-xs mb-1.5 block"
-                          >
-                            Order
-                          </Label>
-                          <Select
-                            value={sortDirection}
-                            onValueChange={(v) =>
-                              setSortDirection(v as "asc" | "desc")
-                            }
-                          >
-                            <SelectTrigger
-                              id="sort-direction"
-                              className="w-full"
-                            >
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="desc">Descending</SelectItem>
-                              <SelectItem value="asc">Ascending</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
+                        </>
+                      )}
                     </div>
 
-                    {/* Summary Statistics Cards */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-                      <div className="p-4 bg-muted/50 rounded-lg border">
-                        <div className="text-sm text-muted-foreground mb-1 flex items-center gap-2">
-                          <span className="material-symbols-outlined text-sm">
-                            {transactionTab === "INCOMING"
-                              ? "trending_up"
-                              : "trending_down"}
-                          </span>
-                          {transactionTab === "INCOMING"
-                            ? "Total Incoming"
-                            : "Total Expenses"}
-                        </div>
-                        <div className="text-2xl font-bold font-mono-numbers">
-                          {transactionTab === "INCOMING"
-                            ? incomingTotal.toLocaleString()
-                            : outgoingTotal.toLocaleString()}{" "}
-                          JPY
-                        </div>
-                        <div className="text-xs text-muted-foreground mt-1 font-mono-numbers">
-                          {filteredAndSortedTransactions.length} transaction
-                          {filteredAndSortedTransactions.length !== 1
-                            ? "s"
-                            : ""}
-                        </div>
+                    {/* Advanced Filters Row */}
+                    <div className="flex gap-4 flex-wrap items-end">
+                      <div className="min-w-[180px]">
+                        <Label
+                          htmlFor="type-filter"
+                          className="text-xs mb-1.5 block"
+                        >
+                          Transaction Type
+                        </Label>
+                        <Select
+                          value={typeFilter}
+                          onValueChange={setTypeFilter}
+                        >
+                          <SelectTrigger id="type-filter" className="w-full">
+                            <SelectValue placeholder="All Types" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">All Types</SelectItem>
+                            {Object.entries(typeLabels).map(
+                              ([value, label]) => (
+                                <SelectItem key={value} value={value}>
+                                  {label}
+                                </SelectItem>
+                              ),
+                            )}
+                          </SelectContent>
+                        </Select>
                       </div>
 
                       {transactionTab === "INCOMING" && (
-                        <>
-                          <div className="p-4 bg-green-50 dark:bg-green-900/10 rounded-lg border border-green-200 dark:border-green-800">
-                            <div className="text-sm text-muted-foreground mb-1 flex items-center gap-2">
-                              <span className="material-symbols-outlined text-sm text-green-600 dark:text-green-400">
-                                check_circle
-                              </span>
-                              Paid
-                            </div>
-                            <div className="text-2xl font-bold text-green-700 dark:text-green-300 font-mono-numbers">
-                              {paidCount}
-                            </div>
-                            <div className="text-xs text-muted-foreground mt-1">
-                              transactions
-                            </div>
-                          </div>
-
-                          <div className="p-4 bg-yellow-50 dark:bg-yellow-900/10 rounded-lg border border-yellow-200 dark:border-yellow-800">
-                            <div className="text-sm text-muted-foreground mb-1 flex items-center gap-2">
-                              <span className="material-symbols-outlined text-sm text-yellow-600 dark:text-yellow-400">
-                                schedule
-                              </span>
-                              Pending
-                            </div>
-                            <div className="text-2xl font-bold text-yellow-700 dark:text-yellow-300 font-mono-numbers">
-                              {pendingCount}
-                            </div>
-                            <div className="text-xs text-muted-foreground mt-1">
-                              transactions
-                            </div>
-                          </div>
-
-                          <div className="p-4 bg-red-50 dark:bg-red-900/10 rounded-lg border border-red-200 dark:border-red-800">
-                            <div className="text-sm text-muted-foreground mb-1 flex items-center gap-2">
-                              <span className="material-symbols-outlined text-sm text-red-600 dark:text-red-400">
-                                warning
-                              </span>
-                              Overdue
-                            </div>
-                            <div className="text-2xl font-bold text-red-700 dark:text-red-300 font-mono-numbers">
-                              {overdueCount}
-                            </div>
-                            <div className="text-xs text-muted-foreground mt-1">
-                              transactions
-                            </div>
-                          </div>
-                        </>
+                        <div className="min-w-[200px]">
+                          <Label
+                            htmlFor="customer-filter"
+                            className="text-xs mb-1.5 block"
+                          >
+                            Customer
+                          </Label>
+                          <Select
+                            value={customerFilter}
+                            onValueChange={setCustomerFilter}
+                          >
+                            <SelectTrigger
+                              id="customer-filter"
+                              className="w-full"
+                            >
+                              <SelectValue placeholder="All Customers" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="all">All Customers</SelectItem>
+                              {customers.map((customer) => (
+                                <SelectItem
+                                  key={customer.id}
+                                  value={customer.id}
+                                >
+                                  {customer.name || customer.email}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
                       )}
 
                       {transactionTab === "OUTGOING" && (
-                        <>
-                          <div className="p-4 bg-green-50 dark:bg-green-900/10 rounded-lg border border-green-200 dark:border-green-800">
-                            <div className="text-sm text-muted-foreground mb-1 flex items-center gap-2">
-                              <span className="material-symbols-outlined text-sm text-green-600 dark:text-green-400">
-                                check_circle
-                              </span>
-                              Paid
-                            </div>
-                            <div className="text-2xl font-bold text-green-700 dark:text-green-300 font-mono-numbers">
-                              {paidCount}
-                            </div>
-                            <div className="text-xs text-muted-foreground mt-1">
-                              transactions
-                            </div>
-                          </div>
-
-                          <div className="p-4 bg-yellow-50 dark:bg-yellow-900/10 rounded-lg border border-yellow-200 dark:border-yellow-800">
-                            <div className="text-sm text-muted-foreground mb-1 flex items-center gap-2">
-                              <span className="material-symbols-outlined text-sm text-yellow-600 dark:text-yellow-400">
-                                schedule
-                              </span>
-                              Pending
-                            </div>
-                            <div className="text-2xl font-bold text-yellow-700 dark:text-yellow-300 font-mono-numbers">
-                              {pendingCount}
-                            </div>
-                            <div className="text-xs text-muted-foreground mt-1">
-                              transactions
-                            </div>
-                          </div>
-
-                          <div className="p-4 bg-blue-50 dark:bg-blue-900/10 rounded-lg border border-blue-200 dark:border-blue-800">
-                            <div className="text-sm text-muted-foreground mb-1 flex items-center gap-2">
-                              <span className="material-symbols-outlined text-sm text-blue-600 dark:text-blue-400">
-                                account_balance
-                              </span>
-                              Net Amount
-                            </div>
-                            <div
-                              className={`text-2xl font-bold font-mono-numbers ${netAmount >= 0 ? "text-green-700 dark:text-green-300" : "text-red-700 dark:text-red-300"}`}
+                        <div className="min-w-[200px]">
+                          <Label
+                            htmlFor="vendor-filter"
+                            className="text-xs mb-1.5 block"
+                          >
+                            Vendor
+                          </Label>
+                          <Select
+                            value={vendorFilter}
+                            onValueChange={setVendorFilter}
+                          >
+                            <SelectTrigger
+                              id="vendor-filter"
+                              className="w-full"
                             >
-                              {netAmount >= 0 ? "+" : ""}
-                              {netAmount.toLocaleString()} JPY
-                            </div>
-                            <div className="text-xs text-muted-foreground mt-1">
-                              Incoming - Outgoing
-                            </div>
-                          </div>
-                        </>
+                              <SelectValue placeholder="All Vendors" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="all">All Vendors</SelectItem>
+                              {vendors.map((vendor) => (
+                                <SelectItem key={vendor.id} value={vendor.id}>
+                                  {vendor.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
                       )}
+
+                      <div className="min-w-[180px]">
+                        <Label
+                          htmlFor="payment-status-filter"
+                          className="text-xs mb-1.5 block"
+                        >
+                          Payment Status
+                        </Label>
+                        <Select
+                          value={paymentStatusFilter}
+                          onValueChange={setPaymentStatusFilter}
+                        >
+                          <SelectTrigger
+                            id="payment-status-filter"
+                            className="w-full"
+                          >
+                            <SelectValue placeholder="All Statuses" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">All Statuses</SelectItem>
+                            <SelectItem value="paid">Paid</SelectItem>
+                            <SelectItem value="pending">Pending</SelectItem>
+                            <SelectItem value="overdue">Overdue</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="min-w-[150px]">
+                        <Label
+                          htmlFor="sort-field"
+                          className="text-xs mb-1.5 block"
+                        >
+                          Sort By
+                        </Label>
+                        <Select value={sortField} onValueChange={setSortField}>
+                          <SelectTrigger id="sort-field" className="w-full">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="date">Date</SelectItem>
+                            <SelectItem value="amount">Amount</SelectItem>
+                            {transactionTab === "INCOMING" && (
+                              <SelectItem value="customer">Customer</SelectItem>
+                            )}
+                            {transactionTab === "OUTGOING" && (
+                              <SelectItem value="vendor">Vendor</SelectItem>
+                            )}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="min-w-[120px]">
+                        <Label
+                          htmlFor="sort-direction"
+                          className="text-xs mb-1.5 block"
+                        >
+                          Order
+                        </Label>
+                        <Select
+                          value={sortDirection}
+                          onValueChange={(v) =>
+                            setSortDirection(v as "asc" | "desc")
+                          }
+                        >
+                          <SelectTrigger id="sort-direction" className="w-full">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="desc">Descending</SelectItem>
+                            <SelectItem value="asc">Ascending</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Summary Statistics Cards */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                    <div className="p-4 bg-muted/50 rounded-lg border">
+                      <div className="text-sm text-muted-foreground mb-1 flex items-center gap-2">
+                        <span className="material-symbols-outlined text-sm">
+                          {transactionTab === "INCOMING"
+                            ? "trending_up"
+                            : "trending_down"}
+                        </span>
+                        {transactionTab === "INCOMING"
+                          ? "Total Incoming"
+                          : "Total Expenses"}
+                      </div>
+                      <div className="text-2xl font-bold font-mono-numbers">
+                        {transactionTab === "INCOMING"
+                          ? incomingTotal.toLocaleString()
+                          : outgoingTotal.toLocaleString()}{" "}
+                        JPY
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-1 font-mono-numbers">
+                        {filteredAndSortedTransactions.length} transaction
+                        {filteredAndSortedTransactions.length !== 1 ? "s" : ""}
+                      </div>
                     </div>
 
-                    {transactionsLoading ? (
-                      <div className="text-center py-12">
-                        <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-                        <p className="mt-4 text-muted-foreground">
-                          Loading transactions...
-                        </p>
-                      </div>
-                    ) : transactions.length === 0 ? (
-                      <div className="text-center py-12">
-                        <div className="flex flex-col items-center gap-3">
-                          <span className="material-symbols-outlined text-5xl text-muted-foreground">
-                            account_balance
-                          </span>
-                          <div>
-                            <p className="text-lg font-medium text-foreground mb-1">
-                              No transactions found
-                            </p>
-                            <p className="text-sm text-muted-foreground">
-                              {transactionTab === "INCOMING"
-                                ? "No incoming payments recorded yet"
-                                : "No expenses recorded yet"}
-                            </p>
+                    {transactionTab === "INCOMING" && (
+                      <>
+                        <div className="p-4 bg-green-50 dark:bg-green-900/10 rounded-lg border border-green-200 dark:border-green-800">
+                          <div className="text-sm text-muted-foreground mb-1 flex items-center gap-2">
+                            <span className="material-symbols-outlined text-sm text-green-600 dark:text-green-400">
+                              check_circle
+                            </span>
+                            Paid
                           </div>
-                          <Button
-                            onClick={() => setTransactionDialogOpen(true)}
-                            className="mt-2"
-                          >
-                            <span className="material-symbols-outlined text-lg mr-2">
-                              add
-                            </span>
-                            Add{" "}
-                            {transactionTab === "INCOMING" ? "Payment" : "Cost"}
-                          </Button>
+                          <div className="text-2xl font-bold text-green-700 dark:text-green-300 font-mono-numbers">
+                            {paidCount}
+                          </div>
+                          <div className="text-xs text-muted-foreground mt-1">
+                            transactions
+                          </div>
                         </div>
+
+                        <div className="p-4 bg-yellow-50 dark:bg-yellow-900/10 rounded-lg border border-yellow-200 dark:border-yellow-800">
+                          <div className="text-sm text-muted-foreground mb-1 flex items-center gap-2">
+                            <span className="material-symbols-outlined text-sm text-yellow-600 dark:text-yellow-400">
+                              schedule
+                            </span>
+                            Pending
+                          </div>
+                          <div className="text-2xl font-bold text-yellow-700 dark:text-yellow-300 font-mono-numbers">
+                            {pendingCount}
+                          </div>
+                          <div className="text-xs text-muted-foreground mt-1">
+                            transactions
+                          </div>
+                        </div>
+
+                        <div className="p-4 bg-red-50 dark:bg-red-900/10 rounded-lg border border-red-200 dark:border-red-800">
+                          <div className="text-sm text-muted-foreground mb-1 flex items-center gap-2">
+                            <span className="material-symbols-outlined text-sm text-red-600 dark:text-red-400">
+                              warning
+                            </span>
+                            Overdue
+                          </div>
+                          <div className="text-2xl font-bold text-red-700 dark:text-red-300 font-mono-numbers">
+                            {overdueCount}
+                          </div>
+                          <div className="text-xs text-muted-foreground mt-1">
+                            transactions
+                          </div>
+                        </div>
+                      </>
+                    )}
+
+                    {transactionTab === "OUTGOING" && (
+                      <>
+                        <div className="p-4 bg-green-50 dark:bg-green-900/10 rounded-lg border border-green-200 dark:border-green-800">
+                          <div className="text-sm text-muted-foreground mb-1 flex items-center gap-2">
+                            <span className="material-symbols-outlined text-sm text-green-600 dark:text-green-400">
+                              check_circle
+                            </span>
+                            Paid
+                          </div>
+                          <div className="text-2xl font-bold text-green-700 dark:text-green-300 font-mono-numbers">
+                            {paidCount}
+                          </div>
+                          <div className="text-xs text-muted-foreground mt-1">
+                            transactions
+                          </div>
+                        </div>
+
+                        <div className="p-4 bg-yellow-50 dark:bg-yellow-900/10 rounded-lg border border-yellow-200 dark:border-yellow-800">
+                          <div className="text-sm text-muted-foreground mb-1 flex items-center gap-2">
+                            <span className="material-symbols-outlined text-sm text-yellow-600 dark:text-yellow-400">
+                              schedule
+                            </span>
+                            Pending
+                          </div>
+                          <div className="text-2xl font-bold text-yellow-700 dark:text-yellow-300 font-mono-numbers">
+                            {pendingCount}
+                          </div>
+                          <div className="text-xs text-muted-foreground mt-1">
+                            transactions
+                          </div>
+                        </div>
+
+                        <div className="p-4 bg-blue-50 dark:bg-blue-900/10 rounded-lg border border-blue-200 dark:border-blue-800">
+                          <div className="text-sm text-muted-foreground mb-1 flex items-center gap-2">
+                            <span className="material-symbols-outlined text-sm text-blue-600 dark:text-blue-400">
+                              account_balance
+                            </span>
+                            Net Amount
+                          </div>
+                          <div
+                            className={`text-2xl font-bold font-mono-numbers ${netAmount >= 0 ? "text-green-700 dark:text-green-300" : "text-red-700 dark:text-red-300"}`}
+                          >
+                            {netAmount >= 0 ? "+" : ""}
+                            {netAmount.toLocaleString()} JPY
+                          </div>
+                          <div className="text-xs text-muted-foreground mt-1">
+                            Incoming - Outgoing
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </div>
+
+                  {transactionsLoading ? (
+                    <div className="text-center py-12">
+                      <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                      <p className="mt-4 text-muted-foreground">
+                        Loading transactions...
+                      </p>
+                    </div>
+                  ) : transactions.length === 0 ? (
+                    <div className="text-center py-12">
+                      <div className="flex flex-col items-center gap-3">
+                        <span className="material-symbols-outlined text-5xl text-muted-foreground">
+                          account_balance
+                        </span>
+                        <div>
+                          <p className="text-lg font-medium text-foreground mb-1">
+                            No transactions found
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            {transactionTab === "INCOMING"
+                              ? "No incoming payments recorded yet"
+                              : "No expenses recorded yet"}
+                          </p>
+                        </div>
+                        <Button
+                          onClick={() => setTransactionDialogOpen(true)}
+                          className="mt-2"
+                        >
+                          <span className="material-symbols-outlined text-lg mr-2">
+                            add
+                          </span>
+                          Add{" "}
+                          {transactionTab === "INCOMING" ? "Payment" : "Cost"}
+                        </Button>
                       </div>
-                    ) : (
-                      <div className="space-y-4">
-                        {/* Export Button */}
-                        <div className="flex justify-end">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              // Export to CSV
-                              const headers =
-                                transactionTab === "INCOMING"
-                                  ? [
-                                      "Date",
-                                      "Type",
-                                      "Invoice #",
-                                      "Customer",
-                                      "Vehicle",
-                                      "Description",
-                                      "Payment Status",
-                                      "Actions",
-                                      "Amount",
-                                    ]
-                                  : [
-                                      "Date",
-                                      "Type",
-                                      "Vendor",
-                                      "Invoice Attachments",
-                                      "Description",
-                                      "Payment Dates",
-                                      "Payment Status",
-                                      "Actions",
-                                      "Amount",
-                                    ];
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {/* Export Button */}
+                      <div className="flex justify-end">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            // Export to CSV
+                            const headers =
+                              transactionTab === "INCOMING"
+                                ? [
+                                    "Date",
+                                    "Type",
+                                    "Invoice #",
+                                    "Customer",
+                                    "Vehicle",
+                                    "Description",
+                                    "Payment Status",
+                                    "Actions",
+                                    "Amount",
+                                  ]
+                                : [
+                                    "Date",
+                                    "Type",
+                                    "Vendor",
+                                    "Invoice Attachments",
+                                    "Description",
+                                    "Payment Dates",
+                                    "Payment Status",
+                                    "Actions",
+                                    "Amount",
+                                  ];
 
-                              const csvContent = [
-                                headers.join(","),
-                                ...filteredAndSortedTransactions.map((t) => {
-                                  const formatDate = (
-                                    dateString: string | null | undefined,
-                                  ) => {
-                                    if (!dateString) return "";
-                                    const date = new Date(dateString);
-                                    if (isNaN(date.getTime())) return "";
-                                    return date.toLocaleDateString("en-US");
-                                  };
+                            const csvContent = [
+                              headers.join(","),
+                              ...filteredAndSortedTransactions.map((t) => {
+                                const formatDate = (
+                                  dateString: string | null | undefined,
+                                ) => {
+                                  if (!dateString) return "";
+                                  const date = new Date(dateString);
+                                  if (isNaN(date.getTime())) return "";
+                                  return date.toLocaleDateString("en-US");
+                                };
 
-                                  const formatCurrency = (amount: string) => {
-                                    return parseFloat(amount).toLocaleString(
-                                      "ja-JP",
+                                const formatCurrency = (amount: string) => {
+                                  return parseFloat(amount).toLocaleString(
+                                    "ja-JP",
+                                  );
+                                };
+
+                                const row =
+                                  transactionTab === "INCOMING"
+                                    ? [
+                                        formatDate(t.date),
+                                        typeLabels[t.type] || t.type,
+                                        t.invoiceNumber || "",
+                                        t.customer?.name ||
+                                          t.customer?.email ||
+                                          "",
+                                        t.vehicle
+                                          ? `${t.vehicle.year || ""} ${t.vehicle.make || ""} ${t.vehicle.model || ""} - ${t.vehicle.vin}`
+                                          : "",
+                                        t.description || "",
+                                        t.isInvoice
+                                          ? t.paymentStatus || "due"
+                                          : t.paymentDate
+                                            ? "paid"
+                                            : "pending",
+                                        "", // Actions column (empty in CSV)
+                                        formatCurrency(t.amount),
+                                      ]
+                                    : [
+                                        formatDate(t.date),
+                                        typeLabels[t.type] || t.type,
+                                        t.vendor?.name || "",
+                                        t.invoiceId
+                                          ? `Invoice ${t.invoiceNumber || t.invoiceId}`
+                                          : t.invoiceUrl || "",
+                                        t.description || "",
+                                        (() => {
+                                          const parts: string[] = [];
+                                          if (t.paymentDeadline) {
+                                            parts.push(
+                                              `Due: ${formatDate(t.paymentDeadline)}`,
+                                            );
+                                          }
+                                          if (t.paymentDate) {
+                                            parts.push(
+                                              `Paid: ${formatDate(t.paymentDate)}`,
+                                            );
+                                          }
+                                          return parts.join(" | ") || "";
+                                        })(),
+                                        t.isInvoice
+                                          ? t.paymentStatus || "due"
+                                          : t.paymentDate
+                                            ? "paid"
+                                            : "pending",
+                                        "", // Actions column (empty in CSV)
+                                        formatCurrency(t.amount),
+                                      ];
+
+                                return row
+                                  .map(
+                                    (cell) =>
+                                      `"${String(cell).replace(/"/g, '""')}"`,
+                                  )
+                                  .join(",");
+                              }),
+                            ].join("\n");
+
+                            const blob = new Blob([csvContent], {
+                              type: "text/csv;charset=utf-8;",
+                            });
+                            const link = document.createElement("a");
+                            const url = URL.createObjectURL(blob);
+                            link.setAttribute("href", url);
+                            link.setAttribute(
+                              "download",
+                              `${transactionTab.toLowerCase()}-transactions-${new Date().toISOString().split("T")[0]}.csv`,
+                            );
+                            link.style.visibility = "hidden";
+                            document.body.appendChild(link);
+                            link.click();
+                            document.body.removeChild(link);
+                          }}
+                          className="inline-flex items-center gap-2"
+                        >
+                          <span className="material-symbols-outlined text-sm">
+                            download
+                          </span>
+                          Export CSV
+                        </Button>
+                      </div>
+
+                      <div className="overflow-x-auto">
+                        <table className="w-full border-collapse">
+                          <thead>
+                            <tr className="bg-gray-50 dark:bg-gray-800 border-b border-gray-300 dark:border-gray-600">
+                              <th
+                                className="text-left text-sm font-semibold text-gray-900 dark:text-white p-3 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
+                                onClick={() => {
+                                  if (sortField === "date") {
+                                    setSortDirection(
+                                      sortDirection === "asc" ? "desc" : "asc",
                                     );
-                                  };
-
-                                  const row =
-                                    transactionTab === "INCOMING"
-                                      ? [
-                                          formatDate(t.date),
-                                          typeLabels[t.type] || t.type,
-                                          t.invoiceNumber || "",
-                                          t.customer?.name ||
-                                            t.customer?.email ||
-                                            "",
-                                          t.vehicle
-                                            ? `${t.vehicle.year || ""} ${t.vehicle.make || ""} ${t.vehicle.model || ""} - ${t.vehicle.vin}`
-                                            : "",
-                                          t.description || "",
-                                          t.isInvoice
-                                            ? t.paymentStatus || "due"
-                                            : t.paymentDate
-                                              ? "paid"
-                                              : "pending",
-                                          "", // Actions column (empty in CSV)
-                                          formatCurrency(t.amount),
-                                        ]
-                                      : [
-                                          formatDate(t.date),
-                                          typeLabels[t.type] || t.type,
-                                          t.vendor?.name || "",
-                                          t.invoiceId
-                                            ? `Invoice ${t.invoiceNumber || t.invoiceId}`
-                                            : t.invoiceUrl || "",
-                                          t.description || "",
-                                          (() => {
-                                            const parts: string[] = [];
-                                            if (t.paymentDeadline) {
-                                              parts.push(
-                                                `Due: ${formatDate(t.paymentDeadline)}`,
-                                              );
-                                            }
-                                            if (t.paymentDate) {
-                                              parts.push(
-                                                `Paid: ${formatDate(t.paymentDate)}`,
-                                              );
-                                            }
-                                            return parts.join(" | ") || "";
-                                          })(),
-                                          t.isInvoice
-                                            ? t.paymentStatus || "due"
-                                            : t.paymentDate
-                                              ? "paid"
-                                              : "pending",
-                                          "", // Actions column (empty in CSV)
-                                          formatCurrency(t.amount),
-                                        ];
-
-                                  return row
-                                    .map(
-                                      (cell) =>
-                                        `"${String(cell).replace(/"/g, '""')}"`,
-                                    )
-                                    .join(",");
-                                }),
-                              ].join("\n");
-
-                              const blob = new Blob([csvContent], {
-                                type: "text/csv;charset=utf-8;",
-                              });
-                              const link = document.createElement("a");
-                              const url = URL.createObjectURL(blob);
-                              link.setAttribute("href", url);
-                              link.setAttribute(
-                                "download",
-                                `${transactionTab.toLowerCase()}-transactions-${new Date().toISOString().split("T")[0]}.csv`,
-                              );
-                              link.style.visibility = "hidden";
-                              document.body.appendChild(link);
-                              link.click();
-                              document.body.removeChild(link);
-                            }}
-                            className="inline-flex items-center gap-2"
-                          >
-                            <span className="material-symbols-outlined text-sm">
-                              download
-                            </span>
-                            Export CSV
-                          </Button>
-                        </div>
-
-                        <div className="overflow-x-auto">
-                          <table className="w-full border-collapse">
-                            <thead>
-                              <tr className="bg-gray-50 dark:bg-gray-800 border-b border-gray-300 dark:border-gray-600">
-                                <th
-                                  className="text-left text-sm font-semibold text-gray-900 dark:text-white p-3 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
-                                  onClick={() => {
-                                    if (sortField === "date") {
-                                      setSortDirection(
-                                        sortDirection === "asc"
-                                          ? "desc"
-                                          : "asc",
-                                      );
-                                    } else {
-                                      setSortField("date");
-                                      setSortDirection("desc");
-                                    }
-                                  }}
-                                >
-                                  <div className="flex items-center gap-2">
-                                    Date
-                                    {sortField === "date" && (
-                                      <span className="material-symbols-outlined text-sm">
-                                        {sortDirection === "asc"
-                                          ? "arrow_upward"
-                                          : "arrow_downward"}
-                                      </span>
-                                    )}
-                                  </div>
-                                </th>
-                                <th className="text-left text-sm font-semibold text-gray-900 dark:text-white p-3">
-                                  Type
-                                </th>
-                                {transactionTab === "INCOMING" ? (
-                                  <>
-                                    <th className="text-left text-sm font-semibold text-gray-900 dark:text-white p-3">
-                                      Invoice #
-                                    </th>
-                                    <th
-                                      className="text-left text-sm font-semibold text-gray-900 dark:text-white p-3 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
-                                      onClick={() => {
-                                        if (sortField === "customer") {
-                                          setSortDirection(
-                                            sortDirection === "asc"
-                                              ? "desc"
-                                              : "asc",
-                                          );
-                                        } else {
-                                          setSortField("customer");
-                                          setSortDirection("asc");
-                                        }
-                                      }}
-                                    >
-                                      <div className="flex items-center gap-2">
-                                        Customer
-                                        {sortField === "customer" && (
-                                          <span className="material-symbols-outlined text-sm">
-                                            {sortDirection === "asc"
-                                              ? "arrow_upward"
-                                              : "arrow_downward"}
-                                          </span>
-                                        )}
-                                      </div>
-                                    </th>
-                                    <th className="text-left text-sm font-semibold text-gray-900 dark:text-white p-3">
-                                      Vehicle
-                                    </th>
-                                  </>
-                                ) : (
-                                  <>
-                                    <th
-                                      className="text-left text-sm font-semibold text-gray-900 dark:text-white p-3 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
-                                      onClick={() => {
-                                        if (sortField === "vendor") {
-                                          setSortDirection(
-                                            sortDirection === "asc"
-                                              ? "desc"
-                                              : "asc",
-                                          );
-                                        } else {
-                                          setSortField("vendor");
-                                          setSortDirection("asc");
-                                        }
-                                      }}
-                                    >
-                                      <div className="flex items-center gap-2">
-                                        Vendor
-                                        {sortField === "vendor" && (
-                                          <span className="material-symbols-outlined text-sm">
-                                            {sortDirection === "asc"
-                                              ? "arrow_upward"
-                                              : "arrow_downward"}
-                                          </span>
-                                        )}
-                                      </div>
-                                    </th>
-                                    <th className="text-left text-sm font-semibold text-gray-900 dark:text-white p-3">
-                                      Invoice Attachments
-                                    </th>
-                                  </>
-                                )}
-                                <th className="text-left text-sm font-semibold text-gray-900 dark:text-white p-3">
-                                  Description
-                                </th>
-                                {transactionTab === "OUTGOING" ? (
-                                  <>
-                                    <th className="text-left text-sm font-semibold text-gray-900 dark:text-white p-3">
-                                      Payment Dates
-                                    </th>
-                                    <th className="text-left text-sm font-semibold text-gray-900 dark:text-white p-3">
-                                      Payment Status
-                                    </th>
-                                    <th className="text-left text-sm font-semibold text-gray-900 dark:text-white p-3">
-                                      Actions
-                                    </th>
-                                  </>
-                                ) : (
-                                  <>
-                                    <th className="text-left text-sm font-semibold text-gray-900 dark:text-white p-3">
-                                      Payment Status
-                                    </th>
-                                    <th className="text-left text-sm font-semibold text-gray-900 dark:text-white p-3">
-                                      Actions
-                                    </th>
-                                  </>
-                                )}
-                                <th
-                                  className="text-right text-sm font-semibold text-gray-900 dark:text-white p-3 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
-                                  onClick={() => {
-                                    if (sortField === "amount") {
-                                      setSortDirection(
-                                        sortDirection === "asc"
-                                          ? "desc"
-                                          : "asc",
-                                      );
-                                    } else {
-                                      setSortField("amount");
-                                      setSortDirection("desc");
-                                    }
-                                  }}
-                                >
-                                  <div className="flex items-center justify-end gap-2">
-                                    Amount
-                                    {sortField === "amount" && (
-                                      <span className="material-symbols-outlined text-sm">
-                                        {sortDirection === "asc"
-                                          ? "arrow_upward"
-                                          : "arrow_downward"}
-                                      </span>
-                                    )}
-                                  </div>
-                                </th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {filteredAndSortedTransactions.map(
-                                (transaction) => {
-                                  const formatDate = (
-                                    dateString: string | null | undefined,
-                                  ) => {
-                                    if (!dateString) return "—";
-                                    const date = new Date(dateString);
-                                    if (isNaN(date.getTime())) return "—";
-                                    return date.toLocaleDateString("en-US", {
-                                      year: "numeric",
-                                      month: "short",
-                                      day: "numeric",
-                                    });
-                                  };
-
-                                  const formatCurrency = (amount: string) => {
-                                    return new Intl.NumberFormat("ja-JP", {
-                                      style: "currency",
-                                      currency: transaction.currency || "JPY",
-                                      minimumFractionDigits: 0,
-                                      maximumFractionDigits: 0,
-                                    }).format(parseFloat(amount));
-                                  };
-
-                                  // Build description with vehicle info if available (only for outgoing)
-                                  let descriptionParts: string[] = [];
-                                  if (transaction.description) {
-                                    descriptionParts.push(
-                                      transaction.description,
-                                    );
+                                  } else {
+                                    setSortField("date");
+                                    setSortDirection("desc");
                                   }
-
-                                  // Add vehicle info to description only for outgoing transactions
-                                  if (
-                                    transactionTab === "OUTGOING" &&
-                                    transaction.vehicle
-                                  ) {
-                                    const vehicleInfo = transaction.vehicle.year
-                                      ? `${transaction.vehicle.year} ${transaction.vehicle.make || ""} ${transaction.vehicle.model || ""} - ${transaction.vehicle.vin}`
-                                      : `${transaction.vehicle.make || ""} ${transaction.vehicle.model || ""} - ${transaction.vehicle.vin}`;
-                                    descriptionParts.push(vehicleInfo.trim());
-                                  }
-
-                                  // Add vendor info for outgoing transactions
-                                  if (
-                                    transactionTab === "OUTGOING" &&
-                                    transaction.vendor
-                                  ) {
-                                    descriptionParts.push(
-                                      `Vendor: ${transaction.vendor.name}`,
-                                    );
-                                  }
-
-                                  // Add category if available
-                                  if (transaction.category) {
-                                    descriptionParts.push(
-                                      `Category: ${transaction.category}`,
-                                    );
-                                  }
-
-                                  const fullDescription =
-                                    descriptionParts.join("\n");
-
-                                  // Format vehicle display
-                                  const vehicleDisplay = transaction.vehicle
-                                    ? transaction.vehicle.year
-                                      ? `${transaction.vehicle.year} ${transaction.vehicle.make || ""} ${transaction.vehicle.model || ""} - ${transaction.vehicle.vin}`
-                                      : `${transaction.vehicle.make || ""} ${transaction.vehicle.model || ""} - ${transaction.vehicle.vin}`
-                                    : "—";
-
-                                  return (
-                                    <tr
-                                      key={transaction.id}
-                                      className="border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
-                                    >
-                                      <td className="p-3 text-sm text-gray-900 dark:text-white">
-                                        {formatDate(transaction.date)}
-                                      </td>
-                                      <td className="p-3">
-                                        <span
-                                          className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${typeColors[transaction.type]}`}
-                                        >
-                                          {transactionTab === "INCOMING" ? (
-                                            <>
-                                              <span className="material-symbols-outlined text-sm mr-1">
-                                                payments
-                                              </span>
-                                              {typeLabels[transaction.type]}
-                                            </>
-                                          ) : (
-                                            <>
-                                              <span className="material-symbols-outlined text-sm mr-1">
-                                                receipt
-                                              </span>
-                                              {typeLabels[transaction.type]}
-                                            </>
-                                          )}
+                                }}
+                              >
+                                <div className="flex items-center gap-2">
+                                  Date
+                                  {sortField === "date" && (
+                                    <span className="material-symbols-outlined text-sm">
+                                      {sortDirection === "asc"
+                                        ? "arrow_upward"
+                                        : "arrow_downward"}
+                                    </span>
+                                  )}
+                                </div>
+                              </th>
+                              <th className="text-left text-sm font-semibold text-gray-900 dark:text-white p-3">
+                                Type
+                              </th>
+                              {transactionTab === "INCOMING" ? (
+                                <>
+                                  <th className="text-left text-sm font-semibold text-gray-900 dark:text-white p-3">
+                                    Invoice #
+                                  </th>
+                                  <th
+                                    className="text-left text-sm font-semibold text-gray-900 dark:text-white p-3 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
+                                    onClick={() => {
+                                      if (sortField === "customer") {
+                                        setSortDirection(
+                                          sortDirection === "asc"
+                                            ? "desc"
+                                            : "asc",
+                                        );
+                                      } else {
+                                        setSortField("customer");
+                                        setSortDirection("asc");
+                                      }
+                                    }}
+                                  >
+                                    <div className="flex items-center gap-2">
+                                      Customer
+                                      {sortField === "customer" && (
+                                        <span className="material-symbols-outlined text-sm">
+                                          {sortDirection === "asc"
+                                            ? "arrow_upward"
+                                            : "arrow_downward"}
                                         </span>
-                                      </td>
-                                      {transactionTab === "INCOMING" ? (
-                                        <>
-                                          <td className="p-3 text-sm font-mono text-gray-900 dark:text-white">
-                                            {transaction.isInvoice ? (
+                                      )}
+                                    </div>
+                                  </th>
+                                  <th className="text-left text-sm font-semibold text-gray-900 dark:text-white p-3">
+                                    Vehicle
+                                  </th>
+                                </>
+                              ) : (
+                                <>
+                                  <th
+                                    className="text-left text-sm font-semibold text-gray-900 dark:text-white p-3 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
+                                    onClick={() => {
+                                      if (sortField === "vendor") {
+                                        setSortDirection(
+                                          sortDirection === "asc"
+                                            ? "desc"
+                                            : "asc",
+                                        );
+                                      } else {
+                                        setSortField("vendor");
+                                        setSortDirection("asc");
+                                      }
+                                    }}
+                                  >
+                                    <div className="flex items-center gap-2">
+                                      Vendor
+                                      {sortField === "vendor" && (
+                                        <span className="material-symbols-outlined text-sm">
+                                          {sortDirection === "asc"
+                                            ? "arrow_upward"
+                                            : "arrow_downward"}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </th>
+                                  <th className="text-left text-sm font-semibold text-gray-900 dark:text-white p-3">
+                                    Invoice Attachments
+                                  </th>
+                                </>
+                              )}
+                              <th className="text-left text-sm font-semibold text-gray-900 dark:text-white p-3">
+                                Description
+                              </th>
+                              {transactionTab === "OUTGOING" ? (
+                                <>
+                                  <th className="text-left text-sm font-semibold text-gray-900 dark:text-white p-3">
+                                    Payment Dates
+                                  </th>
+                                  <th className="text-left text-sm font-semibold text-gray-900 dark:text-white p-3">
+                                    Payment Status
+                                  </th>
+                                  <th className="text-left text-sm font-semibold text-gray-900 dark:text-white p-3">
+                                    Actions
+                                  </th>
+                                </>
+                              ) : (
+                                <>
+                                  <th className="text-left text-sm font-semibold text-gray-900 dark:text-white p-3">
+                                    Payment Status
+                                  </th>
+                                  <th className="text-left text-sm font-semibold text-gray-900 dark:text-white p-3">
+                                    Actions
+                                  </th>
+                                </>
+                              )}
+                              <th
+                                className="text-right text-sm font-semibold text-gray-900 dark:text-white p-3 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
+                                onClick={() => {
+                                  if (sortField === "amount") {
+                                    setSortDirection(
+                                      sortDirection === "asc" ? "desc" : "asc",
+                                    );
+                                  } else {
+                                    setSortField("amount");
+                                    setSortDirection("desc");
+                                  }
+                                }}
+                              >
+                                <div className="flex items-center justify-end gap-2">
+                                  Amount
+                                  {sortField === "amount" && (
+                                    <span className="material-symbols-outlined text-sm">
+                                      {sortDirection === "asc"
+                                        ? "arrow_upward"
+                                        : "arrow_downward"}
+                                    </span>
+                                  )}
+                                </div>
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {filteredAndSortedTransactions.map(
+                              (transaction) => {
+                                const formatDate = (
+                                  dateString: string | null | undefined,
+                                ) => {
+                                  if (!dateString) return "—";
+                                  const date = new Date(dateString);
+                                  if (isNaN(date.getTime())) return "—";
+                                  return date.toLocaleDateString("en-US", {
+                                    year: "numeric",
+                                    month: "short",
+                                    day: "numeric",
+                                  });
+                                };
+
+                                const formatCurrency = (amount: string) => {
+                                  return new Intl.NumberFormat("ja-JP", {
+                                    style: "currency",
+                                    currency: transaction.currency || "JPY",
+                                    minimumFractionDigits: 0,
+                                    maximumFractionDigits: 0,
+                                  }).format(parseFloat(amount));
+                                };
+
+                                // Build description with vehicle info if available (only for outgoing)
+                                let descriptionParts: string[] = [];
+                                if (transaction.description) {
+                                  descriptionParts.push(
+                                    transaction.description,
+                                  );
+                                }
+
+                                // Add vehicle info to description only for outgoing transactions
+                                if (
+                                  transactionTab === "OUTGOING" &&
+                                  transaction.vehicle
+                                ) {
+                                  const vehicleInfo = transaction.vehicle.year
+                                    ? `${transaction.vehicle.year} ${transaction.vehicle.make || ""} ${transaction.vehicle.model || ""} - ${transaction.vehicle.vin}`
+                                    : `${transaction.vehicle.make || ""} ${transaction.vehicle.model || ""} - ${transaction.vehicle.vin}`;
+                                  descriptionParts.push(vehicleInfo.trim());
+                                }
+
+                                // Add vendor info for outgoing transactions
+                                if (
+                                  transactionTab === "OUTGOING" &&
+                                  transaction.vendor
+                                ) {
+                                  descriptionParts.push(
+                                    `Vendor: ${transaction.vendor.name}`,
+                                  );
+                                }
+
+                                // Add category if available
+                                if (transaction.category) {
+                                  descriptionParts.push(
+                                    `Category: ${transaction.category}`,
+                                  );
+                                }
+
+                                const fullDescription =
+                                  descriptionParts.join("\n");
+
+                                // Format vehicle display
+                                const vehicleDisplay = transaction.vehicle
+                                  ? transaction.vehicle.year
+                                    ? `${transaction.vehicle.year} ${transaction.vehicle.make || ""} ${transaction.vehicle.model || ""} - ${transaction.vehicle.vin}`
+                                    : `${transaction.vehicle.make || ""} ${transaction.vehicle.model || ""} - ${transaction.vehicle.vin}`
+                                  : "—";
+
+                                return (
+                                  <tr
+                                    key={transaction.id}
+                                    className="border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
+                                  >
+                                    <td className="p-3 text-sm text-gray-900 dark:text-white">
+                                      {formatDate(transaction.date)}
+                                    </td>
+                                    <td className="p-3">
+                                      <span
+                                        className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${typeColors[transaction.type]}`}
+                                      >
+                                        {transactionTab === "INCOMING" ? (
+                                          <>
+                                            <span className="material-symbols-outlined text-sm mr-1">
+                                              payments
+                                            </span>
+                                            {typeLabels[transaction.type]}
+                                          </>
+                                        ) : (
+                                          <>
+                                            <span className="material-symbols-outlined text-sm mr-1">
+                                              receipt
+                                            </span>
+                                            {typeLabels[transaction.type]}
+                                          </>
+                                        )}
+                                      </span>
+                                    </td>
+                                    {transactionTab === "INCOMING" ? (
+                                      <>
+                                        <td className="p-3 text-sm font-mono text-gray-900 dark:text-white">
+                                          {transaction.isInvoice ? (
+                                            <Link
+                                              href={`/dashboard/invoices/${transaction.invoiceId}`}
+                                              className="text-primary hover:underline"
+                                            >
+                                              {transaction.invoiceNumber || "—"}
+                                            </Link>
+                                          ) : (
+                                            transaction.invoiceNumber ||
+                                            transaction.invoiceId ||
+                                            "—"
+                                          )}
+                                        </td>
+                                        <td className="p-3 text-sm text-gray-900 dark:text-white">
+                                          {transaction.customer ? (
+                                            <Link
+                                              href={`/dashboard/customers/${transaction.customer.id}`}
+                                              className="text-primary dark:text-[#D4AF37] hover:underline font-medium"
+                                            >
+                                              {transaction.customer.name ||
+                                                transaction.customer.email ||
+                                                "N/A"}
+                                            </Link>
+                                          ) : (
+                                            "N/A"
+                                          )}
+                                        </td>
+                                        <td className="p-3 text-sm text-gray-900 dark:text-white">
+                                          {vehicleDisplay}
+                                        </td>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <td className="p-3 text-sm text-gray-900 dark:text-white">
+                                          {transaction.vendor?.name ? (
+                                            transaction.vendor.name
+                                          ) : transaction.customer ? (
+                                            <Link
+                                              href={`/dashboard/customers/${transaction.customer.id}`}
+                                              className="text-primary dark:text-[#D4AF37] hover:underline font-medium"
+                                            >
+                                              {transaction.customer.name ||
+                                                transaction.customer.email ||
+                                                "N/A"}
+                                            </Link>
+                                          ) : (
+                                            "N/A"
+                                          )}
+                                        </td>
+                                        <td className="p-3 text-sm text-gray-900 dark:text-white">
+                                          <div className="flex flex-col gap-1">
+                                            {transaction.invoiceId && (
                                               <Link
                                                 href={`/dashboard/invoices/${transaction.invoiceId}`}
-                                                className="text-primary hover:underline"
+                                                className="text-primary hover:underline text-xs"
                                               >
                                                 {transaction.invoiceNumber ||
-                                                  "—"}
+                                                  "View Invoice"}
                                               </Link>
-                                            ) : (
-                                              transaction.invoiceNumber ||
-                                              transaction.invoiceId ||
-                                              "—"
                                             )}
-                                          </td>
-                                          <td className="p-3 text-sm text-gray-900 dark:text-white">
-                                            {transaction.customer ? (
-                                              <Link
-                                                href={`/dashboard/customers/${transaction.customer.id}`}
-                                                className="text-primary dark:text-[#D4AF37] hover:underline font-medium"
-                                              >
-                                                {transaction.customer.name ||
-                                                  transaction.customer.email ||
-                                                  "N/A"}
-                                              </Link>
-                                            ) : (
-                                              "N/A"
-                                            )}
-                                          </td>
-                                          <td className="p-3 text-sm text-gray-900 dark:text-white">
-                                            {vehicleDisplay}
-                                          </td>
-                                        </>
-                                      ) : (
-                                        <>
-                                          <td className="p-3 text-sm text-gray-900 dark:text-white">
-                                            {transaction.vendor?.name ? (
-                                              transaction.vendor.name
-                                            ) : transaction.customer ? (
-                                              <Link
-                                                href={`/dashboard/customers/${transaction.customer.id}`}
-                                                className="text-primary dark:text-[#D4AF37] hover:underline font-medium"
-                                              >
-                                                {transaction.customer.name ||
-                                                  transaction.customer.email ||
-                                                  "N/A"}
-                                              </Link>
-                                            ) : (
-                                              "N/A"
-                                            )}
-                                          </td>
-                                          <td className="p-3 text-sm text-gray-900 dark:text-white">
-                                            <div className="flex flex-col gap-1">
-                                              {transaction.invoiceId && (
-                                                <Link
-                                                  href={`/dashboard/invoices/${transaction.invoiceId}`}
-                                                  className="text-primary hover:underline text-xs"
+                                            {transaction.invoiceUrl && (
+                                              <div className="flex items-center gap-2">
+                                                <a
+                                                  href={transaction.invoiceUrl}
+                                                  target="_blank"
+                                                  rel="noopener noreferrer"
+                                                  className="text-primary hover:underline text-xs flex items-center gap-1"
                                                 >
-                                                  {transaction.invoiceNumber ||
-                                                    "View Invoice"}
-                                                </Link>
-                                              )}
-                                              {transaction.invoiceUrl && (
-                                                <div className="flex items-center gap-2">
-                                                  <a
-                                                    href={
-                                                      transaction.invoiceUrl
-                                                    }
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    className="text-primary hover:underline text-xs flex items-center gap-1"
-                                                  >
-                                                    <span className="material-symbols-outlined text-sm">
-                                                      link
-                                                    </span>
-                                                    View Invoice
-                                                  </a>
-                                                  <a
-                                                    href={
-                                                      transaction.invoiceUrl
-                                                    }
+                                                  <span className="material-symbols-outlined text-sm">
+                                                    link
+                                                  </span>
+                                                  View Invoice
+                                                </a>
+                                                <a
+                                                  href={transaction.invoiceUrl}
+                                                  download
+                                                  className="text-primary hover:underline text-xs flex items-center gap-1"
+                                                  title="Download invoice"
+                                                >
+                                                  <span className="material-symbols-outlined text-sm">
                                                     download
-                                                    className="text-primary hover:underline text-xs flex items-center gap-1"
-                                                    title="Download invoice"
-                                                  >
-                                                    <span className="material-symbols-outlined text-sm">
-                                                      download
-                                                    </span>
-                                                  </a>
-                                                </div>
+                                                  </span>
+                                                </a>
+                                              </div>
+                                            )}
+                                            {!transaction.invoiceId &&
+                                              !transaction.invoiceUrl && (
+                                                <span className="text-muted-foreground text-xs">
+                                                  —
+                                                </span>
                                               )}
-                                              {!transaction.invoiceId &&
-                                                !transaction.invoiceUrl && (
-                                                  <span className="text-muted-foreground text-xs">
-                                                    —
-                                                  </span>
-                                                )}
-                                            </div>
-                                          </td>
-                                        </>
-                                      )}
-                                      <td className="p-3 text-sm text-gray-900 dark:text-white">
-                                        <div className="flex flex-col whitespace-pre-line">
-                                          {fullDescription || "N/A"}
-                                          {transaction.isGeneralCost && (
-                                            <span className="text-xs text-muted-foreground mt-1">
-                                              General Cost
-                                            </span>
-                                          )}
-                                          {transaction.isVehicleStageCost && (
-                                            <span className="text-xs text-muted-foreground mt-1">
-                                              Vehicle Cost
-                                            </span>
-                                          )}
-                                          {transaction.isInvoice && (
-                                            <span className="text-xs text-muted-foreground mt-1">
-                                              Invoice
-                                            </span>
-                                          )}
-                                        </div>
-                                      </td>
-                                      {transactionTab === "OUTGOING" ? (
-                                        <>
-                                          {/* Payment Dates Column */}
-                                          <td className="p-3 text-sm text-gray-900 dark:text-white">
-                                            {(() => {
-                                              // Parse paymentDate from notes if it's stored there (for regular transactions)
-                                              let paymentDateFromNotes:
-                                                | string
-                                                | null = null;
-                                              if (
-                                                !transaction.paymentDate &&
-                                                transaction.notes
-                                              ) {
-                                                try {
-                                                  const notesData = JSON.parse(
-                                                    transaction.notes,
-                                                  );
-                                                  if (notesData.paymentDate) {
-                                                    paymentDateFromNotes =
-                                                      notesData.paymentDate;
-                                                  }
-                                                } catch (e) {
-                                                  // Notes is not JSON, ignore
-                                                }
-                                              }
-
-                                              const paymentDate =
-                                                transaction.paymentDate ||
-                                                paymentDateFromNotes
-                                                  ? new Date(
-                                                      transaction.paymentDate ||
-                                                        paymentDateFromNotes!,
-                                                    )
-                                                  : null;
-                                              const paymentDeadline =
-                                                transaction.paymentDeadline
-                                                  ? new Date(
-                                                      transaction.paymentDeadline,
-                                                    )
-                                                  : null;
-
-                                              return (
-                                                <div className="flex flex-col gap-1.5">
-                                                  {paymentDeadline && (
-                                                    <div className="flex items-center gap-1.5">
-                                                      <span className="text-xs text-muted-foreground font-medium">
-                                                        Due:
-                                                      </span>
-                                                      <span className="text-sm text-gray-900 dark:text-white">
-                                                        {formatDate(
-                                                          transaction.paymentDeadline,
-                                                        )}
-                                                      </span>
-                                                    </div>
-                                                  )}
-                                                  {paymentDate && (
-                                                    <div className="flex items-center gap-1.5">
-                                                      <span className="text-xs text-muted-foreground font-medium">
-                                                        Paid:
-                                                      </span>
-                                                      <span className="text-sm font-medium text-gray-900 dark:text-white">
-                                                        {formatDate(
-                                                          transaction.paymentDate ||
-                                                            paymentDateFromNotes!,
-                                                        )}
-                                                      </span>
-                                                    </div>
-                                                  )}
-                                                  {!paymentDeadline &&
-                                                    !paymentDate && (
-                                                      <span className="text-muted-foreground text-sm">
-                                                        —
-                                                      </span>
-                                                    )}
-                                                </div>
-                                              );
-                                            })()}
-                                          </td>
-                                          {/* Payment Status Column */}
-                                          <td className="p-3">
-                                            {(() => {
-                                              // For invoices, use the paymentStatus field
-                                              if (
-                                                transaction.isInvoice &&
-                                                transaction.paymentStatus
-                                              ) {
-                                                const statusColors: Record<
-                                                  string,
-                                                  string
-                                                > = {
-                                                  paid: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300",
-                                                  partially_paid:
-                                                    "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300",
-                                                  overdue:
-                                                    "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300",
-                                                  due: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300",
-                                                };
-                                                const statusLabels: Record<
-                                                  string,
-                                                  string
-                                                > = {
-                                                  paid: "Paid",
-                                                  partially_paid:
-                                                    "Partially Paid",
-                                                  overdue: "Overdue",
-                                                  due: "Due",
-                                                };
-                                                const status =
-                                                  transaction.paymentStatus;
-                                                return (
-                                                  <span
-                                                    className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${statusColors[status] || statusColors.due}`}
-                                                  >
-                                                    {statusLabels[status] ||
-                                                      status}
-                                                  </span>
+                                          </div>
+                                        </td>
+                                      </>
+                                    )}
+                                    <td className="p-3 text-sm text-gray-900 dark:text-white">
+                                      <div className="flex flex-col whitespace-pre-line">
+                                        {fullDescription || "N/A"}
+                                        {transaction.isGeneralCost && (
+                                          <span className="text-xs text-muted-foreground mt-1">
+                                            General Cost
+                                          </span>
+                                        )}
+                                        {transaction.isVehicleStageCost && (
+                                          <span className="text-xs text-muted-foreground mt-1">
+                                            Vehicle Cost
+                                          </span>
+                                        )}
+                                        {transaction.isInvoice && (
+                                          <span className="text-xs text-muted-foreground mt-1">
+                                            Invoice
+                                          </span>
+                                        )}
+                                      </div>
+                                    </td>
+                                    {transactionTab === "OUTGOING" ? (
+                                      <>
+                                        {/* Payment Dates Column */}
+                                        <td className="p-3 text-sm text-gray-900 dark:text-white">
+                                          {(() => {
+                                            // Parse paymentDate from notes if it's stored there (for regular transactions)
+                                            let paymentDateFromNotes:
+                                              | string
+                                              | null = null;
+                                            if (
+                                              !transaction.paymentDate &&
+                                              transaction.notes
+                                            ) {
+                                              try {
+                                                const notesData = JSON.parse(
+                                                  transaction.notes,
                                                 );
-                                              }
-
-                                              // Parse paymentDate from notes if it's stored there (for regular transactions)
-                                              let paymentDateFromNotes:
-                                                | string
-                                                | null = null;
-                                              if (
-                                                !transaction.paymentDate &&
-                                                transaction.notes
-                                              ) {
-                                                try {
-                                                  const notesData = JSON.parse(
-                                                    transaction.notes,
-                                                  );
-                                                  if (notesData.paymentDate) {
-                                                    paymentDateFromNotes =
-                                                      notesData.paymentDate;
-                                                  }
-                                                } catch (e) {
-                                                  // Notes is not JSON, ignore
+                                                if (notesData.paymentDate) {
+                                                  paymentDateFromNotes =
+                                                    notesData.paymentDate;
                                                 }
+                                              } catch (e) {
+                                                // Notes is not JSON, ignore
                                               }
+                                            }
 
-                                              const isPaid = !!(
-                                                transaction.paymentDate ||
-                                                paymentDateFromNotes
-                                              );
-                                              const paymentDate =
-                                                transaction.paymentDate ||
-                                                paymentDateFromNotes
-                                                  ? new Date(
-                                                      transaction.paymentDate ||
-                                                        paymentDateFromNotes!,
-                                                    )
-                                                  : null;
-                                              const paymentDeadline =
-                                                transaction.paymentDeadline
-                                                  ? new Date(
-                                                      transaction.paymentDeadline,
-                                                    )
-                                                  : null;
+                                            const paymentDate =
+                                              transaction.paymentDate ||
+                                              paymentDateFromNotes
+                                                ? new Date(
+                                                    transaction.paymentDate ||
+                                                      paymentDateFromNotes!,
+                                                  )
+                                                : null;
+                                            const paymentDeadline =
+                                              transaction.paymentDeadline
+                                                ? new Date(
+                                                    transaction.paymentDeadline,
+                                                  )
+                                                : null;
 
-                                              const isTransactionOverdue =
-                                                !paymentDate && paymentDeadline
-                                                  ? new Date(paymentDeadline) <
-                                                    new Date()
-                                                  : false;
-
+                                            return (
+                                              <div className="flex flex-col gap-1.5">
+                                                {paymentDeadline && (
+                                                  <div className="flex items-center gap-1.5">
+                                                    <span className="text-xs text-muted-foreground font-medium">
+                                                      Due:
+                                                    </span>
+                                                    <span className="text-sm text-gray-900 dark:text-white">
+                                                      {formatDate(
+                                                        transaction.paymentDeadline,
+                                                      )}
+                                                    </span>
+                                                  </div>
+                                                )}
+                                                {paymentDate && (
+                                                  <div className="flex items-center gap-1.5">
+                                                    <span className="text-xs text-muted-foreground font-medium">
+                                                      Paid:
+                                                    </span>
+                                                    <span className="text-sm font-medium text-gray-900 dark:text-white">
+                                                      {formatDate(
+                                                        transaction.paymentDate ||
+                                                          paymentDateFromNotes!,
+                                                      )}
+                                                    </span>
+                                                  </div>
+                                                )}
+                                                {!paymentDeadline &&
+                                                  !paymentDate && (
+                                                    <span className="text-muted-foreground text-sm">
+                                                      —
+                                                    </span>
+                                                  )}
+                                              </div>
+                                            );
+                                          })()}
+                                        </td>
+                                        {/* Payment Status Column */}
+                                        <td className="p-3">
+                                          {(() => {
+                                            // For invoices, use the paymentStatus field
+                                            if (
+                                              transaction.isInvoice &&
+                                              transaction.paymentStatus
+                                            ) {
+                                              const statusColors: Record<
+                                                string,
+                                                string
+                                              > = {
+                                                paid: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300",
+                                                partially_paid:
+                                                  "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300",
+                                                overdue:
+                                                  "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300",
+                                                due: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300",
+                                              };
+                                              const statusLabels: Record<
+                                                string,
+                                                string
+                                              > = {
+                                                paid: "Paid",
+                                                partially_paid:
+                                                  "Partially Paid",
+                                                overdue: "Overdue",
+                                                due: "Due",
+                                              };
+                                              const status =
+                                                transaction.paymentStatus;
                                               return (
                                                 <span
-                                                  className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
-                                                    isPaid
-                                                      ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300"
-                                                      : isTransactionOverdue
-                                                        ? "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300"
-                                                        : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300"
-                                                  }`}
+                                                  className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${statusColors[status] || statusColors.due}`}
                                                 >
-                                                  {isPaid ? (
-                                                    <>
-                                                      <span className="material-symbols-outlined text-xs mr-1">
-                                                        check_circle
-                                                      </span>
-                                                      Paid
-                                                    </>
-                                                  ) : isTransactionOverdue ? (
-                                                    <>
-                                                      <span className="material-symbols-outlined text-xs mr-1">
-                                                        warning
-                                                      </span>
-                                                      Overdue
-                                                    </>
-                                                  ) : (
-                                                    <>
-                                                      <span className="material-symbols-outlined text-xs mr-1">
-                                                        schedule
-                                                      </span>
-                                                      Pending
-                                                    </>
-                                                  )}
+                                                  {statusLabels[status] ||
+                                                    status}
                                                 </span>
                                               );
-                                            })()}
-                                          </td>
-                                          {/* Actions Column */}
-                                          <td className="p-3">
-                                            {(() => {
-                                              // Parse paymentDate from notes if it's stored there (for regular transactions)
-                                              let paymentDateFromNotes:
-                                                | string
-                                                | null = null;
-                                              if (
-                                                !transaction.paymentDate &&
-                                                transaction.notes
-                                              ) {
-                                                try {
-                                                  const notesData = JSON.parse(
-                                                    transaction.notes,
-                                                  );
-                                                  if (notesData.paymentDate) {
-                                                    paymentDateFromNotes =
-                                                      notesData.paymentDate;
-                                                  }
-                                                } catch (e) {
-                                                  // Notes is not JSON, ignore
+                                            }
+
+                                            // Parse paymentDate from notes if it's stored there (for regular transactions)
+                                            let paymentDateFromNotes:
+                                              | string
+                                              | null = null;
+                                            if (
+                                              !transaction.paymentDate &&
+                                              transaction.notes
+                                            ) {
+                                              try {
+                                                const notesData = JSON.parse(
+                                                  transaction.notes,
+                                                );
+                                                if (notesData.paymentDate) {
+                                                  paymentDateFromNotes =
+                                                    notesData.paymentDate;
                                                 }
+                                              } catch (e) {
+                                                // Notes is not JSON, ignore
                                               }
+                                            }
 
-                                              const isPaid = !!(
-                                                transaction.paymentDate ||
-                                                paymentDateFromNotes
-                                              );
+                                            const isPaid = !!(
+                                              transaction.paymentDate ||
+                                              paymentDateFromNotes
+                                            );
+                                            const paymentDate =
+                                              transaction.paymentDate ||
+                                              paymentDateFromNotes
+                                                ? new Date(
+                                                    transaction.paymentDate ||
+                                                      paymentDateFromNotes!,
+                                                  )
+                                                : null;
+                                            const paymentDeadline =
+                                              transaction.paymentDeadline
+                                                ? new Date(
+                                                    transaction.paymentDeadline,
+                                                  )
+                                                : null;
 
-                                              const handleMarkAsPaid =
-                                                async () => {
+                                            const isTransactionOverdue =
+                                              !paymentDate && paymentDeadline
+                                                ? new Date(paymentDeadline) <
+                                                  new Date()
+                                                : false;
+
+                                            return (
+                                              <span
+                                                className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
+                                                  isPaid
+                                                    ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300"
+                                                    : isTransactionOverdue
+                                                      ? "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300"
+                                                      : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300"
+                                                }`}
+                                              >
+                                                {isPaid ? (
+                                                  <>
+                                                    <span className="material-symbols-outlined text-xs mr-1">
+                                                      check_circle
+                                                    </span>
+                                                    Paid
+                                                  </>
+                                                ) : isTransactionOverdue ? (
+                                                  <>
+                                                    <span className="material-symbols-outlined text-xs mr-1">
+                                                      warning
+                                                    </span>
+                                                    Overdue
+                                                  </>
+                                                ) : (
+                                                  <>
+                                                    <span className="material-symbols-outlined text-xs mr-1">
+                                                      schedule
+                                                    </span>
+                                                    Pending
+                                                  </>
+                                                )}
+                                              </span>
+                                            );
+                                          })()}
+                                        </td>
+                                        {/* Actions Column */}
+                                        <td className="p-3">
+                                          {(() => {
+                                            // Parse paymentDate from notes if it's stored there (for regular transactions)
+                                            let paymentDateFromNotes:
+                                              | string
+                                              | null = null;
+                                            if (
+                                              !transaction.paymentDate &&
+                                              transaction.notes
+                                            ) {
+                                              try {
+                                                const notesData = JSON.parse(
+                                                  transaction.notes,
+                                                );
+                                                if (notesData.paymentDate) {
+                                                  paymentDateFromNotes =
+                                                    notesData.paymentDate;
+                                                }
+                                              } catch (e) {
+                                                // Notes is not JSON, ignore
+                                              }
+                                            }
+
+                                            const isPaid = !!(
+                                              transaction.paymentDate ||
+                                              paymentDateFromNotes
+                                            );
+
+                                            const handleMarkAsPaid =
+                                              async () => {
+                                                if (
+                                                  !confirm(
+                                                    "Mark this transaction as paid? This will set the payment date to today.",
+                                                  )
+                                                ) {
+                                                  return;
+                                                }
+
+                                                try {
+                                                  // If this is a vehicle stage cost, update it via the vehicle stage cost API
                                                   if (
-                                                    !confirm(
-                                                      "Mark this transaction as paid? This will set the payment date to today.",
-                                                    )
+                                                    transaction.isVehicleStageCost &&
+                                                    transaction.vehicle?.id
                                                   ) {
-                                                    return;
-                                                  }
-
-                                                  try {
-                                                    // If this is a vehicle stage cost, update it via the vehicle stage cost API
-                                                    if (
-                                                      transaction.isVehicleStageCost &&
-                                                      transaction.vehicle?.id
-                                                    ) {
-                                                      // Extract the cost ID from the transaction ID
-                                                      const costId =
-                                                        transaction.id.replace(
-                                                          "vehicle-cost-",
-                                                          "",
-                                                        );
-                                                      const response =
-                                                        await fetch(
-                                                          `/api/vehicles/${transaction.vehicle.id}/costs/${costId}`,
-                                                          {
-                                                            method: "PATCH",
-                                                            headers: {
-                                                              "Content-Type":
-                                                                "application/json",
-                                                            },
-                                                            body: JSON.stringify(
-                                                              {
-                                                                paymentDate:
-                                                                  new Date().toISOString(),
-                                                              },
-                                                            ),
+                                                    // Extract the cost ID from the transaction ID
+                                                    const costId =
+                                                      transaction.id.replace(
+                                                        "vehicle-cost-",
+                                                        "",
+                                                      );
+                                                    const response =
+                                                      await fetch(
+                                                        `/api/vehicles/${transaction.vehicle.id}/costs/${costId}`,
+                                                        {
+                                                          method: "PATCH",
+                                                          headers: {
+                                                            "Content-Type":
+                                                              "application/json",
                                                           },
-                                                        );
+                                                          body: JSON.stringify({
+                                                            paymentDate:
+                                                              new Date().toISOString(),
+                                                          }),
+                                                        },
+                                                      );
 
-                                                      if (response.ok) {
-                                                        fetchTransactions();
-                                                      } else {
-                                                        const errorData =
-                                                          await response
-                                                            .json()
-                                                            .catch(() => ({}));
-                                                        alert(
-                                                          errorData.error ||
-                                                            "Failed to update transaction",
-                                                        );
-                                                      }
+                                                    if (response.ok) {
+                                                      fetchTransactions();
                                                     } else {
-                                                      // For regular transactions, store paymentDate in notes as JSON
-                                                      let currentNotes: any =
-                                                        {};
-                                                      try {
-                                                        if (transaction.notes) {
-                                                          currentNotes =
-                                                            JSON.parse(
-                                                              transaction.notes,
-                                                            );
-                                                        }
-                                                      } catch (e) {
-                                                        // If notes is not JSON, treat it as plain text
-                                                        currentNotes = {
-                                                          originalNotes:
-                                                            transaction.notes,
-                                                        };
-                                                      }
-
-                                                      const updatedNotes = {
-                                                        ...currentNotes,
-                                                        paymentDate:
-                                                          new Date().toISOString(),
-                                                      };
-
-                                                      const response =
-                                                        await fetch(
-                                                          `/api/transactions/${transaction.id}`,
-                                                          {
-                                                            method: "PATCH",
-                                                            headers: {
-                                                              "Content-Type":
-                                                                "application/json",
-                                                            },
-                                                            body: JSON.stringify(
-                                                              {
-                                                                notes:
-                                                                  JSON.stringify(
-                                                                    updatedNotes,
-                                                                  ),
-                                                              },
-                                                            ),
-                                                          },
-                                                        );
-
-                                                      if (response.ok) {
-                                                        fetchTransactions();
-                                                      } else {
-                                                        const errorData =
-                                                          await response
-                                                            .json()
-                                                            .catch(() => ({}));
-                                                        alert(
-                                                          errorData.error ||
-                                                            "Failed to update transaction",
-                                                        );
-                                                      }
+                                                      const errorData =
+                                                        await response
+                                                          .json()
+                                                          .catch(() => ({}));
+                                                      alert(
+                                                        errorData.error ||
+                                                          "Failed to update transaction",
+                                                      );
                                                     }
-                                                  } catch (error) {
-                                                    console.error(
-                                                      "Error updating transaction:",
-                                                      error,
-                                                    );
-                                                    alert(
-                                                      "Failed to update transaction",
-                                                    );
-                                                  }
-                                                };
-
-                                              const handleEdit = () => {
-                                                setEditingTransaction(
-                                                  transaction,
-                                                );
-                                                setTransactionDialogOpen(true);
-                                              };
-
-                                              const handleDelete = async () => {
-                                                if (
-                                                  !confirm(
-                                                    "Are you sure you want to delete this transaction? This action cannot be undone.",
-                                                  )
-                                                ) {
-                                                  return;
-                                                }
-
-                                                try {
-                                                  const response = await fetch(
-                                                    `/api/transactions/${transaction.id}`,
-                                                    {
-                                                      method: "DELETE",
-                                                    },
-                                                  );
-
-                                                  if (response.ok) {
-                                                    fetchTransactions();
                                                   } else {
-                                                    let errorMessage = "Failed to delete transaction";
+                                                    // For regular transactions, store paymentDate in notes as JSON
+                                                    let currentNotes: any = {};
                                                     try {
-                                                      const errorData = await response.json();
-                                                      errorMessage = errorData.error || errorMessage;
+                                                      if (transaction.notes) {
+                                                        currentNotes =
+                                                          JSON.parse(
+                                                            transaction.notes,
+                                                          );
+                                                      }
                                                     } catch (e) {
-                                                      errorMessage = response.statusText || errorMessage;
+                                                      // If notes is not JSON, treat it as plain text
+                                                      currentNotes = {
+                                                        originalNotes:
+                                                          transaction.notes,
+                                                      };
                                                     }
-                                                    alert(errorMessage);
+
+                                                    const updatedNotes = {
+                                                      ...currentNotes,
+                                                      paymentDate:
+                                                        new Date().toISOString(),
+                                                    };
+
+                                                    const response =
+                                                      await fetch(
+                                                        `/api/transactions/${transaction.id}`,
+                                                        {
+                                                          method: "PATCH",
+                                                          headers: {
+                                                            "Content-Type":
+                                                              "application/json",
+                                                          },
+                                                          body: JSON.stringify({
+                                                            notes:
+                                                              JSON.stringify(
+                                                                updatedNotes,
+                                                              ),
+                                                          }),
+                                                        },
+                                                      );
+
+                                                    if (response.ok) {
+                                                      fetchTransactions();
+                                                    } else {
+                                                      const errorData =
+                                                        await response
+                                                          .json()
+                                                          .catch(() => ({}));
+                                                      alert(
+                                                        errorData.error ||
+                                                          "Failed to update transaction",
+                                                      );
+                                                    }
                                                   }
                                                 } catch (error) {
                                                   console.error(
-                                                    "Error deleting transaction:",
+                                                    "Error updating transaction:",
                                                     error,
                                                   );
                                                   alert(
-                                                    "Failed to delete transaction. Please try again.",
+                                                    "Failed to update transaction",
                                                   );
                                                 }
                                               };
 
-                                              return (
-                                                <div className="flex items-center gap-2">
-                                                  <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    onClick={handleEdit}
-                                                    className="h-8 px-2 text-xs hover:bg-blue-50 dark:hover:bg-blue-900/20"
-                                                    title="Edit transaction"
-                                                  >
-                                                    <span className="material-symbols-outlined text-sm">
-                                                      edit
-                                                    </span>
-                                                  </Button>
-                                                  <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    onClick={handleDelete}
-                                                    className="h-8 px-2 text-xs hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400"
-                                                    title="Delete transaction"
-                                                  >
-                                                    <span className="material-symbols-outlined text-sm">
-                                                      delete
-                                                    </span>
-                                                  </Button>
-                                                  {!isPaid && (
-                                                    <Button
-                                                      variant="ghost"
-                                                      size="sm"
-                                                      onClick={handleMarkAsPaid}
-                                                      className="h-8 px-2 text-xs hover:bg-green-50 dark:hover:bg-green-900/20"
-                                                      title="Mark as paid"
-                                                    >
-                                                      <span className="material-symbols-outlined text-sm">
-                                                        check
-                                                      </span>
-                                                    </Button>
-                                                  )}
-                                                </div>
+                                            const handleEdit = () => {
+                                              setEditingTransaction(
+                                                transaction,
                                               );
-                                            })()}
-                                          </td>
-                                        </>
-                                      ) : (
-                                        <>
-                                          <td className="p-3 text-sm text-gray-900 dark:text-white">
-                                            {(() => {
-                                              // For invoices, use the paymentStatus field
+                                              setTransactionDialogOpen(true);
+                                            };
+
+                                            const handleDelete = async () => {
                                               if (
-                                                transaction.isInvoice &&
-                                                transaction.paymentStatus
+                                                !confirm(
+                                                  "Are you sure you want to delete this transaction? This action cannot be undone.",
+                                                )
                                               ) {
-                                                const statusColors: Record<
-                                                  string,
-                                                  string
-                                                > = {
-                                                  paid: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300",
-                                                  partially_paid:
-                                                    "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300",
-                                                  overdue:
-                                                    "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300",
-                                                  due: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300",
-                                                };
-                                                const statusLabels: Record<
-                                                  string,
-                                                  string
-                                                > = {
-                                                  paid: "Paid",
-                                                  partially_paid:
-                                                    "Partially Paid",
-                                                  overdue: "Overdue",
-                                                  due: "Due",
-                                                };
-                                                const status =
-                                                  transaction.paymentStatus;
-                                                return (
-                                                  <span
-                                                    className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${statusColors[status] || statusColors.due}`}
-                                                  >
-                                                    {statusLabels[status] ||
-                                                      status}
-                                                  </span>
-                                                );
+                                                return;
                                               }
 
-                                              // For incoming payments, show payment status badge only
-                                              return (
-                                                <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
-                                                  <span className="material-symbols-outlined text-xs mr-1">
-                                                    payments
+                                              try {
+                                                const response = await fetch(
+                                                  `/api/transactions/${transaction.id}`,
+                                                  {
+                                                    method: "DELETE",
+                                                  },
+                                                );
+
+                                                if (response.ok) {
+                                                  fetchTransactions();
+                                                } else {
+                                                  let errorMessage =
+                                                    "Failed to delete transaction";
+                                                  try {
+                                                    const errorData =
+                                                      await response.json();
+                                                    errorMessage =
+                                                      errorData.error ||
+                                                      errorMessage;
+                                                  } catch (e) {
+                                                    errorMessage =
+                                                      response.statusText ||
+                                                      errorMessage;
+                                                  }
+                                                  alert(errorMessage);
+                                                }
+                                              } catch (error) {
+                                                console.error(
+                                                  "Error deleting transaction:",
+                                                  error,
+                                                );
+                                                alert(
+                                                  "Failed to delete transaction. Please try again.",
+                                                );
+                                              }
+                                            };
+
+                                            return (
+                                              <div className="flex items-center gap-2">
+                                                <Button
+                                                  variant="ghost"
+                                                  size="sm"
+                                                  onClick={handleEdit}
+                                                  className="h-8 px-2 text-xs hover:bg-blue-50 dark:hover:bg-blue-900/20"
+                                                  title="Edit transaction"
+                                                >
+                                                  <span className="material-symbols-outlined text-sm">
+                                                    edit
                                                   </span>
-                                                  Received
+                                                </Button>
+                                                <Button
+                                                  variant="ghost"
+                                                  size="sm"
+                                                  onClick={handleDelete}
+                                                  className="h-8 px-2 text-xs hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400"
+                                                  title="Delete transaction"
+                                                >
+                                                  <span className="material-symbols-outlined text-sm">
+                                                    delete
+                                                  </span>
+                                                </Button>
+                                                {!isPaid && (
+                                                  <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={handleMarkAsPaid}
+                                                    className="h-8 px-2 text-xs hover:bg-green-50 dark:hover:bg-green-900/20"
+                                                    title="Mark as paid"
+                                                  >
+                                                    <span className="material-symbols-outlined text-sm">
+                                                      check
+                                                    </span>
+                                                  </Button>
+                                                )}
+                                              </div>
+                                            );
+                                          })()}
+                                        </td>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <td className="p-3 text-sm text-gray-900 dark:text-white">
+                                          {(() => {
+                                            // For invoices, use the paymentStatus field
+                                            if (
+                                              transaction.isInvoice &&
+                                              transaction.paymentStatus
+                                            ) {
+                                              const statusColors: Record<
+                                                string,
+                                                string
+                                              > = {
+                                                paid: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300",
+                                                partially_paid:
+                                                  "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300",
+                                                overdue:
+                                                  "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300",
+                                                due: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300",
+                                              };
+                                              const statusLabels: Record<
+                                                string,
+                                                string
+                                              > = {
+                                                paid: "Paid",
+                                                partially_paid:
+                                                  "Partially Paid",
+                                                overdue: "Overdue",
+                                                due: "Due",
+                                              };
+                                              const status =
+                                                transaction.paymentStatus;
+                                              return (
+                                                <span
+                                                  className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${statusColors[status] || statusColors.due}`}
+                                                >
+                                                  {statusLabels[status] ||
+                                                    status}
                                                 </span>
                                               );
-                                            })()}
-                                          </td>
-                                          {/* Actions Column for Incoming */}
-                                          <td className="p-3">
-                                            {(() => {
-                                              const handleEdit = () => {
-                                                setEditingTransaction(
-                                                  transaction,
-                                                );
-                                                setTransactionDialogOpen(true);
-                                              };
+                                            }
 
-                                              const handleDelete = async () => {
-                                                if (
-                                                  !confirm(
-                                                    "Are you sure you want to delete this transaction? This action cannot be undone.",
-                                                  )
-                                                ) {
-                                                  return;
-                                                }
-
-                                                try {
-                                                  const response = await fetch(
-                                                    `/api/transactions/${transaction.id}`,
-                                                    {
-                                                      method: "DELETE",
-                                                    },
-                                                  );
-
-                                                  if (response.ok) {
-                                                    fetchTransactions();
-                                                  } else {
-                                                    let errorMessage = "Failed to delete transaction";
-                                                    try {
-                                                      const errorData = await response.json();
-                                                      errorMessage = errorData.error || errorMessage;
-                                                    } catch (e) {
-                                                      errorMessage = response.statusText || errorMessage;
-                                                    }
-                                                    alert(errorMessage);
-                                                  }
-                                                } catch (error) {
-                                                  console.error(
-                                                    "Error deleting transaction:",
-                                                    error,
-                                                  );
-                                                  alert(
-                                                    "Failed to delete transaction. Please try again.",
-                                                  );
-                                                }
-                                              };
-
-                                              const handleMarkPayment = () => {
-                                                setSelectedInvoice(transaction);
-                                                setAmountReceived(
-                                                  transaction.amount,
-                                                );
-                                                setPaymentDialogOpen(true);
-                                              };
-
-                                              const isInvoiceDue =
-                                                transaction.isInvoice &&
-                                                (transaction.paymentStatus ===
-                                                  "due" ||
-                                                  transaction.paymentStatus ===
-                                                    "overdue");
-
-                                              return (
-                                                <div className="flex items-center gap-2">
-                                                  <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    onClick={handleEdit}
-                                                    className="h-8 px-2 text-xs hover:bg-blue-50 dark:hover:bg-blue-900/20"
-                                                    title="Edit transaction"
-                                                  >
-                                                    <span className="material-symbols-outlined text-sm">
-                                                      edit
-                                                    </span>
-                                                  </Button>
-                                                  {isInvoiceDue && (
-                                                    <Button
-                                                      variant="ghost"
-                                                      size="sm"
-                                                      onClick={
-                                                        handleMarkPayment
-                                                      }
-                                                      className="h-8 px-2 text-xs hover:bg-green-50 dark:hover:bg-green-900/20 text-green-600 dark:text-green-400"
-                                                      title="Mark payment received"
-                                                    >
-                                                      <span className="material-symbols-outlined text-sm">
-                                                        payments
-                                                      </span>
-                                                    </Button>
-                                                  )}
-                                                  <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    onClick={handleDelete}
-                                                    className="h-8 px-2 text-xs hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400"
-                                                    title="Delete transaction"
-                                                  >
-                                                    <span className="material-symbols-outlined text-sm">
-                                                      delete
-                                                    </span>
-                                                  </Button>
-                                                </div>
+                                            // For incoming payments, show payment status badge only
+                                            return (
+                                              <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
+                                                <span className="material-symbols-outlined text-xs mr-1">
+                                                  payments
+                                                </span>
+                                                Received
+                                              </span>
+                                            );
+                                          })()}
+                                        </td>
+                                        {/* Actions Column for Incoming */}
+                                        <td className="p-3">
+                                          {(() => {
+                                            const handleEdit = () => {
+                                              setEditingTransaction(
+                                                transaction,
                                               );
-                                            })()}
-                                          </td>
-                                        </>
-                                      )}
-                                      <td className="p-3 text-right text-sm font-medium text-gray-900 dark:text-white">
-                                        {formatCurrency(transaction.amount)}
-                                      </td>
-                                    </tr>
-                                  );
-                                },
-                              )}
-                            </tbody>
-                          </table>
-                        </div>
+                                              setTransactionDialogOpen(true);
+                                            };
 
-                        {filteredAndSortedTransactions.length === 0 &&
-                          transactions.length > 0 && (
-                            <div className="text-center py-12">
-                              <div className="flex flex-col items-center gap-3">
-                                <span className="material-symbols-outlined text-5xl text-muted-foreground">
-                                  filter_alt_off
-                                </span>
-                                <div>
-                                  <p className="text-lg font-medium text-foreground mb-1">
-                                    No transactions match your filters
-                                  </p>
-                                  <p className="text-sm text-muted-foreground">
-                                    Try adjusting your search or filter criteria
-                                  </p>
-                                </div>
-                                <Button
-                                  variant="outline"
-                                  onClick={() => {
-                                    setSearchQuery("");
-                                    setCustomerFilter("all");
-                                    setVendorFilter("all");
-                                    setPaymentStatusFilter("all");
-                                    setDatePreset("all");
-                                    setStartDate("");
-                                    setEndDate("");
-                                  }}
-                                  className="mt-2"
-                                >
-                                  Clear All Filters
-                                </Button>
-                              </div>
-                            </div>
-                          )}
+                                            const handleDelete = async () => {
+                                              if (
+                                                !confirm(
+                                                  "Are you sure you want to delete this transaction? This action cannot be undone.",
+                                                )
+                                              ) {
+                                                return;
+                                              }
+
+                                              try {
+                                                const response = await fetch(
+                                                  `/api/transactions/${transaction.id}`,
+                                                  {
+                                                    method: "DELETE",
+                                                  },
+                                                );
+
+                                                if (response.ok) {
+                                                  fetchTransactions();
+                                                } else {
+                                                  let errorMessage =
+                                                    "Failed to delete transaction";
+                                                  try {
+                                                    const errorData =
+                                                      await response.json();
+                                                    errorMessage =
+                                                      errorData.error ||
+                                                      errorMessage;
+                                                  } catch (e) {
+                                                    errorMessage =
+                                                      response.statusText ||
+                                                      errorMessage;
+                                                  }
+                                                  alert(errorMessage);
+                                                }
+                                              } catch (error) {
+                                                console.error(
+                                                  "Error deleting transaction:",
+                                                  error,
+                                                );
+                                                alert(
+                                                  "Failed to delete transaction. Please try again.",
+                                                );
+                                              }
+                                            };
+
+                                            const handleMarkPayment = () => {
+                                              setSelectedInvoice(transaction);
+                                              setAmountReceived(
+                                                transaction.amount,
+                                              );
+                                              setPaymentDialogOpen(true);
+                                            };
+
+                                            const isInvoiceDue =
+                                              transaction.isInvoice &&
+                                              (transaction.paymentStatus ===
+                                                "due" ||
+                                                transaction.paymentStatus ===
+                                                  "overdue");
+
+                                            return (
+                                              <div className="flex items-center gap-2">
+                                                <Button
+                                                  variant="ghost"
+                                                  size="sm"
+                                                  onClick={handleEdit}
+                                                  className="h-8 px-2 text-xs hover:bg-blue-50 dark:hover:bg-blue-900/20"
+                                                  title="Edit transaction"
+                                                >
+                                                  <span className="material-symbols-outlined text-sm">
+                                                    edit
+                                                  </span>
+                                                </Button>
+                                                {isInvoiceDue && (
+                                                  <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={handleMarkPayment}
+                                                    className="h-8 px-2 text-xs hover:bg-green-50 dark:hover:bg-green-900/20 text-green-600 dark:text-green-400"
+                                                    title="Mark payment received"
+                                                  >
+                                                    <span className="material-symbols-outlined text-sm">
+                                                      payments
+                                                    </span>
+                                                  </Button>
+                                                )}
+                                                <Button
+                                                  variant="ghost"
+                                                  size="sm"
+                                                  onClick={handleDelete}
+                                                  className="h-8 px-2 text-xs hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400"
+                                                  title="Delete transaction"
+                                                >
+                                                  <span className="material-symbols-outlined text-sm">
+                                                    delete
+                                                  </span>
+                                                </Button>
+                                              </div>
+                                            );
+                                          })()}
+                                        </td>
+                                      </>
+                                    )}
+                                    <td className="p-3 text-right text-sm font-medium text-gray-900 dark:text-white">
+                                      {formatCurrency(transaction.amount)}
+                                    </td>
+                                  </tr>
+                                );
+                              },
+                            )}
+                          </tbody>
+                        </table>
                       </div>
-                    )}
-                  </>
+
+                      {filteredAndSortedTransactions.length === 0 &&
+                        transactions.length > 0 && (
+                          <div className="text-center py-12">
+                            <div className="flex flex-col items-center gap-3">
+                              <span className="material-symbols-outlined text-5xl text-muted-foreground">
+                                filter_alt_off
+                              </span>
+                              <div>
+                                <p className="text-lg font-medium text-foreground mb-1">
+                                  No transactions match your filters
+                                </p>
+                                <p className="text-sm text-muted-foreground">
+                                  Try adjusting your search or filter criteria
+                                </p>
+                              </div>
+                              <Button
+                                variant="outline"
+                                onClick={() => {
+                                  setSearchQuery("");
+                                  setCustomerFilter("all");
+                                  setVendorFilter("all");
+                                  setPaymentStatusFilter("all");
+                                  setDatePreset("all");
+                                  setStartDate("");
+                                  setEndDate("");
+                                }}
+                                className="mt-2"
+                              >
+                                Clear All Filters
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+                    </div>
+                  )}
+                </>
               </CardContent>
             </Card>
 
@@ -2790,9 +2775,7 @@ export function FinancialOperationsView({
                       Customer Invoices
                     </TabsTrigger>
                     {canViewSharedInvoices && (
-                      <TabsTrigger value="shared">
-                        Shared Invoices
-                      </TabsTrigger>
+                      <TabsTrigger value="shared">Shared Invoices</TabsTrigger>
                     )}
                   </TabsList>
                   <TabsContent value="customer" className="mt-4">

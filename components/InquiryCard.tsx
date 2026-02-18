@@ -421,38 +421,32 @@ export function InquiryCard({
               </button>
             )}
             {showAssignButton && onAssign && !inquiry.assignedToId && (
-              <Button
-                size="sm"
-                variant="ghost"
+              <button
                 onClick={(e) => {
                   e.stopPropagation();
                   onAssign(inquiry.id);
                 }}
-                className="h-7 px-2 text-xs flex items-center gap-1 shrink-0"
+                className="flex items-center justify-center p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-[#2C2C2C] transition-colors text-gray-500 dark:text-[#A1A1A1]"
                 title="Assign to myself"
               >
-                <span className="material-symbols-outlined text-sm">
+                <span className="material-symbols-outlined text-base">
                   person_add
                 </span>
-                Assign
-              </Button>
+              </button>
             )}
             {showAssignToButton && onAssignTo && (isManager || isAdmin) && (
-              <Button
-                size="sm"
-                variant="ghost"
+              <button
                 onClick={(e) => {
                   e.stopPropagation();
                   onAssignTo(inquiry.id);
                 }}
-                className="h-7 px-2 text-xs flex items-center gap-1 shrink-0"
+                className="flex items-center justify-center p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-[#2C2C2C] transition-colors text-gray-500 dark:text-[#A1A1A1]"
                 title="Assign to a team member"
               >
-                <span className="material-symbols-outlined text-sm">
+                <span className="material-symbols-outlined text-base">
                   group_add
                 </span>
-                Assign to…
-              </Button>
+              </button>
             )}
             {showReleaseButton && onRelease && inquiry.assignedToId ? (
               <Button

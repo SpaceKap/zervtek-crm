@@ -464,17 +464,29 @@ export default function VehicleDetailPage() {
                   Delete Vehicle
                 </Button>
               )}
-              <Link
-                href={`/dashboard/invoices/new?vehicleId=${vehicle.id}${vehicle.customer ? `&customerId=${vehicle.customer.id}` : ""}`}
-              >
-                <Button
-                  size="sm"
-                  className="gap-2 bg-amber-500 hover:bg-amber-600 text-slate-900 border-0 shadow-lg"
+              {vehicle.invoices && vehicle.invoices.length > 0 ? (
+                <Link href={`/dashboard/invoices/${vehicle.invoices[0].id}`}>
+                  <Button
+                    size="sm"
+                    className="gap-2 bg-amber-500 hover:bg-amber-600 text-slate-900 border-0 shadow-lg"
+                  >
+                    <span className="material-symbols-outlined text-lg">receipt</span>
+                    View Invoice
+                  </Button>
+                </Link>
+              ) : (
+                <Link
+                  href={`/dashboard/invoices/new?vehicleId=${vehicle.id}${vehicle.customer ? `&customerId=${vehicle.customer.id}` : ""}`}
                 >
-                  <span className="material-symbols-outlined text-lg">add</span>
-                  Create Invoice
-                </Button>
-              </Link>
+                  <Button
+                    size="sm"
+                    className="gap-2 bg-amber-500 hover:bg-amber-600 text-slate-900 border-0 shadow-lg"
+                  >
+                    <span className="material-symbols-outlined text-lg">add</span>
+                    Create Invoice
+                  </Button>
+                </Link>
+              )}
             </div>
           </div>
         </div>
