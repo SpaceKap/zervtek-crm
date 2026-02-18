@@ -71,6 +71,7 @@ export function InquiryPool({
   const router = useRouter();
   const [inquiries, setInquiries] = useState<Inquiry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [filterSource, setFilterSource] = useState<string>(
     externalFilterSource || "all",
   );
@@ -108,9 +109,14 @@ export function InquiryPool({
     }
   }, [externalFilterSource, externalFilterStatus, externalFilterUserId, userId]);
 
-  const fetchInquiries = useCallback(async () => {
+  const fetchInquiries = useCallback(async (isRefresh = false) => {
     try {
-      setLoading(true);
+      // Only set loading to true on initial load, use isRefreshing for refresh
+      if (isRefresh) {
+        setIsRefreshing(true);
+      } else {
+        setLoading(true);
+      }
       const params = new URLSearchParams();
       if (currentFilterSource !== "all")
         params.append("source", currentFilterSource);
@@ -164,13 +170,14 @@ export function InquiryPool({
       console.error("Error fetching inquiries:", error);
     } finally {
       setLoading(false);
+      setIsRefreshing(false);
     }
   }, [currentFilterSource, currentFilterStatus, currentFilterUserId, showUnassignedOnly, isManager]);
 
   useEffect(() => {
-    fetchInquiries();
+    fetchInquiries(false); // Initial load
     // Refresh every 30 seconds
-    const interval = setInterval(fetchInquiries, 30000);
+    const interval = setInterval(() => fetchInquiries(true), 30000);
     return () => clearInterval(interval);
   }, [fetchInquiries]);
 
@@ -219,7 +226,7 @@ export function InquiryPool({
         setReleaseDialogOpen(false);
         setPendingReleaseId(null);
         // Refresh the list to show the released inquiry
-        fetchInquiries();
+        fetchInquiries(true);
         router.refresh();
       } else {
         let errorMessage = "Failed to release inquiry";
@@ -321,6 +328,17 @@ export function InquiryPool({
 
   return (
     <div className="space-y-4">
+      {/* Subtle refresh indicator that doesn't hide the list */}
+      {isRefreshing && inquiries.length > 0 && (
+        <div className="text-center py-2 text-sm text-muted-foreground">
+          <span className="inline-flex items-center gap-2">
+            <span className="material-symbols-outlined text-sm animate-spin">refresh</span>
+            Refreshing inquiries...
+          </span>
+        </div>
+      )}
+
+
       {!hideControls && (
         <>
           <div className="flex items-center gap-4 flex-wrap">
@@ -377,19 +395,22 @@ export function InquiryPool({
               <option value="RECURRING">Recurring</option>
             </select>
             <Button
-              onClick={fetchInquiries}
+              onClick={() => fetchInquiries(true)}
               variant="outline"
               className="flex items-center gap-2"
+              disabled={isRefreshing}
             >
-              <span className="material-symbols-outlined text-lg">refresh</span>
-              Refresh
+              <span className={`material-symbols-outlined text-lg ${isRefreshing ? 'animate-spin' : ''}`}>
+                refresh
+              </span>
+              {isRefreshing ? 'Refreshing...' : 'Refresh'}
             </Button>
           </div>
 
           <AddInquiryDialog
             open={dialogOpen}
             onOpenChange={setDialogOpen}
-            onSuccess={fetchInquiries}
+            onSuccess={() => fetchInquiries(true)}
             isManager={isManager}
             users={users}
           />
@@ -444,7 +465,7 @@ export function InquiryPool({
           }}
           inquiryId={notesInquiryId}
           currentNotes={notes}
-          onSuccess={fetchInquiries}
+          onSuccess={() => fetchInquiries(true)}
         />
       )}
       {assignToInquiryId && users.length > 0 && (
@@ -456,7 +477,7 @@ export function InquiryPool({
           }}
           inquiryId={assignToInquiryId}
           users={users}
-          onSuccess={fetchInquiries}
+          onSuccess={() => fetchInquiries(true)}
         />
       )}
     </div>
