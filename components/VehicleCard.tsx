@@ -69,10 +69,7 @@ const stageLabels: Record<ShippingStage, string> = {
   DHL: "DHL",
 };
 
-export function VehicleCard({
-  vehicle,
-  onView,
-}: VehicleCardProps) {
+export function VehicleCard({ vehicle, onView }: VehicleCardProps) {
   const handleCardClick = (e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
     if (
@@ -144,8 +141,14 @@ export function VehicleCard({
           {stage === ShippingStage.PURCHASE && ss && (
             <div className="space-y-1 pt-2 border-t border-gray-100 dark:border-[#2C2C2C]">
               <div className="text-xs text-gray-600 dark:text-[#A1A1A1]">
-                <span className="font-medium text-gray-700 dark:text-[#D0D0D0]">Payment:</span>{" "}
-                ¥{parseFloat(ss.totalCharges?.toString() || "0").toLocaleString()} {ss.purchasePaid ? "• Paid" : "• Pending"}
+                <span className="font-medium text-gray-700 dark:text-[#D0D0D0]">
+                  Payment:
+                </span>{" "}
+                ¥
+                {parseFloat(
+                  ss.totalCharges?.toString() || "0",
+                ).toLocaleString()}{" "}
+                {ss.purchasePaid ? "• Paid" : "• Pending"}
               </div>
             </div>
           )}
@@ -153,7 +156,9 @@ export function VehicleCard({
           {/* TRANSPORT: Yard name */}
           {stage === ShippingStage.TRANSPORT && ss?.yard && (
             <div className="text-xs text-gray-600 dark:text-[#A1A1A1]">
-              <span className="font-medium text-gray-700 dark:text-[#D0D0D0]">Yard:</span>{" "}
+              <span className="font-medium text-gray-700 dark:text-[#D0D0D0]">
+                Yard:
+              </span>{" "}
               <span>{ss.yard.name}</span>
             </div>
           )}
@@ -163,15 +168,21 @@ export function VehicleCard({
             <div className="space-y-1 pt-2 border-t border-gray-100 dark:border-[#2C2C2C]">
               {ss.freightVendor && (
                 <div className="text-xs text-gray-600 dark:text-[#A1A1A1]">
-                  <span className="font-medium text-gray-700 dark:text-[#D0D0D0]">Agent:</span>{" "}
+                  <span className="font-medium text-gray-700 dark:text-[#D0D0D0]">
+                    Agent:
+                  </span>{" "}
                   <span>{ss.freightVendor.name}</span>
                 </div>
               )}
               <div className="text-xs text-gray-600 dark:text-[#A1A1A1]">
-                <span className="font-medium text-gray-700 dark:text-[#D0D0D0]">Type:</span>{" "}
+                <span className="font-medium text-gray-700 dark:text-[#D0D0D0]">
+                  Type:
+                </span>{" "}
                 <span>{ss.bookingType || "—"}</span>
                 {" • "}
-                <span className="font-medium text-gray-700 dark:text-[#D0D0D0]">Status:</span>{" "}
+                <span className="font-medium text-gray-700 dark:text-[#D0D0D0]">
+                  Status:
+                </span>{" "}
                 <span>{ss.bookingStatus || "—"}</span>
               </div>
             </div>
@@ -184,14 +195,18 @@ export function VehicleCard({
                 <div className="text-xs text-gray-600 dark:text-[#A1A1A1]">
                   {ss.etd && (
                     <>
-                      <span className="font-medium text-gray-700 dark:text-[#D0D0D0]">ETD:</span>{" "}
+                      <span className="font-medium text-gray-700 dark:text-[#D0D0D0]">
+                        ETD:
+                      </span>{" "}
                       {format(new Date(ss.etd), "dd MMM yyyy")}
                     </>
                   )}
                   {ss.etd && ss.eta && " • "}
                   {ss.eta && (
                     <>
-                      <span className="font-medium text-gray-700 dark:text-[#D0D0D0]">ETA:</span>{" "}
+                      <span className="font-medium text-gray-700 dark:text-[#D0D0D0]">
+                        ETA:
+                      </span>{" "}
                       {format(new Date(ss.eta), "dd MMM yyyy")}
                     </>
                   )}
@@ -199,12 +214,16 @@ export function VehicleCard({
               )}
               {(ss.vesselName || ss.voyageNo) && (
                 <div className="text-xs text-gray-600 dark:text-[#A1A1A1]">
-                  <span className="font-medium text-gray-700 dark:text-[#D0D0D0]">Ship:</span>{" "}
+                  <span className="font-medium text-gray-700 dark:text-[#D0D0D0]">
+                    Ship:
+                  </span>{" "}
                   <span>{ss.vesselName || "—"}</span>
                   {ss.voyageNo && (
                     <>
                       {" • "}
-                      <span className="font-medium text-gray-700 dark:text-[#D0D0D0]">Voy:</span>{" "}
+                      <span className="font-medium text-gray-700 dark:text-[#D0D0D0]">
+                        Voy:
+                      </span>{" "}
                       <span>{ss.voyageNo}</span>
                     </>
                   )}
@@ -216,7 +235,9 @@ export function VehicleCard({
           {/* Yard (show for Transport if not already shown above) */}
           {stage !== ShippingStage.TRANSPORT && vehicle.shippingStage?.yard && (
             <div className="text-xs text-gray-600 dark:text-[#A1A1A1]">
-              <span className="font-medium text-gray-700 dark:text-[#D0D0D0]">Yard:</span>{" "}
+              <span className="font-medium text-gray-700 dark:text-[#D0D0D0]">
+                Yard:
+              </span>{" "}
               <span>{vehicle.shippingStage.yard.name}</span>
             </div>
           )}
@@ -234,12 +255,16 @@ export function VehicleCard({
         <div className="flex items-center justify-between pt-3 border-t border-gray-100 dark:border-[#2C2C2C]">
           <div className="flex items-center gap-3 text-xs text-gray-500 dark:text-[#A1A1A1]">
             <span className="flex items-center gap-1">
-              <span className="material-symbols-outlined text-sm">description</span>
+              <span className="material-symbols-outlined text-sm">
+                description
+              </span>
               <span>{vehicle._count.documents}</span>
             </span>
             <span className="flex items-center gap-1">
               <span className="material-symbols-outlined text-sm">receipt</span>
-              <span>{vehicle._count.invoices ?? vehicle._count.stageCosts}</span>
+              <span>
+                {vehicle._count.invoices ?? vehicle._count.stageCosts}
+              </span>
             </span>
             <span className="text-gray-400 dark:text-[#A1A1A1]">
               {format(new Date(vehicle.createdAt), "dd MMM yyyy")}

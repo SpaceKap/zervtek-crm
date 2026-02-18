@@ -478,22 +478,22 @@ export function CustomerForm({
         </DialogHeader>
 
         {/* Form Content - Scrollable */}
-        <div className="flex-1 overflow-y-auto px-6 py-6">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden px-6 py-6 min-w-0">
           <form
             id="customer-form"
             onSubmit={handleSubmit(onSubmit)}
             className="space-y-0"
           >
-            <div className="grid grid-cols-2 gap-8">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 min-w-0">
               {/* Left Column - Customer Overview */}
-              <div className="space-y-0">
+              <div className="space-y-0 min-w-0">
                 <div className="mb-6">
                   <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100 mb-6">
                     Customer Overview
                   </h3>
                   <div className="space-y-5">
                     {/* First Name & Last Name */}
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 min-w-0">
                       <div className="space-y-1.5">
                         <Label
                           htmlFor="firstName"
@@ -627,7 +627,7 @@ export function CustomerForm({
                       <Input
                         id="portOfDestination"
                         {...register("portOfDestination")}
-                        placeholder="e.g., Port of Los Angeles, Port of Tokyo"
+                        placeholder="e.g. Port of Tokyo, Los Angeles"
                         className="h-10"
                       />
                       {errors.portOfDestination && (
@@ -669,7 +669,7 @@ export function CustomerForm({
               </div>
 
               {/* Right Column - Address */}
-              <div className="space-y-0">
+              <div className="space-y-0 min-w-0">
                 <div className="mb-6">
                   <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100 mb-6">
                     Address
@@ -760,11 +760,11 @@ export function CustomerForm({
                     </div>
 
                     {/* City & State */}
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-1.5">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 min-w-0">
+                      <div className="space-y-1.5 min-w-0">
                         <Label
                           htmlFor="addressCity"
-                          className="text-sm font-medium text-gray-700 dark:text-gray-300"
+                          className="text-sm font-medium text-gray-700 dark:text-gray-300 break-words"
                         >
                           City{" "}
                           <span className="text-red-500 dark:text-red-400">
@@ -783,10 +783,10 @@ export function CustomerForm({
                           </p>
                         )}
                       </div>
-                      <div className="space-y-1.5">
+                      <div className="space-y-1.5 min-w-0">
                         <Label
                           htmlFor="addressState"
-                          className="text-sm font-medium text-gray-700 dark:text-gray-300"
+                          className="text-sm font-medium text-gray-700 dark:text-gray-300 break-words"
                         >
                           State/Province/Region{" "}
                           <span className="text-red-500 dark:text-red-400">
@@ -818,7 +818,7 @@ export function CustomerForm({
                             id="addressState"
                             {...register("address.state")}
                             placeholder={regionLabel}
-                            className="h-10"
+                            className="h-10 min-w-0"
                           />
                         )}
                         {errors.address?.state && (
@@ -958,11 +958,11 @@ export function CustomerForm({
                         </div>
 
                         {/* City & State */}
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className="space-y-1.5">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 min-w-0">
+                          <div className="space-y-1.5 min-w-0">
                             <Label
                               htmlFor="shippingAddressCity"
-                              className="text-sm font-medium text-gray-700 dark:text-gray-300"
+                              className="text-sm font-medium text-gray-700 dark:text-gray-300 break-words"
                             >
                               City{" "}
                               <span className="text-red-500 dark:text-red-400">
@@ -981,10 +981,10 @@ export function CustomerForm({
                               </p>
                             )}
                           </div>
-                          <div className="space-y-1.5">
+                          <div className="space-y-1.5 min-w-0">
                             <Label
                               htmlFor="shippingAddressState"
-                              className="text-sm font-medium text-gray-700 dark:text-gray-300"
+                              className="text-sm font-medium text-gray-700 dark:text-gray-300 break-words"
                             >
                               State/Province/Region{" "}
                               <span className="text-red-500 dark:text-red-400">
@@ -1018,7 +1018,7 @@ export function CustomerForm({
                                 placeholder={getRegionLabel(
                                   selectedShippingCountry,
                                 )}
-                                className="h-10"
+                                className="h-10 min-w-0"
                               />
                             )}
                             {errors.shippingAddress?.state && (
