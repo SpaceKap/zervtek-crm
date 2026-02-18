@@ -40,6 +40,7 @@ interface InquiryPoolProps {
   users?: User[];
   isManager?: boolean;
   isAdmin?: boolean;
+  canAssign?: boolean;
   showUnassignedOnly?: boolean;
   currentUserId?: string;
   currentUserEmail?: string;
@@ -57,6 +58,7 @@ export function InquiryPool({
   users = [],
   isManager = false,
   isAdmin = false,
+  canAssign = false,
   showUnassignedOnly = true,
   currentUserId,
   currentUserEmail,
@@ -432,6 +434,7 @@ export function InquiryPool({
             <InquiryCard
               key={inquiry.id}
               inquiry={inquiry}
+              onAssign={handleAssign}
               onAssignTo={handleAssignTo}
               onRelease={handleRelease}
               onView={handleView}
@@ -439,9 +442,9 @@ export function InquiryPool({
               onDelete={handleDelete}
               showDeleteButton={true}
               showNotesButton={true}
+              showAssignButton={canAssign}
               showAssignToButton={(isManager || isAdmin) && users.length > 0}
               currentUserEmail={currentUserEmail}
-              showAssignButton={false}
               showReleaseButton={!!inquiry.assignedToId}
               currentUserId={currentUserId}
               isManager={isManager}

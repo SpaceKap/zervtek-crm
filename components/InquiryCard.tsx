@@ -420,6 +420,23 @@ export function InquiryCard({
                 </span>
               </button>
             )}
+            {showAssignButton && onAssign && !inquiry.assignedToId && (
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onAssign(inquiry.id);
+                }}
+                className="h-7 px-2 text-xs flex items-center gap-1 shrink-0"
+                title="Assign to myself"
+              >
+                <span className="material-symbols-outlined text-sm">
+                  person_add
+                </span>
+                Assign
+              </Button>
+            )}
             {showAssignToButton && onAssignTo && (isManager || isAdmin) && (
               <Button
                 size="sm"
@@ -432,9 +449,9 @@ export function InquiryCard({
                 title="Assign to a team member"
               >
                 <span className="material-symbols-outlined text-sm">
-                  person_add
+                  group_add
                 </span>
-                Assign
+                Assign to…
               </Button>
             )}
             {showReleaseButton && onRelease && inquiry.assignedToId ? (

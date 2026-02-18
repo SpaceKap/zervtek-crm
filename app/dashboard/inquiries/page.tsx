@@ -12,11 +12,20 @@ export default async function InquiriesPage() {
   }
 
   const isManager = session.user.role === UserRole.MANAGER || session.user.role === UserRole.ADMIN
+  const canAssign =
+    session.user.role === UserRole.SALES ||
+    session.user.role === UserRole.MANAGER ||
+    session.user.role === UserRole.ADMIN
 
   // Get all users for manager/admin assignment
   let users: Array<{ id: string; name: string | null; email: string }> = []
   if (isManager) {
     users = await prisma.user.findMany({
+      where: {
+        role: {
+          in: [UserRole.SALES, UserRole.MANAGER, UserRole.ADMIN],
+        },
+      },
       select: {
         id: true,
         name: true,
@@ -41,6 +50,7 @@ export default async function InquiriesPage() {
       </div>
       <InquiryPool
         isManager={isManager}
+        canAssign={canAssign}
         users={users}
         showUnassignedOnly={!isManager}
         currentUserId={session.user.id}

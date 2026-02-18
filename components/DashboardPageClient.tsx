@@ -13,6 +13,7 @@ interface User {
 interface DashboardPageClientProps {
   isManager: boolean;
   isAdmin: boolean;
+  canAssign: boolean;
   users: User[];
   currentUserId: string;
   currentUserEmail: string;
@@ -22,6 +23,7 @@ interface DashboardPageClientProps {
 export function DashboardPageClient({
   isManager,
   isAdmin,
+  canAssign,
   users,
   currentUserId,
   currentUserEmail,
@@ -74,6 +76,7 @@ export function DashboardPageClient({
         key={refreshKey}
         isManager={isManager}
         isAdmin={isAdmin}
+        canAssign={canAssign}
         users={users}
         showUnassignedOnly={showUnassignedOnly}
         currentUserId={currentUserId}

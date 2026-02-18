@@ -15,11 +15,20 @@ export default async function DashboardPage() {
     session.user.role === UserRole.MANAGER ||
     session.user.role === UserRole.ADMIN;
   const isAdmin = session.user.role === UserRole.ADMIN;
+  const canAssign =
+    session.user.role === UserRole.SALES ||
+    session.user.role === UserRole.MANAGER ||
+    session.user.role === UserRole.ADMIN;
 
   // Get all users for manager/admin assignment
   let users: Array<{ id: string; name: string | null; email: string }> = [];
   if (isManager) {
     users = await prisma.user.findMany({
+      where: {
+        role: {
+          in: [UserRole.SALES, UserRole.MANAGER, UserRole.ADMIN],
+        },
+      },
       select: {
         id: true,
         name: true,
@@ -35,6 +44,7 @@ export default async function DashboardPage() {
     <DashboardPageClient
       isManager={isManager}
       isAdmin={isAdmin}
+      canAssign={canAssign}
       users={users}
       showUnassignedOnly={true}
       currentUserId={session.user.id}
