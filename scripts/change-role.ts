@@ -3,8 +3,17 @@ import { UserRole } from "@prisma/client"
 
 /**
  * Script to change user roles for testing purposes
- * Usage: npx tsx scripts/change-role.ts <email> <role>
- * Example: npx tsx scripts/change-role.ts user@example.com ADMIN
+ *
+ * Local:
+ *   npx tsx scripts/change-role.ts <email> <role>
+ *
+ * On VPS (Docker): DATABASE_URL uses host "postgres", so run inside the app container:
+ *   docker compose run --rm inquiry-pooler npx tsx scripts/change-role.ts <email> <role>
+ *
+ * Examples:
+ *   npx tsx scripts/change-role.ts user@example.com ADMIN
+ *   npx tsx scripts/change-role.ts bhanuka@zervtek.com BACK_OFFICE_STAFF
+ *   npx tsx scripts/change-role.ts --list
  */
 
 async function changeUserRole(email: string, role: UserRole) {
@@ -70,13 +79,16 @@ Usage:
   npx tsx scripts/change-role.ts <email> <role>
   npx tsx scripts/change-role.ts --list
 
+On VPS (Docker): run inside the app container so DB host "postgres" resolves:
+  docker compose run --rm inquiry-pooler npx tsx scripts/change-role.ts <email> <role>
+  docker compose run --rm inquiry-pooler npx tsx scripts/change-role.ts --list
+
 Examples:
   npx tsx scripts/change-role.ts user@example.com ADMIN
-  npx tsx scripts/change-role.ts user@example.com MANAGER
-  npx tsx scripts/change-role.ts user@example.com SALES
+  npx tsx scripts/change-role.ts bhanuka@zervtek.com BACK_OFFICE_STAFF
   npx tsx scripts/change-role.ts --list
 
-Available roles: SALES, MANAGER, ADMIN
+Available roles: ${Object.values(UserRole).join(", ")}
 `)
     process.exit(0)
   }

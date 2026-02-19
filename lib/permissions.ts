@@ -47,7 +47,8 @@ export function canCreateInvoice(userRole: UserRole): boolean {
   return (
     userRole === UserRole.SALES ||
     userRole === UserRole.MANAGER ||
-    userRole === UserRole.ADMIN
+    userRole === UserRole.ADMIN ||
+    userRole === UserRole.BACK_OFFICE_STAFF
   )
 }
 
@@ -102,7 +103,8 @@ export function canViewTransactions(userRole: UserRole): boolean {
   return (
     userRole === UserRole.MANAGER ||
     userRole === UserRole.ADMIN ||
-    userRole === UserRole.ACCOUNTANT
+    userRole === UserRole.ACCOUNTANT ||
+    userRole === UserRole.BACK_OFFICE_STAFF
   )
 }
 
@@ -110,7 +112,8 @@ export function canManageTransactions(userRole: UserRole): boolean {
   return (
     userRole === UserRole.MANAGER ||
     userRole === UserRole.ADMIN ||
-    userRole === UserRole.ACCOUNTANT
+    userRole === UserRole.ACCOUNTANT ||
+    userRole === UserRole.BACK_OFFICE_STAFF
   )
 }
 

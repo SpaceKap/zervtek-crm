@@ -48,16 +48,17 @@ COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules/@prisma ./node_modules/@prisma
 
-# Copy package.json and install Prisma CLI locally for migrations
-# This ensures npx can find prisma
+# Copy package.json and install Prisma CLI + tsx for migrations and scripts
 USER root
 RUN apk add --no-cache openssl
 COPY --from=builder --chown=root:root /app/package.json ./package.json
-# Create node_modules directory if it doesn't exist and install prisma
-RUN mkdir -p ./node_modules && npm install --no-save --prefix . prisma@5.19.0
-# Fix permissions for node_modules
+RUN mkdir -p ./node_modules && npm install --no-save --prefix . prisma@5.19.0 tsx
 RUN chown -R nextjs:nodejs ./node_modules
 USER nextjs
+
+# Copy scripts and lib so one-off scripts (e.g. change-role) can run in container
+COPY --from=builder --chown=nextjs:nodejs /app/scripts ./scripts
+COPY --from=builder --chown=nextjs:nodejs /app/lib ./lib
 
 # Copy data files (CSV files for vehicle catalog)
 COPY --from=builder --chown=nextjs:nodejs /app/data ./data

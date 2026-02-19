@@ -17,7 +17,8 @@ import { Label } from "./ui/label";
 import { VehicleCostsManager } from "./VehicleCostsManager";
 import { QuickDocumentUploadDialog } from "./QuickDocumentUploadDialog";
 import { QuickChargeDialog } from "./QuickChargeDialog";
-import { DocumentCategory } from "@prisma/client";
+import { VendorForm } from "./VendorForm";
+import { DocumentCategory, VendorCategory } from "@prisma/client";
 import { DatePicker } from "@/components/ui/date-picker";
 
 interface Vendor {
@@ -156,7 +157,18 @@ interface VehicleStageFormsProps {
     purchaseDate: Date | null;
   } | null;
   onUpdate: () => void;
+  /** Call after creating a vendor so the parent can refetch the vendors list. */
+  onRefetchVendors?: () => void | Promise<void>;
+  /** Call after creating a yard (or vendor with category YARD) so the parent can refetch the yards list. */
+  onRefetchYards?: () => void | Promise<void>;
 }
+
+type AddVendorForField =
+  | "purchaseVendorId"
+  | "yardId"
+  | "repairVendorId"
+  | "freightVendorId"
+  | null;
 
 export function VehicleStageForms({
   vehicleId,
@@ -167,6 +179,8 @@ export function VehicleStageForms({
   isRegistered,
   vehicle,
   onUpdate,
+  onRefetchVendors,
+  onRefetchYards,
 }: VehicleStageFormsProps) {
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState<Partial<VehicleStageFormData>>({});
@@ -181,6 +195,11 @@ export function VehicleStageForms({
     useState<DocumentCategory | null>(null);
   const [pendingChargeType, setPendingChargeType] = useState<string>("");
   const [pendingVendorId, setPendingVendorId] = useState<string | null>(null);
+  const [addVendorOpen, setAddVendorOpen] = useState(false);
+  const [addVendorForField, setAddVendorForField] =
+    useState<AddVendorForField>(null);
+  const [addVendorInitialCategory, setAddVendorInitialCategory] =
+    useState<VendorCategory>(VendorCategory.DEALERSHIP);
 
   // Helper function to safely parse dates
   const safeDateToString = (date: Date | string | null | undefined): string => {
@@ -224,7 +243,7 @@ export function VehicleStageForms({
         yardNotified: stageData.yardNotified,
         photosRequested: stageData.photosRequested,
         transportVendorId: stageData.transportVendorId || "",
-        repairSkipped: stageData.repairSkipped,
+        repairSkipped: stageData.repairSkipped ?? false,
         repairVendorId: stageData.repairVendorId || "",
         numberPlatesReceived: stageData.numberPlatesReceived ?? false,
         deregistrationComplete: stageData.deregistrationComplete ?? false,
@@ -341,6 +360,39 @@ export function VehicleStageForms({
     };
   }, [formData, handleSave]);
 
+  const openAddVendor = useCallback(
+    (field: AddVendorForField, initialCategory: VendorCategory) => {
+      setAddVendorForField(field);
+      setAddVendorInitialCategory(initialCategory);
+      setAddVendorOpen(true);
+    },
+    [],
+  );
+
+  const handleAddVendorClose = useCallback(
+    async (createdVendorId?: string) => {
+      setAddVendorOpen(false);
+      if (!createdVendorId || !addVendorForField) return;
+      await Promise.all([
+        onRefetchVendors?.(),
+        addVendorForField === "yardId" ? onRefetchYards?.() : undefined,
+      ]);
+      if (addVendorForField === "yardId") {
+        setFormData((prev) => ({
+          ...prev,
+          yardId: `vendor-${createdVendorId}`,
+        }));
+      } else {
+        setFormData((prev) => ({
+          ...prev,
+          [addVendorForField]: createdVendorId,
+        }));
+      }
+      setAddVendorForField(null);
+    },
+    [addVendorForField, onRefetchVendors, onRefetchYards],
+  );
+
   const renderPurchaseStage = () => {
     // Filter vendors for purchase stage - show both auction houses and dealerships
     const purchaseVendors = vendors.filter(
@@ -352,10 +404,14 @@ export function VehicleStageForms({
         <div>
           <Label>Purchase Vendor (Auction/Purchase Fees)</Label>
           <Select
-            value={formData.purchaseVendorId}
-            onValueChange={(value) =>
-              setFormData((prev) => ({ ...prev, purchaseVendorId: value }))
-            }
+            value={formData.purchaseVendorId ?? ""}
+            onValueChange={(value) => {
+              if (value === "__add_vendor_purchase__") {
+                openAddVendor("purchaseVendorId", VendorCategory.AUCTION_HOUSE);
+                return;
+              }
+              setFormData((prev) => ({ ...prev, purchaseVendorId: value }));
+            }}
           >
             <SelectTrigger>
               <SelectValue placeholder="Select vendor" />
@@ -366,6 +422,9 @@ export function VehicleStageForms({
                   {vendor.name}
                 </SelectItem>
               ))}
+              <SelectItem value="__add_vendor_purchase__">
+                <span className="text-primary font-medium">+ Add Vendor</span>
+              </SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -378,10 +437,14 @@ export function VehicleStageForms({
       <div>
         <Label>Storage Yard</Label>
         <Select
-          value={formData.yardId || undefined}
-          onValueChange={(value) =>
-            setFormData((prev) => ({ ...prev, yardId: value }))
-          }
+          value={formData.yardId ?? ""}
+          onValueChange={(value) => {
+            if (value === "__add_vendor_yard__") {
+              openAddVendor("yardId", VendorCategory.YARD);
+              return;
+            }
+            setFormData((prev) => ({ ...prev, yardId: value }));
+          }}
         >
           <SelectTrigger>
             <SelectValue placeholder="Select yard" />
@@ -398,6 +461,9 @@ export function VehicleStageForms({
                 No yards available
               </div>
             )}
+            <SelectItem value="__add_vendor_yard__">
+              <span className="text-primary font-medium">+ Add Vendor</span>
+            </SelectItem>
           </SelectContent>
         </Select>
         {yards && yards.length === 0 && (
@@ -411,7 +477,7 @@ export function VehicleStageForms({
         <div className="flex items-center space-x-2">
           <Checkbox
             id="transportArranged"
-            checked={formData.transportArranged}
+            checked={!!formData.transportArranged}
             onCheckedChange={(checked) => {
               if (checked) {
                 setPendingChargeType("Inland Transport");
@@ -427,7 +493,7 @@ export function VehicleStageForms({
         <div className="flex items-center space-x-2">
           <Checkbox
             id="yardNotified"
-            checked={formData.yardNotified}
+            checked={!!formData.yardNotified}
             onCheckedChange={(checked) =>
               setFormData((prev) => ({ ...prev, yardNotified: !!checked }))
             }
@@ -438,7 +504,7 @@ export function VehicleStageForms({
         <div className="flex items-center space-x-2">
           <Checkbox
             id="photosRequested"
-            checked={formData.photosRequested}
+            checked={!!formData.photosRequested}
             onCheckedChange={(checked) => {
               if (checked) {
                 // Get the yard's vendor
@@ -538,47 +604,96 @@ export function VehicleStageForms({
     }
   };
 
+  const handleRestoreRepair = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch(`/api/vehicles/${vehicleId}/stages`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          stage: currentStage,
+          repairSkipped: false,
+        }),
+      });
+      if (response.ok) {
+        setFormData((prev) => ({ ...prev, repairSkipped: false }));
+        onUpdate();
+      } else {
+        const error = await response.json();
+        alert(`Error: ${error.error}`);
+      }
+    } catch (error) {
+      console.error("Error restoring repair stage:", error);
+      alert("Failed to restore repair stage");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const renderRepairStage = () => (
     <div className="space-y-4">
-      {!formData.repairSkipped && (
+      {formData.repairSkipped ? (
         <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-[#2C2C2C] rounded-lg border">
           <div>
             <p className="font-medium">Repair/Storage Stage</p>
             <p className="text-sm text-gray-500 dark:text-[#A1A1A1]">
-              Skip this stage if no repair or storage is needed
+              This stage was skipped. Restore it to add a repair/storage vendor.
             </p>
           </div>
           <Button
-            onClick={handleSkipRepair}
+            onClick={handleRestoreRepair}
             disabled={loading}
             variant="outline"
           >
-            Skip Repair Stage
+            Restore repair stage
           </Button>
         </div>
-      )}
+      ) : (
+        <>
+          <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-[#2C2C2C] rounded-lg border">
+            <div>
+              <p className="font-medium">Repair/Storage Stage</p>
+              <p className="text-sm text-gray-500 dark:text-[#A1A1A1]">
+                Skip this stage if no repair or storage is needed
+              </p>
+            </div>
+            <Button
+              onClick={handleSkipRepair}
+              disabled={loading}
+              variant="outline"
+            >
+              Skip Repair Stage
+            </Button>
+          </div>
 
-      {!formData.repairSkipped && (
-        <div>
-          <Label>Repair/Storage Vendor</Label>
-          <Select
-            value={formData.repairVendorId}
-            onValueChange={(value) =>
-              setFormData((prev) => ({ ...prev, repairVendorId: value }))
-            }
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Select repair vendor" />
-            </SelectTrigger>
-            <SelectContent>
-              {vendors.map((vendor) => (
-                <SelectItem key={vendor.id} value={vendor.id}>
-                  {vendor.name}
+          <div>
+            <Label>Repair/Storage Vendor</Label>
+            <Select
+              value={formData.repairVendorId ?? ""}
+              onValueChange={(value) => {
+                if (value === "__add_vendor_repair__") {
+                  openAddVendor("repairVendorId", VendorCategory.GARAGE);
+                  return;
+                }
+                setFormData((prev) => ({ ...prev, repairVendorId: value }));
+              }}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select repair vendor" />
+              </SelectTrigger>
+              <SelectContent>
+                {vendors.map((vendor) => (
+                  <SelectItem key={vendor.id} value={vendor.id}>
+                    {vendor.name}
+                  </SelectItem>
+                ))}
+                <SelectItem value="__add_vendor_repair__">
+                  <span className="text-primary font-medium">+ Add Vendor</span>
                 </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+              </SelectContent>
+            </Select>
+          </div>
+        </>
       )}
     </div>
   );
@@ -770,7 +885,7 @@ export function VehicleStageForms({
               <div className="flex items-start space-x-3 p-4 bg-red-50 dark:bg-red-900/20 rounded-lg border-2 border-red-200 dark:border-red-800">
                 <Checkbox
                   id="exportCertificateUploaded"
-                  checked={formData.exportCertificateUploaded}
+                  checked={!!formData.exportCertificateUploaded}
                   onCheckedChange={(checked) => {
                     if (checked) {
                       setPendingDocumentField("exportCertificate");
@@ -864,7 +979,7 @@ export function VehicleStageForms({
               <div className="flex items-center space-x-2">
                 <Checkbox
                   id="spareKeysReceived"
-                  checked={formData.spareKeysReceived}
+                  checked={!!formData.spareKeysReceived}
                   onCheckedChange={(checked) =>
                     setFormData((prev) => ({
                       ...prev,
@@ -878,7 +993,7 @@ export function VehicleStageForms({
               <div className="flex items-center space-x-2">
                 <Checkbox
                   id="maintenanceRecordsReceived"
-                  checked={formData.maintenanceRecordsReceived}
+                  checked={!!formData.maintenanceRecordsReceived}
                   onCheckedChange={(checked) =>
                     setFormData((prev) => ({
                       ...prev,
@@ -894,7 +1009,7 @@ export function VehicleStageForms({
               <div className="flex items-center space-x-2">
                 <Checkbox
                   id="manualsReceived"
-                  checked={formData.manualsReceived}
+                  checked={!!formData.manualsReceived}
                   onCheckedChange={(checked) =>
                     setFormData((prev) => ({
                       ...prev,
@@ -908,7 +1023,7 @@ export function VehicleStageForms({
               <div className="flex items-center space-x-2">
                 <Checkbox
                   id="cataloguesReceived"
-                  checked={formData.cataloguesReceived}
+                  checked={!!formData.cataloguesReceived}
                   onCheckedChange={(checked) =>
                     setFormData((prev) => ({
                       ...prev,
@@ -922,7 +1037,7 @@ export function VehicleStageForms({
               <div className="flex items-center space-x-2">
                 <Checkbox
                   id="accessoriesReceived"
-                  checked={formData.accessoriesReceived}
+                  checked={!!formData.accessoriesReceived}
                   onCheckedChange={(checked) =>
                     setFormData({
                       ...formData,
@@ -936,7 +1051,7 @@ export function VehicleStageForms({
               <div className="flex items-center space-x-2">
                 <Checkbox
                   id="otherItemsReceived"
-                  checked={formData.otherItemsReceived}
+                  checked={!!formData.otherItemsReceived}
                   onCheckedChange={(checked) =>
                     setFormData((prev) => ({
                       ...prev,
@@ -1151,20 +1266,33 @@ export function VehicleStageForms({
       <div>
         <Label>Shipping Agent</Label>
         <Select
-          value={formData.freightVendorId}
-          onValueChange={(value) =>
-            setFormData((prev) => ({ ...prev, freightVendorId: value }))
-          }
+          value={formData.freightVendorId ?? ""}
+          onValueChange={(value) => {
+            if (value === "__add_vendor_freight__") {
+              openAddVendor("freightVendorId", VendorCategory.SHIPPING_AGENT);
+              return;
+            }
+            setFormData((prev) => ({ ...prev, freightVendorId: value }));
+          }}
         >
           <SelectTrigger>
             <SelectValue placeholder="Select shipping agent" />
           </SelectTrigger>
           <SelectContent>
-            {vendors.map((vendor) => (
-              <SelectItem key={vendor.id} value={vendor.id}>
-                {vendor.name}
-              </SelectItem>
-            ))}
+            {vendors
+              .filter(
+                (v) =>
+                  v.category === "SHIPPING_AGENT" ||
+                  v.category === "FREIGHT_VENDOR",
+              )
+              .map((vendor) => (
+                <SelectItem key={vendor.id} value={vendor.id}>
+                  {vendor.name}
+                </SelectItem>
+              ))}
+            <SelectItem value="__add_vendor_freight__">
+              <span className="text-primary font-medium">+ Add Vendor</span>
+            </SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -1172,7 +1300,7 @@ export function VehicleStageForms({
       <div className="flex items-center space-x-2">
         <Checkbox
           id="bookingRequested"
-          checked={formData.bookingRequested}
+          checked={!!formData.bookingRequested}
           onCheckedChange={(checked) =>
             setFormData((prev) => ({
               ...prev,
@@ -1342,7 +1470,7 @@ export function VehicleStageForms({
           <div className="flex items-center space-x-2">
             <Checkbox
               id="siEcSentToForwarder"
-              checked={formData.siEcSentToForwarder}
+              checked={!!formData.siEcSentToForwarder}
               onCheckedChange={(checked) =>
                 setFormData((prev) => ({
                   ...prev,
@@ -1358,7 +1486,7 @@ export function VehicleStageForms({
           <div className="flex items-center space-x-2">
             <Checkbox
               id="shippingOrderReceived"
-              checked={formData.shippingOrderReceived}
+              checked={!!formData.shippingOrderReceived}
               onCheckedChange={(checked) =>
                 setFormData({
                   ...formData,
@@ -1392,7 +1520,7 @@ export function VehicleStageForms({
         <div className="flex items-center space-x-2">
           <Checkbox
             id="blCopyUploaded"
-            checked={formData.blCopyUploaded}
+            checked={!!formData.blCopyUploaded}
             onCheckedChange={(checked) => {
               if (checked) {
                 setPendingDocumentField("blCopy");
@@ -1409,7 +1537,7 @@ export function VehicleStageForms({
         <div className="flex items-center space-x-2">
           <Checkbox
             id="blDetailsConfirmed"
-            checked={formData.blDetailsConfirmed}
+            checked={!!formData.blDetailsConfirmed}
             onCheckedChange={(checked) =>
               setFormData((prev) => ({
                 ...prev,
@@ -1425,7 +1553,7 @@ export function VehicleStageForms({
         <div className="flex items-center space-x-2">
           <Checkbox
             id="blPaid"
-            checked={formData.blPaid}
+            checked={!!formData.blPaid}
             onCheckedChange={(checked) =>
               setFormData((prev) => ({ ...prev, blPaid: !!checked }))
             }
@@ -1436,7 +1564,7 @@ export function VehicleStageForms({
         <div className="flex items-center space-x-2">
           <Checkbox
             id="lcCopyUploaded"
-            checked={formData.lcCopyUploaded}
+            checked={!!formData.lcCopyUploaded}
             onCheckedChange={(checked) => {
               if (checked) {
                 setPendingDocumentField("lcCopy");
@@ -1453,7 +1581,7 @@ export function VehicleStageForms({
         <div className="flex items-center space-x-2">
           <Checkbox
             id="exportDeclarationUploaded"
-            checked={formData.exportDeclarationUploaded}
+            checked={!!formData.exportDeclarationUploaded}
             onCheckedChange={(checked) => {
               if (checked) {
                 setPendingDocumentField("exportDeclaration");
@@ -1475,7 +1603,7 @@ export function VehicleStageForms({
         <div className="flex items-center space-x-2">
           <Checkbox
             id="recycleApplied"
-            checked={formData.recycleApplied}
+            checked={!!formData.recycleApplied}
             onCheckedChange={(checked) =>
               setFormData((prev) => ({ ...prev, recycleApplied: !!checked }))
             }
@@ -1486,7 +1614,7 @@ export function VehicleStageForms({
         <div className="flex items-center space-x-2">
           <Checkbox
             id="blReleased"
-            checked={formData.blReleased}
+            checked={!!formData.blReleased}
             onCheckedChange={(checked) =>
               setFormData((prev) => ({ ...prev, blReleased: !!checked }))
             }
@@ -1681,6 +1809,14 @@ export function VehicleStageForms({
           vendors={vendors}
           preselectedVendorId={pendingVendorId}
           onSuccess={handleChargeSuccess}
+        />
+      )}
+
+      {/* Add Vendor modal (from stage dropdowns) */}
+      {addVendorOpen && (
+        <VendorForm
+          onClose={handleAddVendorClose}
+          initialCategory={addVendorInitialCategory}
         />
       )}
     </div>

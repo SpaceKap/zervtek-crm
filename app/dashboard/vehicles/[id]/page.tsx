@@ -84,7 +84,11 @@ interface Vehicle {
       totalCost: any;
       totalRevenue: any;
       profit: any;
-      costItems?: Array<{ description: string; amount: any; category: string | null }>;
+      costItems?: Array<{
+        description: string;
+        amount: any;
+        category: string | null;
+      }>;
     } | null;
   }>;
   _count?: {
@@ -141,7 +145,9 @@ export default function VehicleDetailPage() {
   const [viewingStage, setViewingStage] = useState<ShippingStage | null>(null);
   const [activeTab, setActiveTab] = useState("overview");
   const [assignCustomerOpen, setAssignCustomerOpen] = useState(false);
-  const [customers, setCustomers] = useState<{ id: string; name: string; email: string | null }[]>([]);
+  const [customers, setCustomers] = useState<
+    { id: string; name: string; email: string | null }[]
+  >([]);
   const [assigningCustomerId, setAssigningCustomerId] = useState("");
   const [assigningLoading, setAssigningLoading] = useState(false);
 
@@ -179,7 +185,9 @@ export default function VehicleDetailPage() {
       if (response.ok) {
         const data = await response.json();
         setVehicle(data);
-        setViewingStage((prev) => prev || data.currentShippingStage || ShippingStage.PURCHASE);
+        setViewingStage(
+          (prev) => prev || data.currentShippingStage || ShippingStage.PURCHASE,
+        );
       }
     } catch (error) {
       console.error("Error fetching vehicle:", error);
@@ -449,18 +457,34 @@ export default function VehicleDetailPage() {
                   size="sm"
                   className="border-red-500/50 text-red-500 hover:bg-red-500/10 hover:text-red-400 shrink-0"
                   onClick={async () => {
-                    if (!confirm("Permanently delete this vehicle? All related invoices, documents, and costs will be removed.")) return;
+                    if (
+                      !confirm(
+                        "Permanently delete this vehicle? All related invoices, documents, and costs will be removed.",
+                      )
+                    )
+                      return;
                     try {
-                      const res = await fetch(`/api/vehicles/${vehicleId}`, { method: "DELETE" });
+                      const res = await fetch(`/api/vehicles/${vehicleId}`, {
+                        method: "DELETE",
+                      });
                       const data = await res.json();
-                      if (!res.ok) throw new Error(data.error || "Failed to delete");
-                      router.push("/dashboard/financial-operations?section=vehicles");
+                      if (!res.ok)
+                        throw new Error(data.error || "Failed to delete");
+                      router.push(
+                        "/dashboard/financial-operations?section=vehicles",
+                      );
                     } catch (e) {
-                      alert(e instanceof Error ? e.message : "Failed to delete vehicle");
+                      alert(
+                        e instanceof Error
+                          ? e.message
+                          : "Failed to delete vehicle",
+                      );
                     }
                   }}
                 >
-                  <span className="material-symbols-outlined text-lg mr-1">delete</span>
+                  <span className="material-symbols-outlined text-lg mr-1">
+                    delete
+                  </span>
                   Delete Vehicle
                 </Button>
               )}
@@ -470,7 +494,9 @@ export default function VehicleDetailPage() {
                     size="sm"
                     className="gap-2 bg-amber-500 hover:bg-amber-600 text-slate-900 border-0 shadow-lg"
                   >
-                    <span className="material-symbols-outlined text-lg">receipt</span>
+                    <span className="material-symbols-outlined text-lg">
+                      receipt
+                    </span>
                     View Invoice
                   </Button>
                 </Link>
@@ -482,7 +508,9 @@ export default function VehicleDetailPage() {
                     size="sm"
                     className="gap-2 bg-amber-500 hover:bg-amber-600 text-slate-900 border-0 shadow-lg"
                   >
-                    <span className="material-symbols-outlined text-lg">add</span>
+                    <span className="material-symbols-outlined text-lg">
+                      add
+                    </span>
                     Create Invoice
                   </Button>
                 </Link>
@@ -566,6 +594,8 @@ export default function VehicleDetailPage() {
                 purchaseDate: vehicle.purchaseDate,
               }}
               onUpdate={fetchVehicle}
+              onRefetchVendors={fetchVendors}
+              onRefetchYards={fetchYards}
             />
           ) : (
             <div className="text-center py-12">
@@ -602,7 +632,11 @@ export default function VehicleDetailPage() {
 
       {/* Details Section - Below Stage Pipeline */}
       <div className="space-y-0">
-        <Tabs defaultValue="overview" value={activeTab} onValueChange={setActiveTab}>
+        <Tabs
+          defaultValue="overview"
+          value={activeTab}
+          onValueChange={setActiveTab}
+        >
           {/* Underline-style tab navigation */}
           <nav
             className="flex gap-8 border-b border-border overflow-x-auto pb-px"
@@ -746,24 +780,51 @@ export default function VehicleDetailPage() {
                           ))}
                         </ul>
                         {(() => {
-                          const invoicesWithCosts = vehicle.invoices?.filter(
-                            (inv) => inv.costInvoice && (parseFloat(inv.costInvoice.totalRevenue?.toString() || "0") > 0 || parseFloat(inv.costInvoice.totalCost?.toString() || "0") > 0)
-                          ) || [];
+                          const invoicesWithCosts =
+                            vehicle.invoices?.filter(
+                              (inv) =>
+                                inv.costInvoice &&
+                                (parseFloat(
+                                  inv.costInvoice.totalRevenue?.toString() ||
+                                    "0",
+                                ) > 0 ||
+                                  parseFloat(
+                                    inv.costInvoice.totalCost?.toString() ||
+                                      "0",
+                                  ) > 0),
+                            ) || [];
                           if (invoicesWithCosts.length === 0) return null;
                           const totalRevenue = invoicesWithCosts.reduce(
-                            (s, inv) => s + parseFloat(inv.costInvoice?.totalRevenue?.toString() || "0"),
-                            0
+                            (s, inv) =>
+                              s +
+                              parseFloat(
+                                inv.costInvoice?.totalRevenue?.toString() ||
+                                  "0",
+                              ),
+                            0,
                           );
                           const totalCost = invoicesWithCosts.reduce(
-                            (s, inv) => s + parseFloat(inv.costInvoice?.totalCost?.toString() || "0"),
-                            0
+                            (s, inv) =>
+                              s +
+                              parseFloat(
+                                inv.costInvoice?.totalCost?.toString() || "0",
+                              ),
+                            0,
                           );
                           const totalProfit = invoicesWithCosts.reduce(
-                            (s, inv) => s + parseFloat(inv.costInvoice?.profit?.toString() || "0"),
-                            0
+                            (s, inv) =>
+                              s +
+                              parseFloat(
+                                inv.costInvoice?.profit?.toString() || "0",
+                              ),
+                            0,
                           );
                           const fmt = (n: number) =>
-                            new Intl.NumberFormat("ja-JP", { style: "currency", currency: "JPY", maximumFractionDigits: 0 }).format(n);
+                            new Intl.NumberFormat("ja-JP", {
+                              style: "currency",
+                              currency: "JPY",
+                              maximumFractionDigits: 0,
+                            }).format(n);
                           return (
                             <div className="pt-4 border-t space-y-1 text-sm">
                               <div className="flex justify-between text-muted-foreground">
@@ -776,7 +837,13 @@ export default function VehicleDetailPage() {
                               </div>
                               <div className="flex justify-between font-medium">
                                 <span>Profit</span>
-                                <span className={totalProfit >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}>
+                                <span
+                                  className={
+                                    totalProfit >= 0
+                                      ? "text-green-600 dark:text-green-400"
+                                      : "text-red-600 dark:text-red-400"
+                                  }
+                                >
                                   {fmt(totalProfit)}
                                 </span>
                               </div>
@@ -837,7 +904,9 @@ export default function VehicleDetailPage() {
         <DialogContent className="sm:max-w-[400px]">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <span className="material-symbols-outlined text-xl">person_add</span>
+              <span className="material-symbols-outlined text-xl">
+                person_add
+              </span>
               Assign Customer
             </DialogTitle>
             <DialogDescription>

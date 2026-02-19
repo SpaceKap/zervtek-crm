@@ -901,12 +901,14 @@ export function FinancialOperationsView({
     currentUser.role === UserRole.SALES ||
     currentUser.role === UserRole.MANAGER ||
     currentUser.role === UserRole.ADMIN ||
-    currentUser.role === UserRole.ACCOUNTANT;
+    currentUser.role === UserRole.ACCOUNTANT ||
+    currentUser.role === UserRole.BACK_OFFICE_STAFF;
 
   const canViewTransactions =
     currentUser.role === UserRole.MANAGER ||
     currentUser.role === UserRole.ADMIN ||
-    currentUser.role === UserRole.ACCOUNTANT;
+    currentUser.role === UserRole.ACCOUNTANT ||
+    currentUser.role === UserRole.BACK_OFFICE_STAFF;
 
   const canViewGeneralCosts =
     currentUser.role === UserRole.MANAGER ||

@@ -27,7 +27,10 @@ import { VendorCategory } from "@prisma/client";
 const vendorSchema = z.object({
   name: z.string().min(1, "Name is required"),
   email: z.string().email().optional().or(z.literal("")),
-  category: z.nativeEnum(VendorCategory),
+  category: z
+    .nativeEnum(VendorCategory)
+    .or(z.literal(""))
+    .transform((v) => (v === "" ? VendorCategory.DEALERSHIP : v)),
 });
 
 type VendorFormData = z.infer<typeof vendorSchema>;
@@ -39,10 +42,12 @@ interface VendorFormProps {
     email?: string | null;
     category?: VendorCategory;
   } | null;
+  /** When creating a new vendor, optionally preselect this category (e.g. when opening from a stage dropdown). */
+  initialCategory?: VendorCategory;
   onClose: (createdVendorId?: string) => void;
 }
 
-export function VendorForm({ vendor, onClose }: VendorFormProps) {
+export function VendorForm({ vendor, initialCategory, onClose }: VendorFormProps) {
   const [saving, setSaving] = useState(false);
 
   const {
@@ -73,15 +78,16 @@ export function VendorForm({ vendor, onClose }: VendorFormProps) {
       // Ensure category is set in the form
       setValue("category", categoryValue, { shouldValidate: true });
     } else {
-      // Reset to defaults for new vendor
+      // Reset to defaults for new vendor (use initialCategory when provided)
+      const categoryDefault = initialCategory ?? VendorCategory.DEALERSHIP;
       reset({
         name: "",
         email: "",
-        category: VendorCategory.DEALERSHIP,
+        category: categoryDefault,
       });
-      setValue("category", VendorCategory.DEALERSHIP, { shouldValidate: true });
+      setValue("category", categoryDefault, { shouldValidate: true });
     }
-  }, [vendor, reset, setValue]);
+  }, [vendor, initialCategory, reset, setValue]);
 
   const category = watch("category") || VendorCategory.DEALERSHIP;
 
@@ -197,9 +203,13 @@ export function VendorForm({ vendor, onClose }: VendorFormProps) {
             </Label>
             <Select
               key={vendor?.id || "new"}
-              value={category || VendorCategory.DEALERSHIP}
+              value={
+                category && Object.values(VendorCategory).includes(category as VendorCategory)
+                  ? category
+                  : VendorCategory.DEALERSHIP
+              }
               onValueChange={(value) =>
-                setValue("category", value as VendorCategory, {
+                setValue("category", (value || VendorCategory.DEALERSHIP) as VendorCategory, {
                   shouldValidate: true,
                 })
               }
