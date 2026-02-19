@@ -294,7 +294,7 @@ export function AdminCustomersList() {
                             </Button>
                           </Link>
                           <Link
-                            href={`/dashboard/vehicles?customer=${customer.id}`}
+                            href={`/dashboard/customers/${customer.id}`}
                           >
                             <Button variant="outline" size="sm">
                               <span className="material-symbols-outlined text-sm mr-1">

@@ -289,8 +289,29 @@ export async function POST(request: NextRequest) {
     // Default Wise payment link (can be overridden by admin later)
     const defaultWiseLink = process.env.DEFAULT_WISE_PAYMENT_LINK || "https://wise.com/pay/business/ugoigd";
 
+    // Resolve charge type names to IDs (case-insensitive) so deposit/discount subtract correctly
+    const getOrCreateChargeTypeId = async (tx: any, name: string): Promise<string | null> => {
+      const key = (name || "CUSTOM").trim() || "CUSTOM";
+      let chargeType = await tx.chargeType.findFirst({
+        where: { name: { equals: key, mode: "insensitive" as const } },
+      });
+      if (!chargeType) {
+        chargeType = await tx.chargeType.create({
+          data: { name: key },
+        });
+      }
+      return chargeType.id;
+    };
+
     // Create invoice and update vehicle's customerId if not already set (when vehicle linked)
     const invoice = await prisma.$transaction(async (tx) => {
+      // Build chargeTypeId for each charge (by index) so we can pass to create
+      const chargeTypeIds: (string | null)[] = [];
+      for (const charge of charges as any[]) {
+        const name = charge.chargeType ?? "CUSTOM";
+        chargeTypeIds.push(await getOrCreateChargeTypeId(tx, name));
+      }
+
       // Create the invoice (vehicleId optional for container/shipping invoices)
       const newInvoice = await tx.invoice.create({
         data: {
@@ -309,8 +330,8 @@ export async function POST(request: NextRequest) {
           metadata: metadata || null,
           wisePaymentLink: defaultWiseLink,
           charges: {
-            create: charges.map((charge: any) => ({
-              chargeTypeId: null, // No longer using chargeTypeId, chargeType is stored in description prefix
+            create: (charges as any[]).map((charge: any, i: number) => ({
+              chargeTypeId: chargeTypeIds[i] ?? null,
               description: charge.description,
               amount: typeof charge.amount === "number" ? charge.amount : parseFloat(charge.amount),
             })),

@@ -213,30 +213,29 @@ export async function PATCH(
         where: { invoiceId: params.id },
       })
 
-      // Create new charges
+      // Create new charges (resolve charge types case-insensitively so Deposit/DEPOSIT match)
       if (charges.length > 0) {
-        // Get or create charge types
         const chargeTypeMap = new Map<string, string>()
         for (const charge of charges) {
-          const chargeTypeName = charge.chargeType || "CUSTOM"
-          if (!chargeTypeMap.has(chargeTypeName)) {
+          const chargeTypeName = (charge.chargeType || "CUSTOM").toString().trim() || "CUSTOM"
+          const key = chargeTypeName.toLowerCase()
+          if (!chargeTypeMap.has(key)) {
             let chargeType = await prisma.chargeType.findFirst({
-              where: { name: chargeTypeName },
+              where: { name: { equals: chargeTypeName, mode: "insensitive" } },
             })
             if (!chargeType) {
               chargeType = await prisma.chargeType.create({
                 data: { name: chargeTypeName },
               })
             }
-            chargeTypeMap.set(chargeTypeName, chargeType.id)
+            chargeTypeMap.set(key, chargeType.id)
           }
         }
 
-        // Create charges
         await prisma.invoiceCharge.createMany({
           data: charges.map((charge: any) => ({
             invoiceId: params.id,
-            chargeTypeId: chargeTypeMap.get(charge.chargeType || "CUSTOM") || null,
+            chargeTypeId: chargeTypeMap.get((charge.chargeType || "CUSTOM").toString().toLowerCase()) || null,
             description: charge.description,
             amount: parseFloat(charge.amount),
           })),
