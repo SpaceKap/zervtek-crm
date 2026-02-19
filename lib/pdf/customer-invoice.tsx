@@ -261,7 +261,7 @@ export function CustomerInvoicePDF({
   };
   const formatCurrencyNegative = (amount: number) => {
     if (amount >= 0) return formatCurrency(amount);
-    return `- ${formatCurrency(Math.abs(amount))}`;
+    return `-${formatCurrency(Math.abs(amount))}`;
   };
 
   // Calculate totals (getChargesSubtotal includes discounts/deposits as negative)
@@ -338,7 +338,7 @@ export function CustomerInvoicePDF({
         {/* Top Section - Company Info and Invoice Title */}
         <View style={styles.topSection}>
           <View style={styles.companySection}>
-            {companyInfo.logo && (
+            {companyInfo.logo && typeof companyInfo.logo === "string" && (
               <View style={styles.logoContainer}>
                 <Image
                   src={companyInfo.logo}

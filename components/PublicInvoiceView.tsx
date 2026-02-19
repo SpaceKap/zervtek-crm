@@ -342,9 +342,10 @@ export function PublicInvoiceView({
                   {invoice.charges.map((charge: any) => {
                     const amount = parseFloat(charge.amount.toString());
                     const displayAmount = isChargeSubtracting(charge) ? -amount : amount;
+                    const currencySymbol = "¥"; // TODO: from invoice.currency or company if multi-currency
                     const formatted = displayAmount < 0
-                      ? `¥- ${Math.abs(displayAmount).toLocaleString()}`
-                      : `¥${displayAmount.toLocaleString()}`;
+                      ? `-${currencySymbol}${Math.abs(displayAmount).toLocaleString()}`
+                      : `${currencySymbol}${displayAmount.toLocaleString()}`;
                     return (
                       <tr
                         key={charge.id}

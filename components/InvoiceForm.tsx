@@ -1650,14 +1650,14 @@ export function InvoiceForm({ invoice }: InvoiceFormProps = {}) {
                           <td className="px-4 py-3 text-right">
                             <span
                               className={`text-sm font-semibold ${
-                                watch(`charges.${index}.chargeType`) ===
-                                "DISCOUNT"
+                                watch(`charges.${index}.chargeType`) === "DISCOUNT" ||
+                                watch(`charges.${index}.chargeType`) === "DEPOSIT"
                                   ? "text-red-600 dark:text-red-400"
                                   : "text-gray-900 dark:text-white"
                               }`}
                             >
-                              {watch(`charges.${index}.chargeType`) ===
-                              "DISCOUNT"
+                              {watch(`charges.${index}.chargeType`) === "DISCOUNT" ||
+                              watch(`charges.${index}.chargeType`) === "DEPOSIT"
                                 ? "-"
                                 : ""}
                               {getCurrencySymbol()}
