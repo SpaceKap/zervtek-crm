@@ -59,9 +59,12 @@ export async function GET(
       )
     }
 
-    // react-pdf Image in Node accepts: Buffer, { data: Buffer, format: 'png'|'jpg' }, or URL string (https://react-pdf.org/components#source-object)
-    // Data URIs are not listed for Node; Buffer with format is recommended.
-    let processedCompanyInfo: typeof companyInfo & { logo?: Buffer | string; logoFormat?: 'png' | 'jpg' } = { ...companyInfo }
+    // react-pdf Image in Node accepts Buffer + format (logo from Company Info in settings).
+    type ProcessedCompanyInfo = Omit<typeof companyInfo, "logo"> & {
+      logo?: Buffer | string | null
+      logoFormat?: "png" | "jpg"
+    }
+    const processedCompanyInfo: ProcessedCompanyInfo = { ...companyInfo }
     if (companyInfo.logo) {
       if (companyInfo.logo.startsWith("data:")) {
         const match = companyInfo.logo.match(/^data:image\/(\w+);base64,(.+)$/)

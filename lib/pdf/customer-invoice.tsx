@@ -176,26 +176,28 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: "bold",
   },
-  // Payment Information Section
+  // Company bank details footer – light grey background, clear hierarchy
   paymentSection: {
-    marginTop: 12,
-    paddingTop: 10,
-    borderTop: "1 solid #cccccc",
+    marginTop: 16,
+    paddingTop: 12,
+    paddingBottom: 12,
+    paddingLeft: 12,
+    paddingRight: 12,
+    backgroundColor: "#e8eced",
+    borderTop: "1 solid #d1d3d5",
+    width: "100%",
   },
   paymentTitle: {
     fontSize: 9,
     fontWeight: "bold",
-    marginBottom: 8,
+    marginBottom: 10,
     textTransform: "uppercase",
     letterSpacing: 0.5,
+    color: "#374151",
   },
   banksContainer: {
-    backgroundColor: "#f8f9fa",
-    padding: 10,
-    borderRadius: 4,
-    marginBottom: 8,
     flexDirection: "row",
-    gap: 20,
+    gap: 24,
   },
   bankColumn: {
     flex: 1,
@@ -205,37 +207,39 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     marginBottom: 6,
     textTransform: "uppercase",
-    color: "#000000",
-    borderBottom: "1 solid #cccccc",
+    color: "#374151",
+    borderBottom: "1 solid #c4c6c8",
     paddingBottom: 4,
   },
   paymentLine: {
-    marginBottom: 3,
-    fontSize: 7,
-    lineHeight: 1.3,
+    marginBottom: 4,
+    fontSize: 8,
+    lineHeight: 1.35,
   },
   paymentLabel: {
     fontSize: 7,
     fontWeight: "bold",
     marginBottom: 1,
-    color: "#333333",
+    color: "#4b5563",
   },
   paymentValue: {
-    fontSize: 7,
-    color: "#000000",
+    fontSize: 8,
+    color: "#111827",
   },
   paypalSection: {
-    marginTop: 8,
+    marginTop: 10,
     paddingTop: 8,
-    borderTop: "1 solid #cccccc",
+    borderTop: "1 solid #c4c6c8",
   },
   paypalLabel: {
     fontSize: 8,
     fontWeight: "bold",
     marginBottom: 2,
+    color: "#4b5563",
   },
   paypalValue: {
     fontSize: 8,
+    color: "#111827",
   },
 });
 
@@ -251,7 +255,11 @@ export function CustomerInvoicePDF({
   const billingAddress = invoice.customer.billingAddress as any;
   const shippingAddress = invoice.customer.shippingAddress as any;
   const companyAddress = companyInfo.address as any;
-  const bankDetails1 = companyInfo.bankDetails1 as any;
+  const bankDetails1 =
+    companyInfo.bankDetails1 &&
+    (typeof companyInfo.bankDetails1 === "string"
+      ? (JSON.parse(companyInfo.bankDetails1) as any)
+      : (companyInfo.bankDetails1 as any));
 
   const formatDate = (date: Date | string | null) => {
     if (!date) return "";
@@ -548,25 +556,15 @@ export function CustomerInvoicePDF({
           )}
         </View>
 
-        {/* Payment Information */}
+        {/* Company bank details – bottom of invoice, light grey background */}
         {bankDetails1 && (
           <View style={styles.paymentSection}>
-            <Text style={styles.paymentTitle}>Payment Information</Text>
+            <Text style={styles.paymentTitle}>Payment information</Text>
             <View style={styles.banksContainer}>
-              {/* Bank 1 */}
-              {bankDetails1 && (
-                <View style={styles.bankColumn}>
-                  <Text style={styles.bankTitle}>
-                    Sumitomo Mitsui Banking Corporation (三井住友銀行)
-                  </Text>
-                  {bankDetails1.name && (
-                    <View style={styles.paymentLine}>
-                      <Text style={styles.paymentLabel}>Bank Name</Text>
-                      <Text style={styles.paymentValue}>
-                        {bankDetails1.name}
-                      </Text>
-                    </View>
-                  )}
+              <View style={styles.bankColumn}>
+                <Text style={styles.bankTitle}>
+                  {bankDetails1.name || "Bank account"}
+                </Text>
                   {bankDetails1.accountName && (
                     <View style={styles.paymentLine}>
                       <Text style={styles.paymentLabel}>Account Name</Text>
@@ -601,14 +599,13 @@ export function CustomerInvoicePDF({
                   )}
                   {bankDetails1.bankAddress && (
                     <View style={styles.paymentLine}>
-                      <Text style={styles.paymentLabel}>Bank Address</Text>
+                      <Text style={styles.paymentLabel}>Bank address</Text>
                       <Text style={styles.paymentValue}>
                         {bankDetails1.bankAddress}
                       </Text>
                     </View>
                   )}
                 </View>
-              )}
             </View>
             {/* PayPal */}
             {companyInfo.email && (

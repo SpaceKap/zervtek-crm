@@ -53,6 +53,15 @@ function buildSampleCompanyInfo(useRealFromDb: boolean): any {
     logoFormat = "png";
   }
 
+  const bankDetails1 = {
+    name: "Sumitomo Mitsui Banking Corporation (三井住友銀行)",
+    accountName: "ZERVTEK CO., LTD",
+    accountNo: "1234567",
+    swiftCode: "SMBCJPJT",
+    branchName: "Chiba Branch",
+    bankAddress: "1-2-3 Example, Chiba, Japan",
+  };
+
   return {
     name: "ZERVTEK CO., LTD",
     address,
@@ -60,6 +69,7 @@ function buildSampleCompanyInfo(useRealFromDb: boolean): any {
     email: "info@zervtek.com",
     logo,
     logoFormat,
+    bankDetails1,
   };
 }
 

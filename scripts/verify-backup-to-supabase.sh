@@ -59,13 +59,14 @@ else
   SUPABASE_URL=$(echo "$SUPABASE_BACKUP_URL" | sed 's/?$//')
   if psql "$SUPABASE_URL" -c "SELECT 1" > /dev/null 2>&1; then
     echo -e "   ${GREEN}✓ Can connect to Supabase${NC}"
-    echo "   Row counts (inquiry_pooler schema):"
+    echo "   Row counts (key tables):"
     psql "$SUPABASE_URL" -t -c "
-      SELECT '   ' || tablename || ': ' || n_live_tup
-      FROM pg_stat_user_tables
-      WHERE schemaname = 'inquiry_pooler'
-      ORDER BY n_live_tup DESC
-      LIMIT 8;
+      SELECT '   User: ' || COUNT(*)::text FROM inquiry_pooler.\"User\"
+      UNION ALL SELECT '   Inquiry: ' || COUNT(*)::text FROM inquiry_pooler.\"Inquiry\"
+      UNION ALL SELECT '   Vehicle: ' || COUNT(*)::text FROM inquiry_pooler.\"Vehicle\"
+      UNION ALL SELECT '   Customer: ' || COUNT(*)::text FROM inquiry_pooler.\"Customer\"
+      UNION ALL SELECT '   Invoice: ' || COUNT(*)::text FROM inquiry_pooler.\"Invoice\"
+      UNION ALL SELECT '   Transaction: ' || COUNT(*)::text FROM inquiry_pooler.\"Transaction\";
     " 2>/dev/null || true
     echo "   Latest activity (max updatedAt) in key tables:"
     psql "$SUPABASE_URL" -t -c "
