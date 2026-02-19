@@ -1,4 +1,27 @@
-# Testing Scripts
+# Scripts
+
+## Backup verification (VPS)
+
+To check that the **database backup to Supabase** is working (e.g. cron runs and Supabase has recent data):
+
+```bash
+# From repo root on the VPS (needs .env with SUPABASE_BACKUP_URL and psql installed)
+./scripts/verify-backup-to-supabase.sh
+```
+
+This script reports:
+- **Recent local backup file** in `backups/` (path, size, age in hours)
+- **Backup log** last lines (if you log to `/var/log/postgres-backup.log` or `./logs/backup.log`)
+- **Supabase**: connection, row counts for main tables, latest `updatedAt` on User/Inquiry/Vehicle
+- **Local DB**: reachable and total row count
+
+If the backup file is older than ~48 hours or Supabase row counts look stale, check cron and `SUPABASE_BACKUP_URL`.
+
+Other useful checks:
+- **Local backup contents**: `./scripts/check-backup.sh`
+- **Local + Supabase schema/row counts**: `./scripts/check-database.sh`
+
+---
 
 ## Change User Role
 
