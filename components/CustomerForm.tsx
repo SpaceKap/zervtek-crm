@@ -477,20 +477,18 @@ export function CustomerForm({
           </div>
         </DialogHeader>
 
-        {/* Form Content - Scrollable */}
+        {/* Form Content - Scrollable, single column to prevent overlap */}
         <div className="flex-1 overflow-y-auto overflow-x-hidden px-6 py-6 min-w-0">
           <form
             id="customer-form"
             onSubmit={handleSubmit(onSubmit)}
-            className="space-y-0"
+            className="space-y-0 max-w-2xl"
           >
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 min-w-0">
-              {/* Left Column - Customer Overview */}
-              <div className="space-y-0 min-w-0">
-                <div className="mb-6">
-                  <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100 mb-6">
-                    Customer Overview
-                  </h3>
+            {/* Customer Overview - full width block */}
+            <section className="mb-8">
+              <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100 mb-5">
+                Customer Overview
+              </h3>
                   <div className="space-y-5">
                     {/* First Name & Last Name */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 min-w-0">
@@ -565,8 +563,8 @@ export function CustomerForm({
                       )}
                     </div>
 
-                    {/* Phone Number */}
-                    <div className="space-y-1.5">
+                    {/* Phone Number - grid keeps row inside column and prevents overlap */}
+                    <div className="space-y-1.5 min-w-0">
                       <Label
                         htmlFor="phone"
                         className="text-sm font-medium text-gray-700 dark:text-gray-300"
@@ -576,8 +574,8 @@ export function CustomerForm({
                           *
                         </span>
                       </Label>
-                      <div className="flex gap-3">
-                        <div className="min-w-[200px]">
+                      <div className="grid grid-cols-[minmax(0,180px)_minmax(0,1fr)] gap-3">
+                        <div className="min-w-0">
                           <CountryCodeSelect
                             value={watch("phoneCountryCode") || ""}
                             onValueChange={(value) => {
@@ -586,8 +584,8 @@ export function CustomerForm({
                               });
                             }}
                             options={PHONE_CODE_OPTIONS}
-                            placeholder="Select country code"
-                            className="h-10 w-full"
+                            placeholder="Code"
+                            className="h-10 w-full min-w-0"
                           />
                           {errors.phoneCountryCode && (
                             <p className="text-xs text-red-500 dark:text-red-400 mt-1">
@@ -595,14 +593,14 @@ export function CustomerForm({
                             </p>
                           )}
                         </div>
-                        <div className="flex-1 min-w-[180px]">
+                        <div className="min-w-0">
                           <Input
                             id="phone"
                             type="tel"
                             inputMode="numeric"
                             {...register("phoneNumber")}
                             placeholder="e.g. 5551234567"
-                            className="h-10"
+                            className="h-10 w-full min-w-0"
                           />
                           {errors.phoneNumber && (
                             <p className="text-xs text-red-500 dark:text-red-400 mt-1">
@@ -665,15 +663,13 @@ export function CustomerForm({
                       </Select>
                     </div>
                   </div>
-                </div>
-              </div>
+            </section>
 
-              {/* Right Column - Address */}
-              <div className="space-y-0 min-w-0">
-                <div className="mb-6">
-                  <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100 mb-6">
-                    Address
-                  </h3>
+            {/* Address - full width block below Overview */}
+            <section className="mb-8">
+              <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100 mb-5">
+                Address
+              </h3>
                   <div className="space-y-5">
                     {/* Country/Region */}
                     <div className="space-y-1.5">
@@ -855,18 +851,11 @@ export function CustomerForm({
                       )}
                     </div>
                   </div>
-                </div>
-              </div>
-            </div>
+            </section>
 
             {/* Shipping Address Section */}
             {!sameAsBilling && (
               <div className="mt-8 border-t border-gray-200 dark:border-gray-700 pt-6">
-                <div className="grid grid-cols-2 gap-8">
-                  {/* Left Column - Empty (matching billing layout) */}
-                  <div className="space-y-0"></div>
-
-                  {/* Right Column - Shipping Address */}
                   <div className="space-y-0">
                     <div className="mb-6">
                       <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100 mb-6">
@@ -1057,7 +1046,6 @@ export function CustomerForm({
                       </div>
                     </div>
                   </div>
-                </div>
               </div>
             )}
 
