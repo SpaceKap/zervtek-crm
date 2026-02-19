@@ -145,7 +145,9 @@ export async function PATCH(
       if (oldInvoiceId && wasIncoming && (oldInvoiceId !== finalInvoiceId || finalDirection !== "INCOMING")) {
         const invoice = await tx.invoice.findUnique({
           where: { id: oldInvoiceId },
-          include: { charges: true },
+          include: {
+            charges: { include: { chargeType: { select: { name: true } } } },
+          },
         })
         if (invoice) {
           const totalAmount = getInvoiceTotalWithTax(invoice)
@@ -197,7 +199,9 @@ export async function PATCH(
       if (finalInvoiceId && finalDirection === "INCOMING") {
         const invoice = await tx.invoice.findUnique({
           where: { id: finalInvoiceId },
-          include: { charges: true },
+          include: {
+            charges: { include: { chargeType: { select: { name: true } } } },
+          },
         })
         if (invoice) {
           const totalAmount = getInvoiceTotalWithTax(invoice)
@@ -312,7 +316,9 @@ export async function DELETE(
       if (transaction?.invoiceId && transaction.direction === "INCOMING") {
         const invoice = await tx.invoice.findUnique({
           where: { id: transaction.invoiceId },
-          include: { charges: true },
+          include: {
+            charges: { include: { chargeType: { select: { name: true } } } },
+          },
         })
 
         if (invoice) {

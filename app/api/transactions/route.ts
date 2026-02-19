@@ -545,7 +545,9 @@ export async function POST(request: NextRequest) {
       if (invoiceId && direction === "INCOMING") {
         const invoice = await tx.invoice.findUnique({
           where: { id: invoiceId },
-          include: { charges: true },
+          include: {
+            charges: { include: { chargeType: { select: { name: true } } } },
+          },
         })
 
         if (invoice) {

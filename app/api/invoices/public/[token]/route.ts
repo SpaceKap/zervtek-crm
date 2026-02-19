@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { getInvoiceTotalWithTax } from "@/lib/invoice-utils"
 
 // Simple in-memory rate limiting (consider using Redis for production)
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>()
@@ -75,18 +76,8 @@ export async function GET(
       )
     }
 
-    // Calculate total amount
-    const totalCharges = invoice.charges.reduce(
-      (sum, charge) => sum + parseFloat(charge.amount.toString()),
-      0
-    )
-
-    let totalAmount = totalCharges
-    if (invoice.taxEnabled && invoice.taxRate) {
-      const taxRate = parseFloat(invoice.taxRate.toString())
-      const taxAmount = totalCharges * (taxRate / 100)
-      totalAmount += taxAmount
-    }
+    // Total amount (charges minus deposits/discounts, plus tax if enabled)
+    const totalAmount = getInvoiceTotalWithTax(invoice)
 
     return NextResponse.json({
       invoice: {

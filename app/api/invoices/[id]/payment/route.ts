@@ -36,7 +36,7 @@ export async function PATCH(
     const invoice = await prisma.invoice.findUnique({
       where: { id: params.id },
       include: {
-        charges: true,
+        charges: { include: { chargeType: { select: { name: true } } } },
       },
     })
 

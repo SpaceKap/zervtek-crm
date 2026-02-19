@@ -41,13 +41,13 @@ export async function GET(
           },
         },
         charges: {
-          // Remove chargeType include - it's not commonly used and adds overhead
           select: {
             id: true,
             description: true,
             amount: true,
             chargeTypeId: true,
             createdAt: true,
+            chargeType: { select: { name: true } },
           },
           orderBy: {
             createdAt: "asc",

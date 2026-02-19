@@ -269,9 +269,9 @@ export function CostInvoiceEditor({
   const roi = totalCost > 0 ? (profit / totalCost) * 100 : 0;
 
   const vehicleDisplay = invoice.vehicle
-    ? (invoice.vehicle.make && invoice.vehicle.model
-        ? `${invoice.vehicle.year || ""} ${invoice.vehicle.make} ${invoice.vehicle.model}`.trim()
-        : invoice.vehicle.vin)
+    ? invoice.vehicle.make && invoice.vehicle.model
+      ? `${invoice.vehicle.year || ""} ${invoice.vehicle.make} ${invoice.vehicle.model}`.trim()
+      : invoice.vehicle.vin
     : "Container/Shipping";
 
   return (
@@ -320,7 +320,9 @@ export function CostInvoiceEditor({
                   {invoice.charges && invoice.charges.length > 0 ? (
                     invoice.charges.map((charge: any, index: number) => {
                       const amount = parseFloat(charge.amount.toString());
-                      const chargeAmount = isChargeSubtracting(charge) ? -amount : amount;
+                      const chargeAmount = isChargeSubtracting(charge)
+                        ? -amount
+                        : amount;
                       return (
                         <div
                           key={charge.id || index}

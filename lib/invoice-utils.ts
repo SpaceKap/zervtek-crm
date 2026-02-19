@@ -42,7 +42,9 @@ export function hasPartialPayment(totalReceived: number): boolean {
 export async function recalcInvoicePaymentStatus(invoiceId: string): Promise<void> {
   const invoice = await prisma.invoice.findUnique({
     where: { id: invoiceId },
-    include: { charges: true },
+    include: {
+      charges: { include: { chargeType: { select: { name: true } } } },
+    },
   });
   if (!invoice) return;
 
