@@ -27,9 +27,18 @@ const styles = StyleSheet.create({
   },
   companySection: {
     flex: 1,
+    alignItems: "flex-start",
+    paddingLeft: 0,
+    marginLeft: 0,
+  },
+  /* Logo row: left-aligned so left of logo matches left of "Z" in ZERVTEK CO., LTD */
+  logoRow: {
+    width: "100%",
+    alignItems: "flex-start",
+    marginBottom: 14,
   },
   logoContainer: {
-    marginBottom: 8,
+    alignSelf: "flex-start",
   },
   companyName: {
     fontSize: 12,
@@ -338,16 +347,25 @@ export function CustomerInvoicePDF({
         {/* Top Section - Company Info and Invoice Title */}
         <View style={styles.topSection}>
           <View style={styles.companySection}>
-            {companyInfo.logo && typeof companyInfo.logo === "string" && (
-              <View style={styles.logoContainer}>
-                <Image
-                  src={companyInfo.logo}
-                  style={{
-                    width: 100,
-                    height: 50,
-                    objectFit: "contain",
-                  }}
-                />
+            {companyInfo.logo && (
+              <View style={styles.logoRow}>
+                <View style={styles.logoContainer}>
+                  <Image
+                    {...(typeof companyInfo.logo === "string"
+                      ? { src: companyInfo.logo }
+                      : {
+                          source: {
+                            data: companyInfo.logo as Buffer,
+                            format: (companyInfo as any).logoFormat || "png",
+                          },
+                        })}
+                    style={{
+                      width: 100,
+                      height: 50,
+                      objectFit: "contain",
+                    }}
+                  />
+                </View>
               </View>
             )}
             <Text style={styles.companyName}>

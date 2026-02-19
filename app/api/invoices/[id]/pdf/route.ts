@@ -59,16 +59,22 @@ export async function GET(
       )
     }
 
-    // Pass logo as data URI or URL string so react-pdf Image can render it (Buffer is not a valid src)
-    let processedCompanyInfo = { ...companyInfo }
+    // react-pdf Image in Node accepts: Buffer, { data: Buffer, format: 'png'|'jpg' }, or URL string (https://react-pdf.org/components#source-object)
+    // Data URIs are not listed for Node; Buffer with format is recommended.
+    let processedCompanyInfo: typeof companyInfo & { logo?: Buffer | string; logoFormat?: 'png' | 'jpg' } = { ...companyInfo }
     if (companyInfo.logo) {
       if (companyInfo.logo.startsWith("data:")) {
-        processedCompanyInfo.logo = companyInfo.logo
+        const match = companyInfo.logo.match(/^data:image\/(\w+);base64,(.+)$/)
+        if (match) {
+          const ext = match[1].toLowerCase()
+          processedCompanyInfo.logo = Buffer.from(match[2], "base64")
+          processedCompanyInfo.logoFormat = ext === "jpeg" || ext === "jpg" ? "jpg" : "png"
+        }
       } else if (companyInfo.logo.startsWith("http")) {
         processedCompanyInfo.logo = companyInfo.logo
       } else {
-        // Raw base64 without prefix – wrap as data URI (assume PNG; JPEG also works)
-        processedCompanyInfo.logo = `data:image/png;base64,${companyInfo.logo}`
+        processedCompanyInfo.logo = Buffer.from(companyInfo.logo, "base64")
+        processedCompanyInfo.logoFormat = "png"
       }
     }
 
