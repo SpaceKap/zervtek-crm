@@ -59,5 +59,4 @@ README.md
 *.md
 docs/
 
-# Scripts (not needed in production)
-scripts/
+# Scripts are included so "docker compose run inquiry-pooler npx tsx scripts/change-role.ts" works
