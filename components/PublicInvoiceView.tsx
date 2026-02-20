@@ -210,14 +210,14 @@ export function PublicInvoiceView({
 
           <Separator className="my-4" />
 
-          {/* Bill To, Ship To Section with Invoice Details */}
-          <div className="grid grid-cols-4 gap-4">
-            {/* Bill To Section */}
-            <div>
+          {/* Bill To (left) | Ship To (center) | Invoice details (right), balanced spacing */}
+          <div className="grid grid-cols-3 gap-6">
+            {/* Bill To - left */}
+            <div className="min-w-0">
               <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase mb-2">
                 Bill To
               </h3>
-              <div className="text-sm text-gray-700 dark:text-gray-300 space-y-1">
+              <div className="text-sm text-gray-700 dark:text-gray-300 space-y-1 break-words">
                 <p className="font-semibold">
                   {invoice.customer.name || "N/A"}
                 </p>
@@ -233,12 +233,12 @@ export function PublicInvoiceView({
               </div>
             </div>
 
-            {/* Ship To Section */}
-            <div>
+            {/* Ship To - center */}
+            <div className="min-w-0">
               <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase mb-2">
                 Ship To
               </h3>
-              <div className="text-sm text-gray-700 dark:text-gray-300 space-y-1">
+              <div className="text-sm text-gray-700 dark:text-gray-300 space-y-1 break-words">
                 <p className="font-semibold">
                   {invoice.customer.name || "N/A"}
                 </p>
@@ -260,30 +260,26 @@ export function PublicInvoiceView({
               </div>
             </div>
 
-            {/* Invoice Details */}
-            <div className="col-span-2">
-              <div className="space-y-2 text-sm min-w-[280px]">
-                <div className="flex justify-between items-center gap-8">
-                  <span className="font-semibold text-gray-700 dark:text-gray-300 uppercase">
+            {/* Invoice Details - right, label and value close together */}
+            <div className="min-w-0 flex justify-end">
+              <div className="text-sm w-full max-w-[220px]">
+                <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 items-baseline">
+                  <span className="font-semibold text-gray-700 dark:text-gray-300 uppercase whitespace-nowrap">
                     INVOICE
                   </span>
-                  <span className="font-semibold text-gray-900 dark:text-white uppercase">
+                  <span className="font-semibold text-gray-900 dark:text-white uppercase text-right">
                     {invoice.invoiceNumber}
                   </span>
-                </div>
-                <div className="flex justify-between items-center gap-8">
-                  <span className="font-semibold text-gray-700 dark:text-gray-300 uppercase">
+                  <span className="font-semibold text-gray-700 dark:text-gray-300 uppercase whitespace-nowrap">
                     DATE
                   </span>
-                  <span className="font-semibold text-gray-900 dark:text-white">
+                  <span className="font-semibold text-gray-900 dark:text-white text-right">
                     {format(new Date(invoice.issueDate), "yyyy/MM/dd")}
                   </span>
-                </div>
-                <div className="flex justify-between items-center gap-8">
-                  <span className="font-semibold text-gray-700 dark:text-gray-300 uppercase">
+                  <span className="font-semibold text-gray-700 dark:text-gray-300 uppercase whitespace-nowrap">
                     TERMS
                   </span>
-                  <span className="font-semibold text-gray-900 dark:text-white">
+                  <span className="font-semibold text-gray-900 dark:text-white text-right">
                     {invoice.dueDate
                       ? (() => {
                           const issue =
@@ -302,17 +298,17 @@ export function PublicInvoiceView({
                         })()
                       : "Net 3"}
                   </span>
+                  {invoice.dueDate && (
+                    <>
+                      <span className="font-semibold text-gray-700 dark:text-gray-300 uppercase whitespace-nowrap">
+                        DUE DATE
+                      </span>
+                      <span className="font-semibold text-gray-900 dark:text-white text-right">
+                        {format(new Date(invoice.dueDate), "yyyy/MM/dd")}
+                      </span>
+                    </>
+                  )}
                 </div>
-                {invoice.dueDate && (
-                  <div className="flex justify-between items-center gap-8">
-                    <span className="font-semibold text-gray-700 dark:text-gray-300 uppercase">
-                      DUE DATE
-                    </span>
-                    <span className="font-semibold text-gray-900 dark:text-white">
-                      {format(new Date(invoice.dueDate), "yyyy/MM/dd")}
-                    </span>
-                  </div>
-                )}
               </div>
             </div>
           </div>
