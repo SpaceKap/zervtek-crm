@@ -121,7 +121,11 @@ export function PortalClient({
               <FileText className="size-4 text-amber-600 sm:size-5" />
             </div>
             <div className="min-w-0 flex-1">
-              <p className="truncate text-xl font-semibold tabular-nums sm:text-2xl">{stats.documents}</p>
+              <p className="truncate text-xl font-semibold tabular-nums sm:text-2xl">
+                <span className="inline-flex items-center rounded-md bg-amber-500/15 px-2.5 py-0.5 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300">
+                  {stats.documents}
+                </span>
+              </p>
               <p className="truncate text-xs text-muted-foreground">Documents</p>
             </div>
           </CardContent>
@@ -132,7 +136,11 @@ export function PortalClient({
               <Receipt className="size-4 text-emerald-600 sm:size-5" />
             </div>
             <div className="min-w-0 flex-1">
-              <p className="truncate text-xl font-semibold tabular-nums sm:text-2xl">{stats.invoices}</p>
+              <p className="truncate text-xl font-semibold tabular-nums sm:text-2xl">
+                <span className="inline-flex items-center rounded-md bg-emerald-500/15 px-2.5 py-0.5 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300">
+                  {stats.invoices}
+                </span>
+              </p>
               <p className="truncate text-xs text-muted-foreground">Invoices</p>
             </div>
           </CardContent>
@@ -204,11 +212,64 @@ export function PortalClient({
             Your vehicles
           </CardTitle>
           <CardDescription>
-            Click a vehicle to view its details, documents, invoices and payments.
+            Tap a vehicle to view its details, documents, invoices and payments.
           </CardDescription>
         </CardHeader>
         <CardContent className="p-0">
-          <div className="overflow-x-auto">
+          {/* Mobile: card list */}
+          <div className="flex flex-col divide-y md:hidden">
+            {vehicles.map((v) => {
+              const docCount = allDocuments.filter((d) => d.vehicleId === v.id).length;
+              const vehicleInvoices = allInvoices.filter((i) => i.vehicleId === v.id);
+              const paidCount = vehicleInvoices.filter((i) => i.paymentStatus === "PAID").length;
+              const partialCount = vehicleInvoices.filter((i) => i.paymentStatus === "PARTIALLY_PAID").length;
+              const dueCount = vehicleInvoices.filter((i) => i.paymentStatus === "PENDING").length;
+              const overdueCount = vehicleInvoices.filter((i) => i.paymentStatus === "OVERDUE").length;
+              return (
+                <Link
+                  key={v.id}
+                  href={`/vehicles/${v.id}`}
+                  className="flex min-h-[44px] items-center justify-between gap-3 p-4 transition-colors hover:bg-muted/30 active:bg-muted/50"
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="font-medium truncate">
+                      {v.make} {v.model}
+                      {v.year != null ? ` ${v.year}` : ""}
+                    </div>
+                    <div className="mt-0.5 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                      <span className="font-mono">{v.vin}</span>
+                      <span>·</span>
+                      <span>{formatDate(v.purchaseDate)}</span>
+                      {v.currentShippingStage && (
+                        <>
+                          <span>·</span>
+                          <Badge variant="secondary" className="text-xs font-normal">
+                            {stageLabels[v.currentShippingStage]}
+                          </Badge>
+                        </>
+                      )}
+                    </div>
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {vehicleInvoices.length === 0 ? (
+                        <span className="text-xs text-muted-foreground">No invoices</span>
+                      ) : (
+                        <>
+                          {paidCount > 0 && <Badge variant="default" className="text-xs font-normal">{paidCount} paid</Badge>}
+                          {partialCount > 0 && <Badge variant="secondary" className="text-xs font-normal">{partialCount} partial</Badge>}
+                          {dueCount > 0 && <Badge variant="outline" className="text-xs font-normal text-amber-600 border-amber-500/50">{dueCount} due</Badge>}
+                          {overdueCount > 0 && <Badge variant="destructive" className="text-xs font-normal">{overdueCount} overdue</Badge>}
+                        </>
+                      )}
+                      <span className="text-xs text-muted-foreground">{docCount} docs</span>
+                    </div>
+                  </div>
+                  <ChevronRight className="size-5 shrink-0 text-muted-foreground" />
+                </Link>
+              );
+            })}
+          </div>
+          {/* Desktop: table */}
+          <div className="hidden overflow-x-auto md:block">
             <table className="w-full">
               <thead>
                 <tr className="border-b bg-muted/50">
@@ -223,81 +284,40 @@ export function PortalClient({
               </thead>
               <tbody>
                 {vehicles.map((v) => {
-                  const docCount = allDocuments.filter(
-                    (d) => d.vehicleId === v.id
-                  ).length;
-                  const vehicleInvoices = allInvoices.filter(
-                    (i) => i.vehicleId === v.id
-                  );
-                  const paidCount = vehicleInvoices.filter(
-                    (i) => i.paymentStatus === "PAID"
-                  ).length;
-                  const partialCount = vehicleInvoices.filter(
-                    (i) => i.paymentStatus === "PARTIALLY_PAID"
-                  ).length;
-                  const dueCount = vehicleInvoices.filter(
-                    (i) => i.paymentStatus === "PENDING"
-                  ).length;
-                  const overdueCount = vehicleInvoices.filter(
-                    (i) => i.paymentStatus === "OVERDUE"
-                  ).length;
+                  const docCount = allDocuments.filter((d) => d.vehicleId === v.id).length;
+                  const vehicleInvoices = allInvoices.filter((i) => i.vehicleId === v.id);
+                  const paidCount = vehicleInvoices.filter((i) => i.paymentStatus === "PAID").length;
+                  const partialCount = vehicleInvoices.filter((i) => i.paymentStatus === "PARTIALLY_PAID").length;
+                  const dueCount = vehicleInvoices.filter((i) => i.paymentStatus === "PENDING").length;
+                  const overdueCount = vehicleInvoices.filter((i) => i.paymentStatus === "OVERDUE").length;
                   return (
-                    <tr
-                      key={v.id}
-                      className="border-b last:border-0 hover:bg-muted/30 transition-colors"
-                    >
+                    <tr key={v.id} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
                       <td className="p-4">
                         <div className="font-medium">
                           {v.make} {v.model}
                           {v.year != null ? ` ${v.year}` : ""}
                         </div>
                       </td>
-                      <td className="p-4 font-mono text-sm text-muted-foreground">
-                        {v.vin}
-                      </td>
-                      <td className="p-4 text-sm text-muted-foreground">
-                        {formatDate(v.purchaseDate)}
-                      </td>
+                      <td className="p-4 font-mono text-sm text-muted-foreground">{v.vin}</td>
+                      <td className="p-4 text-sm text-muted-foreground">{formatDate(v.purchaseDate)}</td>
                       <td className="p-4">
                         {v.currentShippingStage ? (
-                          <Badge variant="secondary">
-                            {stageLabels[v.currentShippingStage]}
-                          </Badge>
+                          <Badge variant="secondary">{stageLabels[v.currentShippingStage]}</Badge>
                         ) : (
-                          <span className="text-muted-foreground text-sm">
-                            —
-                          </span>
+                          <span className="text-muted-foreground text-sm">—</span>
                         )}
                       </td>
-                      <td className="p-4 text-sm tabular-nums">
-                        {docCount}
-                      </td>
+                      <td className="p-4 text-sm tabular-nums">{docCount}</td>
                       <td className="p-4">
                         <div className="flex flex-wrap gap-1.5 text-sm">
                           {vehicleInvoices.length === 0 ? (
                             <span className="text-muted-foreground">—</span>
                           ) : (
                             <>
-                              {paidCount > 0 && (
-                                <Badge variant="default" className="font-normal">
-                                  {paidCount} paid
-                                </Badge>
-                              )}
-                              {partialCount > 0 && (
-                                <Badge variant="secondary" className="font-normal">
-                                  {partialCount} partial
-                                </Badge>
-                              )}
-                              {dueCount > 0 && (
-                                <Badge variant="outline" className="font-normal text-amber-600 border-amber-500/50">
-                                  {dueCount} due
-                                </Badge>
-                              )}
-                              {overdueCount > 0 && (
-                                <Badge variant="destructive" className="font-normal">
-                                  {overdueCount} overdue
-                                </Badge>
-                              )}
+                              {paidCount > 0 && <Badge variant="default" className="font-normal">{paidCount} paid</Badge>}
+                              {partialCount > 0 && <Badge variant="secondary" className="font-normal">{partialCount} partial</Badge>}
+                              {dueCount > 0 && <Badge variant="outline" className="font-normal text-amber-600 border-amber-500/50">{dueCount} due</Badge>}
+                              {overdueCount > 0 && <Badge variant="destructive" className="font-normal">{overdueCount} overdue</Badge>}
                             </>
                           )}
                         </div>
@@ -305,10 +325,7 @@ export function PortalClient({
                       <td className="p-4">
                         <Link
                           href={`/vehicles/${v.id}`}
-                          className={cn(
-                            buttonVariants({ variant: "ghost", size: "sm" }),
-                            "inline-flex items-center gap-1"
-                          )}
+                          className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "inline-flex items-center gap-1")}
                         >
                           View
                           <ChevronRight className="size-4 shrink-0" />

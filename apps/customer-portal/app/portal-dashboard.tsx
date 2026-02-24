@@ -1,10 +1,8 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { InvoiceStatus } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { PortalClient } from "@/app/[token]/portal-client";
-import { LogoutButton } from "@/components/logout-button";
-import { cn } from "@/lib/utils";
+import { PortalHeader } from "@/components/PortalHeader";
 
 const STAGE_LABELS: Record<string, string> = {
   PURCHASE: "Purchase",
@@ -200,10 +198,11 @@ export async function PortalDashboard({
           })
           .join(", ");
 
+  const documentCount = allDocuments.filter((d) => d.category !== "PHOTOS").length;
   const stats = {
     vehicles: vehicles.length,
     inTransit: inTransitCount,
-    documents: allDocuments.length,
+    documents: documentCount,
     invoices: allInvoices.length,
     unpaidInvoices: unpaidInvoices.length,
     overdueInvoices: overdueCount,
@@ -213,31 +212,13 @@ export async function PortalDashboard({
 
   return (
     <div className="min-h-screen bg-muted/30">
-      <header className="border-b bg-card">
-        <div className="container mx-auto flex items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">
-              {customer.name}
-            </h1>
-            <p className="text-muted-foreground text-sm">
-              Vehicle tracking portal
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <Link
-              href="/profile"
-              className={cn(
-                "inline-flex h-9 items-center justify-center rounded-md px-4 text-sm font-medium border bg-background shadow-sm hover:bg-accent hover:text-accent-foreground"
-              )}
-            >
-              My profile
-            </Link>
-            <LogoutButton />
-          </div>
-        </div>
-      </header>
+      <PortalHeader
+        title={customer.name}
+        subtitle="Vehicle tracking portal"
+        showProfileAndLogout
+      />
 
-      <main className="container mx-auto px-4 py-8 sm:px-6 lg:px-8">
+      <main className="container mx-auto px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
         {vehicles.length === 0 ? (
           <div className="rounded-xl border bg-card p-8 text-center">
             <p className="text-muted-foreground">

@@ -8,7 +8,8 @@ export function LogoutButton() {
   return (
     <Button
       variant="outline"
-      size="sm"
+      size="default"
+      className="min-h-[44px] sm:min-h-0"
       onClick={() => signOut({ callbackUrl: "/" })}
     >
       <LogOut className="mr-2 size-4" />

@@ -99,7 +99,7 @@ export function MediaGridWithPreview({
           <button
             type="button"
             onClick={() => setPreviewIndex(null)}
-            className="absolute top-4 right-4 z-10 rounded-full p-2 text-white/90 hover:bg-white/20 hover:text-white focus:outline-none focus:ring-2 focus:ring-white"
+            className="absolute top-4 right-4 z-10 flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full p-2 text-white/90 hover:bg-white/20 hover:text-white focus:outline-none focus:ring-2 focus:ring-white"
             aria-label="Close preview"
           >
             <X className="size-6" />
@@ -112,7 +112,7 @@ export function MediaGridWithPreview({
               e.stopPropagation();
               goPrev();
             }}
-            className="absolute left-2 top-1/2 z-10 -translate-y-1/2 rounded-full p-2 text-white/90 hover:bg-white/20 hover:text-white focus:outline-none focus:ring-2 focus:ring-white"
+            className="absolute left-2 top-1/2 z-10 flex min-h-[48px] min-w-[48px] -translate-y-1/2 items-center justify-center rounded-full p-2 text-white/90 hover:bg-white/20 hover:text-white focus:outline-none focus:ring-2 focus:ring-white sm:left-4"
             aria-label="Previous"
           >
             <ChevronLeft className="size-8" />
@@ -125,14 +125,14 @@ export function MediaGridWithPreview({
               e.stopPropagation();
               goNext();
             }}
-            className="absolute right-2 top-1/2 z-10 -translate-y-1/2 rounded-full p-2 text-white/90 hover:bg-white/20 hover:text-white focus:outline-none focus:ring-2 focus:ring-white"
+            className="absolute right-2 top-1/2 z-10 flex min-h-[48px] min-w-[48px] -translate-y-1/2 items-center justify-center rounded-full p-2 text-white/90 hover:bg-white/20 hover:text-white focus:outline-none focus:ring-2 focus:ring-white sm:right-4"
             aria-label="Next"
           >
             <ChevronRight className="size-8" />
           </button>
 
           <div
-            className="relative max-h-full max-w-full mx-12"
+            className="relative max-h-full max-w-full mx-14 sm:mx-12"
             onClick={(e) => e.stopPropagation()}
           >
             {currentDoc.fileType?.startsWith("video/") ? (

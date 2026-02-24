@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { PortalHeader } from "@/components/PortalHeader";
 import { PortalClient } from "./portal-client";
 
 const STAGE_LABELS: Record<string, string> = {
@@ -213,28 +214,20 @@ export default async function PortalPage({
 
   return (
     <div className="min-h-screen bg-muted/30">
-      <header className="border-b bg-card">
-        <div className="container mx-auto px-4 py-6 sm:px-6 lg:px-8">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h1 className="text-2xl font-bold tracking-tight">
-                {customer.name}
-              </h1>
-              <p className="text-muted-foreground text-sm">
-                Vehicle tracking portal
-              </p>
-            </div>
-            <div className="flex items-center gap-2 rounded-lg bg-primary/10 px-4 py-2">
-              <Car className="size-4 text-primary" />
-              <span className="text-sm font-medium">
-                {vehicles.length} vehicle{vehicles.length !== 1 ? "s" : ""}
-              </span>
-            </div>
+      <PortalHeader
+        title={customer.name}
+        subtitle="Vehicle tracking portal"
+        badge={
+          <div className="flex min-h-[44px] items-center gap-2 rounded-lg bg-primary/10 px-4 py-2 sm:min-h-0">
+            <Car className="size-4 shrink-0 text-primary" />
+            <span className="text-sm font-medium">
+              {vehicles.length} vehicle{vehicles.length !== 1 ? "s" : ""}
+            </span>
           </div>
-        </div>
-      </header>
+        }
+      />
 
-      <main className="container mx-auto px-4 py-8 sm:px-6 lg:px-8">
+      <main className="container mx-auto px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
         {vehicles.length === 0 ? (
           <Card>
             <CardContent className="flex flex-col items-center justify-center py-16 text-center">

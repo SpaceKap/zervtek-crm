@@ -22,8 +22,8 @@ export default async function HomePage() {
   }
 
   return (
-    <div className="min-h-screen bg-muted/30 flex flex-col items-center justify-center p-4">
-      <Card className="w-full max-w-md">
+    <div className="flex min-h-screen min-h-[100dvh] flex-col items-center justify-center bg-muted/30 p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+      <Card className="w-full max-w-md max-w-[calc(100vw-2rem)]">
         <CardHeader className="text-center">
           <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-full bg-primary/10">
             <Car className="size-8 text-primary" />
@@ -37,13 +37,13 @@ export default async function HomePage() {
         <CardContent className="flex flex-col gap-3 text-center">
           <Link
             href="/login"
-            className={cn(buttonVariants(), "w-full")}
+            className={cn(buttonVariants(), "w-full min-h-[44px] sm:min-h-0")}
           >
             Log in
           </Link>
           <Link
             href="/register"
-            className={cn(buttonVariants({ variant: "outline" }), "w-full")}
+            className={cn(buttonVariants({ variant: "outline" }), "w-full min-h-[44px] sm:min-h-0")}
           >
             Create an account
           </Link>

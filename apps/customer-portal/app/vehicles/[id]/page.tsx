@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
+import { PortalHeader } from "@/components/PortalHeader";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { format } from "date-fns";
@@ -13,7 +14,6 @@ import {
   CreditCard,
   ExternalLink,
   Check,
-  ArrowLeft,
   Download,
   Calendar,
   Hash,
@@ -287,30 +287,17 @@ export default async function VehiclePage({
       stage.containerNumber
     );
 
+  const vehicleTitle = [vehicle.make, vehicle.model, vehicle.year != null ? vehicle.year : ""].filter(Boolean).join(" ");
+
   return (
     <div className="min-h-screen bg-muted/30">
-      <header className="border-b bg-card">
-        <div className="container mx-auto flex items-center gap-4 px-4 py-4 sm:px-6 lg:px-8">
-          <Link
-            href="/"
-            className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "gap-2")}
-          >
-            <ArrowLeft className="size-4" />
-            Back to vehicles
-          </Link>
-          <div className="min-w-0 flex-1">
-            <h1 className="text-xl font-bold truncate">
-              {vehicle.make} {vehicle.model}
-              {vehicle.year != null && ` ${vehicle.year}`}
-            </h1>
-            <p className="text-muted-foreground text-sm font-mono">
-              {vehicle.vin}
-            </p>
-          </div>
-        </div>
-      </header>
+      <PortalHeader
+        title={vehicleTitle || vehicle.vin}
+        subtitle={vehicle.vin}
+        backLink={{ href: "/", label: "Back to vehicles" }}
+      />
 
-      <main className="container mx-auto px-4 py-8 sm:px-6 lg:px-8 space-y-8">
+      <main className="container mx-auto space-y-6 px-4 py-6 sm:space-y-8 sm:px-6 sm:py-8 lg:px-8">
         {/* Shipping progress */}
         {vehicle.currentShippingStage && (
           <Card>
@@ -339,7 +326,7 @@ export default async function VehiclePage({
                   style={{ width: `${progress}%` }}
                 />
               </div>
-              <div className="flex flex-wrap justify-between gap-2 text-xs text-muted-foreground">
+              <div className="hidden flex-wrap justify-between gap-2 text-xs text-muted-foreground sm:flex">
                 {STAGE_ORDER.map((s) => (
                   <span key={s}>{STAGE_LABELS[s]}</span>
                 ))}
@@ -349,9 +336,9 @@ export default async function VehiclePage({
         )}
 
         {/* Main row: Invoice (3/4) | Documents + Notes (1/4) */}
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-4">
           {/* Left 3/4: Invoice embedded with payments and status */}
-          <div className="lg:col-span-3 space-y-4">
+          <div className="min-w-0 space-y-4 lg:col-span-3">
             <Card>
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
@@ -624,7 +611,7 @@ export default async function VehiclePage({
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-4">
                     {stage.bookingStatus && (
                       <div className="flex items-start gap-3 rounded-lg border bg-muted/30 p-3">
                         <CircleDot className="size-5 shrink-0 text-muted-foreground mt-0.5" />
@@ -734,7 +721,7 @@ export default async function VehiclePage({
           </div>
 
           {/* Right 1/4: Documents, Notes, Accessories received stacked */}
-          <div className="space-y-4">
+          <div className="min-w-0 space-y-4">
             {(mediaDocs.length > 0 || otherDocs.length > 0) && (
               <>
                 <Card>

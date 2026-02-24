@@ -56,6 +56,8 @@ export default function RegisterPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [staff, setStaff] = useState<StaffOption[]>([]);
+  const [staffLoading, setStaffLoading] = useState(true);
+  const [staffError, setStaffError] = useState(false);
 
   const [form, setForm] = useState({
     firstName: "",
@@ -87,10 +89,22 @@ export default function RegisterPage() {
   });
 
   useEffect(() => {
-    fetch("/api/staff")
-      .then((r) => r.ok ? r.json() : [])
-      .then(setStaff)
-      .catch(() => setStaff([]));
+    setStaffLoading(true);
+    setStaffError(false);
+    fetch("/api/staff", { credentials: "include" })
+      .then((r) => {
+        if (!r.ok) throw new Error("Staff list failed");
+        return r.json();
+      })
+      .then((data) => {
+        setStaff(Array.isArray(data) ? data : []);
+        setStaffError(false);
+      })
+      .catch(() => {
+        setStaff([]);
+        setStaffError(true);
+      })
+      .finally(() => setStaffLoading(false));
   }, []);
 
   useEffect(() => {
@@ -241,8 +255,8 @@ export default function RegisterPage() {
   const shippingRegions = getRegionsForCountry(form.shippingAddress.country);
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-muted/30 p-4">
-      <Card className="w-full max-w-lg">
+    <div className="flex min-h-screen min-h-[100dvh] flex-col items-center justify-center bg-muted/30 p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+      <Card className="w-full max-w-lg max-w-[calc(100vw-2rem)]">
         <CardHeader className="text-center">
           <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-full bg-primary/10">
             <Car className="size-8 text-primary" />
@@ -262,7 +276,7 @@ export default function RegisterPage() {
           </div>
         </CardHeader>
         <form onSubmit={handleSubmit}>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-4 min-w-0 overflow-hidden">
             {error && (
               <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
                 {error}
@@ -338,21 +352,23 @@ export default function RegisterPage() {
                 </div>
                 <div className="space-y-2">
                   <Label>Phone number *</Label>
-                  <div className="grid grid-cols-[minmax(0,180px)_1fr] gap-3">
-                    <CountryCodeSelect
-                      value={form.phoneCountryCode}
-                      onValueChange={(v) => update("phoneCountryCode", v)}
-                      options={PHONE_OPTIONS}
-                      placeholder="Code"
-                      className="h-10 w-full min-w-0"
-                    />
+                  <div className="flex gap-2 min-w-0">
+                    <div className="w-[110px] shrink-0 sm:w-[160px]">
+                      <CountryCodeSelect
+                        value={form.phoneCountryCode}
+                        onValueChange={(v) => update("phoneCountryCode", v)}
+                        options={PHONE_OPTIONS}
+                        placeholder="Code"
+                        className="h-10 w-full min-w-0"
+                      />
+                    </div>
                     <Input
                       type="tel"
                       inputMode="numeric"
                       value={form.phoneNumber}
                       onChange={(e) => update("phoneNumber", e.target.value)}
                       placeholder="e.g. 5551234567"
-                      className="h-10"
+                      className="h-10 min-w-0 flex-1"
                       autoComplete="tel-national"
                     />
                   </div>
@@ -397,7 +413,7 @@ export default function RegisterPage() {
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
+                  <div className="space-y-2 min-w-0">
                     <Label>City *</Label>
                     <Input
                       value={form.address.city}
@@ -405,17 +421,17 @@ export default function RegisterPage() {
                       placeholder="City"
                     />
                   </div>
-                  <div className="space-y-2">
+                  <div className="space-y-2 min-w-0">
                     <Label>{regionLabel} *</Label>
                     {addressRegions.length > 0 ? (
                       <Select
                         value={form.address.state}
                         onValueChange={(v) => update("address.state", v)}
                       >
-                        <SelectTrigger className="w-full">
+                        <SelectTrigger className="w-full max-w-full">
                           <SelectValue placeholder={`Select ${regionLabel.toLowerCase()}`} />
                         </SelectTrigger>
-                        <SelectContent>
+                        <SelectContent className="max-w-[calc(100vw-2rem)]">
                           {addressRegions.map((r) => (
                             <SelectItem key={r} value={r}>
                               {r}
@@ -445,34 +461,35 @@ export default function RegisterPage() {
 
             {step === 3 && (
               <>
-                <div className="space-y-2">
+                <div className="space-y-2 min-w-0">
                   <Label>How did you find us? *</Label>
                   <Select
                     value={form.howFoundUs}
                     onValueChange={(v) => update("howFoundUs", v)}
                   >
-                    <SelectTrigger className="w-full">
+                    <SelectTrigger className="w-full max-w-full">
                       <SelectValue placeholder="Select an option" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="max-w-[calc(100vw-2rem)]">
                       {HOW_FOUND_US_OPTIONS.map((o) => (
-                        <SelectItem key={o.value} value={o.value}>
+                        <SelectItem key={o.value} value={o.value} className="whitespace-normal break-words">
                           {o.label}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-2 min-w-0">
                   <Label>Person in charge (optional)</Label>
                   <Select
                     value={form.assignedToId ?? "none"}
                     onValueChange={(v) => update("assignedToId", v === "none" ? null : v)}
+                    disabled={staffLoading}
                   >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select staff member" />
+                    <SelectTrigger className="w-full max-w-full">
+                      <SelectValue placeholder={staffLoading ? "Loading…" : staffError ? "Could not load staff" : "Select staff member"} />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="max-w-[calc(100vw-2rem)]">
                       <SelectItem value="none">None</SelectItem>
                       {staff.map((s) => (
                         <SelectItem key={s.id} value={s.id}>

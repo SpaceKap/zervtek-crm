@@ -461,22 +461,24 @@ export function ProfileForm() {
             <Label>
               Phone Number <span className="text-destructive">*</span>
             </Label>
-            <div className="grid grid-cols-[minmax(0,180px)_minmax(0,1fr)] gap-3">
-              <CountryCodeSelect
-                value={watch("phoneCountryCode") || ""}
-                onValueChange={(v) =>
-                  setValue("phoneCountryCode", v, { shouldValidate: true })
-                }
-                options={PHONE_CODE_OPTIONS}
-                placeholder="Code"
-                className="h-10 w-full min-w-0"
-              />
+            <div className="flex min-w-0 gap-2">
+              <div className="w-[110px] shrink-0 sm:w-[160px]">
+                <CountryCodeSelect
+                  value={watch("phoneCountryCode") || ""}
+                  onValueChange={(v) =>
+                    setValue("phoneCountryCode", v, { shouldValidate: true })
+                  }
+                  options={PHONE_CODE_OPTIONS}
+                  placeholder="Code"
+                  className="h-10 w-full min-w-0"
+                />
+              </div>
               <Input
                 type="tel"
                 inputMode="numeric"
                 {...register("phoneNumber")}
                 placeholder="e.g. 5551234567"
-                className="h-10 w-full min-w-0"
+                className="h-10 min-w-0 flex-1"
               />
             </div>
             {errors.phoneCountryCode && (
