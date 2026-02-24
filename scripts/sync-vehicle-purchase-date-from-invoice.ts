@@ -4,12 +4,22 @@
  * match invoice Issue Date (and show correctly on CRM customer page and
  * customer portal).
  *
- * On the VPS, from repo root (~/inquiry-pooler):
- *   1. Ensure deps and Prisma client exist:  npm install   &&  npm run db:generate
- *   2. Dry run (no writes):                 npx tsx scripts/sync-vehicle-purchase-date-from-invoice.ts --dry-run
- *   3. Apply changes:                       npx tsx scripts/sync-vehicle-purchase-date-from-invoice.ts
+ * --- Running on the VPS ---
+ * Your .env usually has DATABASE_URL with host "postgres" (for Docker). From
+ * the host that hostname doesn't resolve, so use one of these:
  *
- * Or:  npm run sync-vehicle-purchase-date [-- --dry-run]
+ *  A) Run inside the app container (uses existing DATABASE_URL):
+ *     docker compose exec inquiry-pooler npx tsx scripts/sync-vehicle-purchase-date-from-invoice.ts --dry-run
+ *     docker compose exec inquiry-pooler npx tsx scripts/sync-vehicle-purchase-date-from-invoice.ts
+ *
+ *  B) Run on the host: set DATABASE_URL to use localhost (postgres is on 5432):
+ *     cd ~/inquiry-pooler
+ *     npm install && npm run db:generate
+ *     DATABASE_URL="postgresql://postgres:YOUR_PASSWORD@localhost:5432/inquiry_pooler?schema=inquiry_pooler" \
+ *       npx tsx scripts/sync-vehicle-purchase-date-from-invoice.ts --dry-run
+ *     # then without --dry-run to apply
+ *
+ * Or:  npm run sync-vehicle-purchase-date [-- --dry-run]  (with DATABASE_URL set for host or run in container)
  */
 
 try {
