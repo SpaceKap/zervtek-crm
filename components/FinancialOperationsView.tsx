@@ -233,6 +233,7 @@ export function FinancialOperationsView({
   const [invoiceTab, setInvoiceTab] = useState<"customer" | "shared">(
     "customer",
   );
+  const [refreshInvoicesTrigger, setRefreshInvoicesTrigger] = useState(0);
   const sharedInvoicesListRef = useRef<SharedInvoicesListRef>(null);
 
   const canViewSharedInvoices =
@@ -956,7 +957,10 @@ export function FinancialOperationsView({
       <Tabs
         value={activeSection}
         defaultValue={activeSection}
-        onValueChange={(v) => setActiveSection(v as typeof activeSection)}
+        onValueChange={(v) => {
+          setActiveSection(v as typeof activeSection);
+          if (v === "invoices") setRefreshInvoicesTrigger((prev) => prev + 1);
+        }}
         className="w-full"
       >
         <TabsList className="h-10 items-center justify-start rounded-md bg-muted p-1 text-muted-foreground flex flex-wrap gap-1 mb-6">
@@ -3059,7 +3063,7 @@ export function FinancialOperationsView({
                     )}
                   </TabsList>
                   <TabsContent value="customer" className="mt-4">
-                    <InvoicesList />
+                    <InvoicesList refreshTrigger={refreshInvoicesTrigger} />
                   </TabsContent>
                   {canViewSharedInvoices && (
                     <TabsContent value="shared" className="mt-4">

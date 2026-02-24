@@ -15,6 +15,7 @@ data/catalog_base_202601301645.csv
 
 # next.js
 /.next/
+**/.next/
 /out/
 
 # production
@@ -57,3 +58,7 @@ Thumbs.db
 # generated sample PDFs (run npm run sample-invoice-pdf to create)
 sample-invoice*.pdf
 my-invoice.pdf
+backups/
+
+# local uploads (server has its own)
+public/uploads/

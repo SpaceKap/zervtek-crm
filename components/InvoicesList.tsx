@@ -48,7 +48,12 @@ const statusLabels: Record<string, string> = {
   FINALIZED: "Finalized",
 };
 
-export function InvoicesList() {
+interface InvoicesListProps {
+  /** When this changes, the list refetches (e.g. when user switches to Invoices tab). */
+  refreshTrigger?: number;
+}
+
+export function InvoicesList({ refreshTrigger = 0 }: InvoicesListProps) {
   const searchParams = useSearchParams();
   const customerId = searchParams.get("customer");
   const [invoices, setInvoices] = useState<Invoice[]>([]);
@@ -57,6 +62,7 @@ export function InvoicesList() {
 
   const fetchInvoices = useCallback(async () => {
     try {
+      setLoading(true);
       let url = "/api/invoices";
       const params = new URLSearchParams();
       if (statusFilter !== "all") {
@@ -69,7 +75,10 @@ export function InvoicesList() {
         url += `?${params.toString()}`;
       }
 
-      const response = await fetch(url);
+      const response = await fetch(url, {
+        cache: "no-store",
+        credentials: "include",
+      });
       if (response.ok) {
         const data = await response.json();
         // Handle both old format (array) and new format (object with pagination)
@@ -88,7 +97,7 @@ export function InvoicesList() {
 
   useEffect(() => {
     fetchInvoices();
-  }, [fetchInvoices]);
+  }, [fetchInvoices, refreshTrigger]);
 
   const calculateTotal = (charges: Array<{ amount: number | string; chargeType?: string | { name?: string } | null }>) =>
     getChargesSubtotal(charges);

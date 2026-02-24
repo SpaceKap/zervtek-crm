@@ -46,7 +46,7 @@ interface VehicleDocumentsManagerProps {
 
 const documentCategories: Record<DocumentCategory, string> = {
   INVOICE: "Invoice",
-  PHOTOS: "Photos",
+  PHOTOS: "Photos and Videos",
   EXPORT_CERTIFICATE: "Export Certificate",
   DEREGISTRATION_CERTIFICATE: "Deregistration Certificate",
   INSURANCE_REFUND: "Insurance Refund",
@@ -102,13 +102,17 @@ export function VehicleDocumentsManager({
     visibleToCustomer: false,
   });
   const [file, setFile] = useState<File | null>(null);
+  const [multiFiles, setMultiFiles] = useState<File[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const multiFileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const dropZoneRef = useRef<HTMLDivElement>(null);
+
+  const isMultiMediaMode = formData.category === "PHOTOS";
 
   const fetchDocuments = useCallback(async () => {
     try {
@@ -131,46 +135,53 @@ export function VehicleDocumentsManager({
     fetchDocuments();
   }, [fetchDocuments, refreshTrigger]);
 
+  const isImageOrVideo = (f: File) => {
+    const t = f.type.toLowerCase();
+    return t.startsWith("image/") || t.startsWith("video/");
+  };
+
   const validateAndProcessFile = async (selectedFile: File) => {
     setError(null);
-    const maxSize = 10 * 1024 * 1024; // 10MB
+    const isMedia = isImageOrVideo(selectedFile);
+    const maxSize = isMedia ? 150 * 1024 * 1024 : 10 * 1024 * 1024; // 150MB for media, 10MB for docs
     const allowedTypes = [
       "application/pdf",
       "image/jpeg",
       "image/jpg",
       "image/png",
+      "image/gif",
+      "image/webp",
+      "video/mp4",
+      "video/webm",
+      "video/quicktime",
       "application/msword",
       "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     ];
-    const allowedExtensions = [".pdf", ".jpg", ".jpeg", ".png", ".doc", ".docx"];
+    const allowedExtensions = [".pdf", ".jpg", ".jpeg", ".png", ".gif", ".webp", ".mp4", ".webm", ".mov", ".doc", ".docx"];
 
-    // Check file size
     if (selectedFile.size > maxSize) {
-      setError("File size must be less than 10MB");
+      setError(isMedia ? "File size must be less than 150MB" : "File size must be less than 10MB");
       return;
     }
 
-    // Check file type
     const lastDotIndex = selectedFile.name.lastIndexOf(".");
     const fileExtension = lastDotIndex >= 0
       ? selectedFile.name.toLowerCase().substring(lastDotIndex)
       : "";
     if (
       !allowedTypes.includes(selectedFile.type) &&
-      !allowedExtensions.includes(fileExtension)
+      !allowedExtensions.includes(fileExtension) &&
+      !isImageOrVideo(selectedFile)
     ) {
       setError(
-        "Invalid file type. Accepted formats: PDF, JPG, PNG, DOC, DOCX",
+        "Invalid file type. Accepted: PDF, images, video (MP4/WebM/MOV), DOC, DOCX",
       );
       return;
     }
 
     setFile(selectedFile);
-
-    // Set name immediately
     setFormData((prev) => ({ ...prev, name: selectedFile.name }));
 
-    // Upload file to server
     try {
       setUploading(true);
       const uploadFormData = new FormData();
@@ -267,27 +278,119 @@ export function VehicleDocumentsManager({
       });
     }
     setFile(null);
+    setMultiFiles([]);
     setIsDragging(false);
     setDialogOpen(true);
+  };
+
+  useEffect(() => {
+    if (formData.category !== "PHOTOS") setMultiFiles([]);
+  }, [formData.category]);
+
+  const handleMultiFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selected = e.target.files;
+    if (!selected?.length) return;
+    setError(null);
+    const maxSize = 150 * 1024 * 1024;
+    const valid: File[] = [];
+    for (let i = 0; i < selected.length; i++) {
+      const f = selected[i];
+      if (!isImageOrVideo(f)) {
+        setError("Only images and videos are allowed (e.g. JPG, PNG, MP4, WebM).");
+        e.target.value = "";
+        return;
+      }
+      if (f.size > maxSize) {
+        setError(`${f.name} is over 150MB. Each file must be under 150MB.`);
+        e.target.value = "";
+        return;
+      }
+      valid.push(f);
+    }
+    setMultiFiles((prev) => [...prev, ...valid]);
+    e.target.value = "";
+  };
+
+  const removeMultiFile = (index: number) => {
+    setMultiFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handleSaveDocument = async () => {
     setError(null);
 
-    // Validate required fields
-    if (!formData.name || !formData.category) {
-      setError("Please fill in document name and category");
+    if (!formData.category) {
+      setError("Please select a category");
       return;
     }
 
-    // Final validation - must have file uploaded
-    if (!formData.fileUrl) {
-      setError("Please upload a file");
+    const isPhotosMulti = isMultiMediaMode && !editingDocument && multiFiles.length > 0;
+    if (isPhotosMulti) {
+      // Save path: upload each file and create one document per file
+    } else if (isMultiMediaMode && !editingDocument) {
+      setError("Select at least one photo or video");
       return;
+    } else {
+      if (!formData.name) {
+        setError("Please fill in document name");
+        return;
+      }
+      if (!formData.fileUrl) {
+        setError("Please upload a file");
+        return;
+      }
     }
 
     try {
       setSaving(true);
+      if (isPhotosMulti) {
+        const created: { name: string; fileUrl: string; fileType: string; fileSize: number }[] = [];
+        for (const f of multiFiles) {
+          const uploadFormData = new FormData();
+          uploadFormData.append("file", f);
+          uploadFormData.append("context", "vehicle");
+          uploadFormData.append("vehicleId", vehicleId);
+          const uploadRes = await fetch("/api/upload", {
+            method: "POST",
+            body: uploadFormData,
+            credentials: "include",
+          });
+          if (!uploadRes.ok) {
+            const err = await uploadRes.json().catch(() => ({}));
+            setError(err.error || `Failed to upload ${f.name}`);
+            setSaving(false);
+            return;
+          }
+          const data = await uploadRes.json();
+          created.push({ name: f.name, fileUrl: data.url, fileType: f.type, fileSize: f.size });
+        }
+        for (const c of created) {
+          const res = await fetch(`/api/vehicles/${vehicleId}/documents`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({
+              ...formData,
+              name: c.name,
+              fileUrl: c.fileUrl,
+              stage: formData.stage || null,
+              fileType: c.fileType,
+              fileSize: c.fileSize,
+            }),
+          });
+          if (!res.ok) {
+            const errData = await res.json();
+            setError(errData.error || "Failed to create one or more documents");
+            setSaving(false);
+            return;
+          }
+        }
+        fetchDocuments();
+        setDialogOpen(false);
+        setMultiFiles([]);
+        setError(null);
+        setSaving(false);
+        return;
+      }
       if (editingDocument) {
         // Update existing document
         const response = await fetch(
@@ -377,9 +480,11 @@ export function VehicleDocumentsManager({
     return <div className="text-center py-4">Loading documents...</div>;
   }
 
-  // Separate invoices from other documents
   const invoices = documents.filter((doc) => doc.category === "INVOICE");
-  const otherDocuments = documents.filter((doc) => doc.category !== "INVOICE");
+  const mediaDocs = documents.filter((doc) => doc.category === "PHOTOS");
+  const otherDocuments = documents.filter(
+    (doc) => doc.category !== "INVOICE" && doc.category !== "PHOTOS",
+  );
 
   const renderDocumentList = (docs: Document[]) => {
     if (docs.length === 0) {
@@ -463,14 +568,18 @@ export function VehicleDocumentsManager({
         <Button onClick={() => handleOpenDialog()}>Upload Document</Button>
       </div>
 
-      {/* Tabs for Documents and Invoices */}
+      {/* Tabs: Documents, Photos and Videos, Invoices */}
       <Tabs defaultValue="documents" className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="documents" className="flex items-center gap-2">
             <span className="material-symbols-outlined text-sm">
               description
             </span>
             Documents ({otherDocuments.length})
+          </TabsTrigger>
+          <TabsTrigger value="photos" className="flex items-center gap-2">
+            <span className="material-symbols-outlined text-sm">photo_library</span>
+            Photos and Videos ({mediaDocs.length})
           </TabsTrigger>
           <TabsTrigger value="invoices" className="flex items-center gap-2">
             <span className="material-symbols-outlined text-sm">receipt</span>
@@ -480,6 +589,10 @@ export function VehicleDocumentsManager({
 
         <TabsContent value="documents" className="mt-4">
           {renderDocumentList(otherDocuments)}
+        </TabsContent>
+
+        <TabsContent value="photos" className="mt-4">
+          {renderDocumentList(mediaDocs)}
         </TabsContent>
 
         <TabsContent value="invoices" className="mt-4">
@@ -499,7 +612,9 @@ export function VehicleDocumentsManager({
             <DialogDescription className="text-sm text-muted-foreground">
               {editingDocument
                 ? "Update document information. File cannot be changed."
-                : "Upload a new document. Accepted formats: PDF, JPG, PNG, DOC, DOCX (max 10MB)."}
+                : isMultiMediaMode
+                  ? "Select multiple photos and videos. Images and video (e.g. MP4, WebM) up to 150MB each."
+                  : "Upload a new document. Accepted formats: PDF, JPG, PNG, DOC, DOCX (max 10MB)."}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-6 px-6 pb-4">
@@ -527,6 +642,56 @@ export function VehicleDocumentsManager({
                     </p>
                   </div>
                 </div>
+              ) : isMultiMediaMode ? (
+                <>
+                  <input
+                    ref={multiFileInputRef}
+                    type="file"
+                    accept="image/*,video/*"
+                    multiple
+                    onChange={handleMultiFileChange}
+                    className="hidden"
+                  />
+                  <div
+                    className="border-2 border-dashed rounded-lg p-6 text-center border-border hover:border-primary/50 hover:bg-muted/30 cursor-pointer transition-colors"
+                    onClick={() => multiFileInputRef.current?.click()}
+                  >
+                    <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-muted mb-3">
+                      <span className="material-symbols-outlined text-3xl text-muted-foreground">
+                        photo_library
+                      </span>
+                    </div>
+                    <p className="text-sm font-semibold text-foreground">
+                      Add photos and videos
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Images and video (MP4, WebM, MOV) up to 150MB each
+                    </p>
+                  </div>
+                  {multiFiles.length > 0 && (
+                    <ul className="mt-3 space-y-2 max-h-48 overflow-y-auto rounded-lg border bg-muted/30 p-2">
+                      {multiFiles.map((f, i) => (
+                        <li
+                          key={`${f.name}-${i}`}
+                          className="flex items-center justify-between gap-2 text-sm py-1.5 px-2 rounded bg-background border"
+                        >
+                          <span className="truncate min-w-0">{f.name}</span>
+                          <span className="text-xs text-muted-foreground shrink-0">{formatFileSize(f.size)}</span>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="shrink-0 h-8 w-8 p-0 text-destructive hover:text-destructive"
+                            onClick={() => removeMultiFile(i)}
+                            aria-label={`Remove ${f.name}`}
+                          >
+                            <span className="material-symbols-outlined text-lg">close</span>
+                          </Button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </>
               ) : (
                 <>
                   {/* Drag and Drop Zone */}
@@ -668,23 +833,25 @@ export function VehicleDocumentsManager({
               )}
             </div>
 
-            {/* Document Name */}
-            <div className="space-y-2">
-              <Label htmlFor="documentName" className="text-sm font-semibold flex items-center gap-2">
-                <span className="material-symbols-outlined text-base">title</span>
-                Document Name
-                <span className="text-destructive">*</span>
-              </Label>
-              <Input
-                id="documentName"
-                value={formData.name}
-                onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, name: e.target.value }))
-                }
-                placeholder="Enter document name"
-                className="h-11"
-              />
-            </div>
+            {/* Document Name – hidden when uploading multiple photos/videos */}
+            {!(isMultiMediaMode && !editingDocument) && (
+              <div className="space-y-2">
+                <Label htmlFor="documentName" className="text-sm font-semibold flex items-center gap-2">
+                  <span className="material-symbols-outlined text-base">title</span>
+                  Document Name
+                  <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  id="documentName"
+                  value={formData.name}
+                  onChange={(e) =>
+                    setFormData((prev) => ({ ...prev, name: e.target.value }))
+                  }
+                  placeholder="Enter document name"
+                  className="h-11"
+                />
+              </div>
+            )}
 
             {/* Category */}
             <div className="space-y-2">

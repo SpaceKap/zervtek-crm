@@ -46,17 +46,9 @@ $DOCKER_COMPOSE up -d
 echo -e "${YELLOW}⏳ Waiting for container to start...${NC}"
 sleep 10
 
-# Run data migration if needed (before schema changes)
-# Migrate PROPOSAL_SENT status to DEPOSIT using SQL file
-echo -e "${YELLOW}🔄 Running data migrations (PROPOSAL_SENT -> DEPOSIT)...${NC}"
-if [ -f "scripts/migrate-proposal-sent.sql" ]; then
-    $DOCKER_COMPOSE exec -T inquiry-pooler sh -c "cd /app && cat scripts/migrate-proposal-sent.sql | npx prisma db execute --stdin" || {
-        echo -e "${YELLOW}⚠️  Data migration failed or no records to migrate${NC}"
-    }
-else
-    echo -e "${YELLOW}⚠️  Migration SQL file not found, skipping data migration${NC}"
-fi
-echo -e "${GREEN}✅ Data migration step completed${NC}"
+# One-time data migrations (PROPOSAL_SENT -> DEPOSIT) were run when the enum was still present.
+# Skip that step now; schema no longer has PROPOSAL_SENT so the script would fail.
+echo -e "${GREEN}✅ Data migration step skipped (already applied)${NC}"
 
 # Run Prisma migrations
 echo -e "${YELLOW}🗄️  Running database schema migrations...${NC}"
