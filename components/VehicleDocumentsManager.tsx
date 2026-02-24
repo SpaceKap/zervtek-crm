@@ -565,7 +565,7 @@ export function VehicleDocumentsManager({
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h3 className="font-semibold">Document Library</h3>
-        <Button onClick={() => handleOpenDialog()}>Upload Document</Button>
+        <Button type="button" onClick={() => handleOpenDialog()}>Upload Document</Button>
       </div>
 
       {/* Tabs: Documents, Photos and Videos, Invoices */}

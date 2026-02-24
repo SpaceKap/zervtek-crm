@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
 
 interface DialogProps {
@@ -38,7 +39,7 @@ const Dialog = ({ open, onOpenChange, children }: DialogProps) => {
 
   if (!open) return null;
 
-  return (
+  const content = (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div
         className="fixed inset-0 bg-black/50 dark:bg-black/70"
@@ -49,6 +50,11 @@ const Dialog = ({ open, onOpenChange, children }: DialogProps) => {
       </div>
     </div>
   );
+
+  if (typeof document !== "undefined") {
+    return createPortal(content, document.body);
+  }
+  return content;
 };
 
 const DialogContent = React.forwardRef<HTMLDivElement, DialogContentProps>(
