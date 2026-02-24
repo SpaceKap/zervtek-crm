@@ -303,6 +303,8 @@ model Customer {
   shareToken        String?  @unique // Unique token for public customer portal sharing
   passwordHash      String?  @db.Text // For customer portal login (optional; CRM-created customers have none)
   emailVerifiedAt   DateTime? // Set when customer verifies email (required for portal login)
+  emailVerificationToken   String?  @unique
+  emailVerificationExpiresAt DateTime?
   passwordResetToken       String?  @unique
   passwordResetExpiresAt   DateTime?
   createdAt         DateTime @default(now())
