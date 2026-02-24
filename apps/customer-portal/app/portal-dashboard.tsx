@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { InvoiceStatus } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { PortalClient } from "@/app/[token]/portal-client";
 import { LogoutButton } from "@/components/logout-button";
@@ -107,7 +108,7 @@ export async function PortalDashboard({
     : [customerId];
 
   const invoiceWhere = {
-    status: { in: ["APPROVED", "FINALIZED"] as const },
+    status: { in: [InvoiceStatus.APPROVED, InvoiceStatus.FINALIZED] },
     customerId: { in: customerIdsToShow },
   };
 

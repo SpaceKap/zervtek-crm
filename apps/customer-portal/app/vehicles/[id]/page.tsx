@@ -19,10 +19,12 @@ import {
   Hash,
   CircleDot,
 } from "lucide-react";
+import { InvoiceStatus } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 const STAGE_LABELS: Record<string, string> = {
   PURCHASE: "Purchase",
@@ -181,7 +183,7 @@ export default async function VehiclePage({
 
   // Invoices: APPROVED or FINALIZED for this vehicle, under any of the matching customers
   const invoiceWhere = {
-    status: { in: ["APPROVED", "FINALIZED"] as const },
+    status: { in: [InvoiceStatus.APPROVED, InvoiceStatus.FINALIZED] },
     vehicleId: vehicle.id,
     customerId: { in: customerIdsToShow },
   };
@@ -208,7 +210,7 @@ export default async function VehiclePage({
         direction: "INCOMING",
         invoice: {
           vehicleId: vehicle.id,
-          status: { in: ["APPROVED", "FINALIZED"] as const },
+          status: { in: [InvoiceStatus.APPROVED, InvoiceStatus.FINALIZED] },
           customerId: { in: customerIdsToShow },
         },
       },
@@ -285,12 +287,13 @@ export default async function VehiclePage({
     <div className="min-h-screen bg-muted/30">
       <header className="border-b bg-card">
         <div className="container mx-auto flex items-center gap-4 px-4 py-4 sm:px-6 lg:px-8">
-          <Button variant="ghost" size="sm" asChild>
-            <Link href="/" className="gap-2">
-              <ArrowLeft className="size-4" />
-              Back to vehicles
-            </Link>
-          </Button>
+          <Link
+            href="/"
+            className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "gap-2")}
+          >
+            <ArrowLeft className="size-4" />
+            Back to vehicles
+          </Link>
           <div className="min-w-0 flex-1">
             <h1 className="text-xl font-bold truncate">
               {vehicle.make} {vehicle.model}

@@ -123,7 +123,7 @@ export default function RegisterPage() {
     if (!form.phoneCountryCode?.trim()) return "Phone country code is required.";
     if (!form.phoneNumber?.trim()) return "Phone number is required.";
     const phoneResult = validatePhoneNumber(form.phoneNumber, form.phoneCountryCode);
-    if (!phoneResult.valid) return phoneResult.message;
+    if (!phoneResult.valid) return phoneResult.message ?? null;
     return null;
   };
 

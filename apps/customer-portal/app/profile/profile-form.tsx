@@ -59,7 +59,7 @@ const profileSchema = z
         country: z.string().optional(),
       })
       .optional(),
-    sameAsBilling: z.boolean().default(true),
+    sameAsBilling: z.boolean(),
   })
   .refine(
     (data) => {

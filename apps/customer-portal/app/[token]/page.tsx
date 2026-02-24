@@ -173,6 +173,43 @@ export default async function PortalPage({
     vehicle: inv.vehicle ?? undefined,
   }));
 
+  const now = new Date();
+  const inTransit = vehicles.filter(
+    (v) => v.currentShippingStage && v.currentShippingStage !== "DHL"
+  ).length;
+  const unpaidInvoices = invoices.filter(
+    (i) => i.paymentStatus !== "PAID" && i.paymentStatus !== "CANCELLED"
+  ).length;
+  const overdueInvoices = invoices.filter(
+    (i) =>
+      i.paymentStatus !== "PAID" &&
+      i.paymentStatus !== "CANCELLED" &&
+      i.dueDate &&
+      new Date(i.dueDate) < now
+  ).length;
+  const totalReceived = transactions.reduce(
+    (sum, t) => sum + Number(t.amount),
+    0
+  );
+  const stats = {
+    vehicles: vehicles.length,
+    inTransit,
+    documents: allDocuments.length,
+    invoices: invoices.length,
+    unpaidInvoices,
+    overdueInvoices,
+    paymentsReceived: transactions.length,
+    totalReceivedFormatted:
+      totalReceived > 0
+        ? new Intl.NumberFormat("en-US", {
+            style: "currency",
+            currency: "JPY",
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0,
+          }).format(totalReceived)
+        : null,
+  };
+
   return (
     <div className="min-h-screen bg-muted/30">
       <header className="border-b bg-card">
@@ -217,6 +254,7 @@ export default async function PortalPage({
             allInvoices={allInvoices}
             stageLabels={STAGE_LABELS}
             stageOrder={STAGE_ORDER}
+            stats={stats}
           />
         )}
       </main>

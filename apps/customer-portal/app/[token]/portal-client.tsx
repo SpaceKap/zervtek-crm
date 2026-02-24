@@ -10,7 +10,8 @@ import {
   ChevronRight,
   Ship,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import {
   Card,
   CardContent,
@@ -37,14 +38,14 @@ type Vehicle = {
   model: string | null;
   year: number | null;
   vin: string;
-  purchaseDate: string | null;
+  purchaseDate: string | Date | null;
   currentShippingStage: string | null;
 };
 
 type DocumentWithVehicle = { id: string; vehicleId: string };
 type InvoiceWithVehicle = {
   id: string;
-  vehicleId: string | null;
+  vehicleId: string | null | undefined;
   paymentStatus: string | null;
 };
 
@@ -300,12 +301,16 @@ export function PortalClient({
                         </div>
                       </td>
                       <td className="p-4">
-                        <Button variant="ghost" size="sm" asChild>
-                          <Link href={`/vehicles/${v.id}`} className="inline-flex items-center gap-1">
-                            View
-                            <ChevronRight className="size-4 shrink-0" />
-                          </Link>
-                        </Button>
+                        <Link
+                          href={`/vehicles/${v.id}`}
+                          className={cn(
+                            buttonVariants({ variant: "ghost", size: "sm" }),
+                            "inline-flex items-center gap-1"
+                          )}
+                        >
+                          View
+                          <ChevronRight className="size-4 shrink-0" />
+                        </Link>
                       </td>
                     </tr>
                   );

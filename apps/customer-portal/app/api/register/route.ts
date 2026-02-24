@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const parsed = registerSchema.safeParse(body);
     if (!parsed.success) {
-      const msg = parsed.error.errors.map((e) => e.message).join("; ");
+      const msg = parsed.error.issues.map((e) => e.message).join("; ");
       return NextResponse.json(
         { error: msg || "Validation failed", details: parsed.error.flatten() },
         { status: 400 }

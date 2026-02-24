@@ -18,6 +18,16 @@ import { format } from "date-fns";
 import { ShippingStage, PaymentStatus, InvoiceStatus, TransactionDirection } from "@prisma/client";
 import { AddTransactionDialog } from "@/components/AddTransactionDialog";
 
+const HOW_FOUND_US_LABELS: Record<string, string> = {
+  JCT: "Japanese Car Trade (JCT)",
+  SEARCH_ENGINE: "Search Engine",
+  SOCIAL_MEDIA: "Social Media",
+  REFERRAL: "Referral",
+  WEBSITE: "Website / Contact form",
+  TRADE_SHOW: "Trade show / Event",
+  OTHER: "Other",
+};
+
 interface Customer {
   id: string;
   name: string;
@@ -27,6 +37,7 @@ interface Customer {
   billingAddress: any;
   shippingAddress: any;
   portOfDestination: string | null;
+  howFoundUs: string | null;
   notes: string | null;
   assignedTo: {
     id: string;
@@ -466,6 +477,13 @@ export default function CustomerDetailPage() {
                       </span>
                       Assigned to:{" "}
                       {customer.assignedTo.name || customer.assignedTo.email}
+                    </div>
+                  )}
+                  {customer.howFoundUs && (
+                    <div className="flex items-center gap-2 mt-2">
+                      <Badge variant="secondary" className="font-normal">
+                        {HOW_FOUND_US_LABELS[customer.howFoundUs] ?? customer.howFoundUs}
+                      </Badge>
                     </div>
                   )}
                 </div>

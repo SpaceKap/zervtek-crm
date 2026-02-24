@@ -69,7 +69,6 @@ export const authOptions: NextAuthOptions = {
       },
     },
   },
-  trustHost: true,
   callbacks: {
     jwt({ token, user }) {
       if (user) {
