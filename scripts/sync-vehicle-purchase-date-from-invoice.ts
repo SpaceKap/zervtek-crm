@@ -4,11 +4,12 @@
  * match invoice Issue Date (and show correctly on CRM customer page and
  * customer portal).
  *
- * Run from repo root on the VPS (with .env loaded):
- *   npx tsx scripts/sync-vehicle-purchase-date-from-invoice.ts
+ * On the VPS, from repo root (~/inquiry-pooler):
+ *   1. Ensure deps and Prisma client exist:  npm install   &&  npm run db:generate
+ *   2. Dry run (no writes):                 npx tsx scripts/sync-vehicle-purchase-date-from-invoice.ts --dry-run
+ *   3. Apply changes:                       npx tsx scripts/sync-vehicle-purchase-date-from-invoice.ts
  *
- * Optional: dry run (no DB writes):
- *   npx tsx scripts/sync-vehicle-purchase-date-from-invoice.ts --dry-run
+ * Or:  npm run sync-vehicle-purchase-date [-- --dry-run]
  */
 
 try {
@@ -17,7 +18,12 @@ try {
   // dotenv not installed
 }
 
-import { prisma } from "../lib/prisma";
+// Use PrismaClient directly so script works on VPS without workspace resolution (e.g. after git pull)
+import { PrismaClient } from "@prisma/client";
+
+const prisma = new PrismaClient({
+  log: ["error"],
+});
 
 const isDryRun = process.argv.includes("--dry-run");
 
