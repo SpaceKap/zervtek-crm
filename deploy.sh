@@ -31,9 +31,10 @@ if [ ! -f .env ]; then
     exit 1
 fi
 
-# Pull latest changes from Git
+# Pull latest changes from Git (reset to match remote so deploy is reproducible)
 echo -e "${YELLOW}📥 Pulling latest changes from Git...${NC}"
-git pull origin main --no-rebase || git pull origin master --no-rebase
+git fetch origin main
+git reset --hard origin/main
 
 # Build and restart containers
 echo -e "${YELLOW}🔨 Building and restarting Docker containers...${NC}"
