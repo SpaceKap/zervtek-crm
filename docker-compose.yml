@@ -62,6 +62,8 @@ services:
       # Mount data directory for CSV files (if needed for updates)
       - ./data:/app/data:ro
       - ./public/data:/app/public/data:ro
+      # Mount scripts so one-off scripts (e.g. sync-vehicle-purchase-date) work after git pull without rebuild
+      - ./scripts:/app/scripts:ro
     depends_on:
       postgres:
         condition: service_healthy

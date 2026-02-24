@@ -8,7 +8,9 @@
  * Your .env usually has DATABASE_URL with host "postgres" (for Docker). From
  * the host that hostname doesn't resolve, so use one of these:
  *
- *  A) Run inside the app container (uses existing DATABASE_URL):
+ *  A) Run inside the app container (uses existing DATABASE_URL). docker-compose mounts
+ *     ./scripts into the container, so after git pull run once: docker compose up -d inquiry-pooler
+ *     then:
  *     docker compose exec inquiry-pooler npx tsx scripts/sync-vehicle-purchase-date-from-invoice.ts --dry-run
  *     docker compose exec inquiry-pooler npx tsx scripts/sync-vehicle-purchase-date-from-invoice.ts
  *
