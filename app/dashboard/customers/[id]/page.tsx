@@ -13,6 +13,14 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { staffDisplayName } from "@/lib/staff-display";
 import Link from "next/link";
 import { format } from "date-fns";
 import { ShippingStage, PaymentStatus, InvoiceStatus, TransactionDirection } from "@prisma/client";
@@ -197,12 +205,49 @@ export default function CustomerDetailPage() {
   const [transactionDialogOpen, setTransactionDialogOpen] = useState(false);
   const [selectedVehicleId, setSelectedVehicleId] = useState<string | undefined>(undefined);
   const [selectedInvoiceId, setSelectedInvoiceId] = useState<string | undefined>(undefined);
+  const [staff, setStaff] = useState<Array<{ id: string; name: string | null; email: string }>>([]);
+  const [assignSaving, setAssignSaving] = useState(false);
+
+  const canAssignCustomer =
+    session?.user?.role === "ADMIN" || session?.user?.role === "MANAGER";
 
   useEffect(() => {
     if (customerId) {
       fetchCustomer();
     }
   }, [customerId]);
+
+  useEffect(() => {
+    if (canAssignCustomer) {
+      fetch("/api/users?excludeRole=ACCOUNTANT")
+        .then((r) => (r.ok ? r.json() : []))
+        .then(setStaff)
+        .catch(() => setStaff([]));
+    }
+  }, [canAssignCustomer]);
+
+  const handleAssignChange = async (userId: string | null) => {
+    if (!customer) return;
+    setAssignSaving(true);
+    try {
+      const res = await fetch(`/api/customers/${customer.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ assignedToId: userId || null }),
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setCustomer(updated);
+      } else {
+        const d = await res.json();
+        alert(d.error || "Failed to update assignment");
+      }
+    } catch {
+      alert("Failed to update assignment");
+    } finally {
+      setAssignSaving(false);
+    }
+  };
 
   const fetchCustomer = async () => {
     try {
@@ -470,14 +515,42 @@ export default function CustomerDetailPage() {
                       {customer.country}
                     </div>
                   )}
-                  {customer.assignedTo && (
+                  {canAssignCustomer ? (
                     <div className="flex items-center gap-2 text-gray-600 dark:text-[#A1A1A1]">
                       <span className="material-symbols-outlined text-base">
                         person_outline
                       </span>
-                      Assigned to:{" "}
-                      {customer.assignedTo.name || customer.assignedTo.email}
+                      <span className="shrink-0">Assigned to:</span>
+                      <Select
+                        value={customer.assignedTo?.id ?? "none"}
+                        onValueChange={(v) =>
+                          handleAssignChange(v === "none" ? null : v)
+                        }
+                        disabled={assignSaving}
+                      >
+                        <SelectTrigger className="w-[180px] h-9 border-border bg-background">
+                          <SelectValue placeholder="Select…" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">Not assigned</SelectItem>
+                          {staff.map((u) => (
+                            <SelectItem key={u.id} value={u.id}>
+                              {staffDisplayName(u.name, u.email)}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
+                  ) : (
+                    customer.assignedTo && (
+                      <div className="flex items-center gap-2 text-gray-600 dark:text-[#A1A1A1]">
+                        <span className="material-symbols-outlined text-base">
+                          person_outline
+                        </span>
+                        Assigned to:{" "}
+                        {customer.assignedTo.name || customer.assignedTo.email}
+                      </div>
+                    )
                   )}
                   {customer.howFoundUs && (
                     <div className="flex items-center gap-2 mt-2">
@@ -1157,15 +1230,42 @@ export default function CustomerDetailPage() {
                     </div>
                   </div>
                 )}
-                {customer.assignedTo && (
+                {canAssignCustomer ? (
                   <div>
                     <div className="text-sm text-gray-600 dark:text-[#A1A1A1] mb-1">
                       Assigned To
                     </div>
-                    <div className="font-medium">
-                      {customer.assignedTo.name || customer.assignedTo.email}
-                    </div>
+                    <Select
+                      value={customer.assignedTo?.id ?? "none"}
+                      onValueChange={(v) =>
+                        handleAssignChange(v === "none" ? null : v)
+                      }
+                      disabled={assignSaving}
+                    >
+                      <SelectTrigger className="w-[200px]">
+                        <SelectValue placeholder="Select…" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">Not assigned</SelectItem>
+                        {staff.map((u) => (
+                          <SelectItem key={u.id} value={u.id}>
+                            {staffDisplayName(u.name, u.email)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
+                ) : (
+                  customer.assignedTo && (
+                    <div>
+                      <div className="text-sm text-gray-600 dark:text-[#A1A1A1] mb-1">
+                        Assigned To
+                      </div>
+                      <div className="font-medium">
+                        {customer.assignedTo.name || customer.assignedTo.email}
+                      </div>
+                    </div>
+                  )
                 )}
               </div>
               {customer.billingAddress && (

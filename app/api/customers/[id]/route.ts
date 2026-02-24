@@ -238,7 +238,13 @@ export async function PATCH(
     if (billingAddress !== undefined) updateData.billingAddress = billingAddress || null;
     if (shippingAddress !== undefined) updateData.shippingAddress = shippingAddress || null;
     if (portOfDestination !== undefined) updateData.portOfDestination = portOfDestination || null;
-    if (assignedToId !== undefined) updateData.assignedToId = assignedToId || null;
+    // Only ADMIN and MANAGER can change customer assignment
+    if (
+      assignedToId !== undefined &&
+      (session.user.role === UserRole.ADMIN || session.user.role === UserRole.MANAGER)
+    ) {
+      updateData.assignedToId = assignedToId || null;
+    }
 
     const updatedCustomer = await prisma.customer.update({
       where: { id: params.id },

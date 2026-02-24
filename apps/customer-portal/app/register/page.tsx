@@ -91,7 +91,11 @@ export default function RegisterPage() {
   useEffect(() => {
     setStaffLoading(true);
     setStaffError(false);
-    fetch("/api/staff", { credentials: "include" })
+    const staffUrl =
+      typeof window !== "undefined"
+        ? `${window.location.origin}/api/staff`
+        : "/api/staff";
+    fetch(staffUrl, { credentials: "include", cache: "no-store" })
       .then((r) => {
         if (!r.ok) throw new Error("Staff list failed");
         return r.json();
