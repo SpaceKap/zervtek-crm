@@ -1,3 +1,10 @@
+// Load .env from repo root when present (for local runs)
+try {
+  require("dotenv").config();
+} catch {
+  // dotenv not installed
+}
+
 import { prisma } from "../lib/prisma"
 import { UserRole } from "@prisma/client"
 

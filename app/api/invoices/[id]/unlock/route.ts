@@ -10,8 +10,14 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
-    const user = await requireAdmin()
+    await requireAdmin()
+  } catch (authError) {
+    const message = authError instanceof Error ? authError.message : "Unauthorized"
+    const status = message === "Unauthorized" ? 401 : 403
+    return NextResponse.json({ error: message }, { status })
+  }
 
+  try {
     const invoice = await prisma.invoice.findUnique({
       where: { id: params.id },
     })
@@ -47,8 +53,10 @@ export async function POST(
     return NextResponse.json(updatedInvoice)
   } catch (error) {
     console.error("Error unlocking invoice:", error)
+    const message =
+      error instanceof Error ? error.message : "Failed to unlock invoice"
     return NextResponse.json(
-      { error: "Failed to unlock invoice" },
+      { error: message },
       { status: 500 }
     )
   }

@@ -80,10 +80,14 @@ interface Transaction {
   isGeneralCost?: boolean;
   isVehicleStageCost?: boolean;
   isInvoice?: boolean;
+  isCostItem?: boolean;
   costType?: string | null;
   category?: string | null;
   paymentStatus?: string | null; // due, overdue, partially_paid, paid
   invoiceStatus?: string | null;
+  vendorId?: string | null;
+  vehicleId?: string | null;
+  costItemId?: string | null;
 }
 
 interface Vehicle {
@@ -187,6 +191,19 @@ export function FinancialOperationsView({
   );
   const [amountReceived, setAmountReceived] = useState("");
   const [markingPayment, setMarkingPayment] = useState(false);
+
+  // Mark as paid dialog (for costs without payment type: vehicle stage cost, general cost, cost item)
+  const [markAsPaidDialogOpen, setMarkAsPaidDialogOpen] = useState(false);
+  const [costToMarkAsPaid, setCostToMarkAsPaid] = useState<Transaction | null>(
+    null,
+  );
+  const [markAsPaidType, setMarkAsPaidType] = useState<
+    TransactionType | ""
+  >("");
+  const [markAsPaidInvoiceUrl, setMarkAsPaidInvoiceUrl] = useState("");
+  const [markAsPaidUploading, setMarkAsPaidUploading] = useState(false);
+  const markAsPaidFileInputRef = useRef<HTMLInputElement>(null);
+  const markAsPaidCameraInputRef = useRef<HTMLInputElement>(null);
 
   // Fetch customers and vendors for filters
   const [customers, setCustomers] = useState<
@@ -797,6 +814,9 @@ export function FinancialOperationsView({
   // Filter and sort transactions
   const filteredAndSortedTransactions = transactions
     .filter((t) => {
+      // Only show items matching the current tab (INCOMING = payments received, OUTGOING = costs)
+      if (t.direction !== transactionTab) return false;
+
       // Exclude invoices - they're shown in the Invoices tab only
       if (t.isInvoice) return false;
 
@@ -2176,7 +2196,21 @@ export function FinancialOperationsView({
                                             );
 
                                             const handleMarkAsPaid =
-                                              async () => {
+                                              () => {
+                                                // For costs without a payment type, open dialog to collect type + optional invoice
+                                                if (
+                                                  transaction.isVehicleStageCost ||
+                                                  transaction.isGeneralCost ||
+                                                  transaction.isCostItem
+                                                ) {
+                                                  setCostToMarkAsPaid(
+                                                    transaction,
+                                                  );
+                                                  setMarkAsPaidType("");
+                                                  setMarkAsPaidInvoiceUrl("");
+                                                  setMarkAsPaidDialogOpen(true);
+                                                  return;
+                                                }
                                                 if (
                                                   !confirm(
                                                     "Mark this transaction as paid? This will set the payment date to today.",
@@ -2184,48 +2218,8 @@ export function FinancialOperationsView({
                                                 ) {
                                                   return;
                                                 }
-
-                                                try {
-                                                  // If this is a vehicle stage cost, update it via the vehicle stage cost API
-                                                  if (
-                                                    transaction.isVehicleStageCost &&
-                                                    transaction.vehicle?.id
-                                                  ) {
-                                                    // Extract the cost ID from the transaction ID
-                                                    const costId =
-                                                      transaction.id.replace(
-                                                        "vehicle-cost-",
-                                                        "",
-                                                      );
-                                                    const response =
-                                                      await fetch(
-                                                        `/api/vehicles/${transaction.vehicle.id}/costs/${costId}`,
-                                                        {
-                                                          method: "PATCH",
-                                                          headers: {
-                                                            "Content-Type":
-                                                              "application/json",
-                                                          },
-                                                          body: JSON.stringify({
-                                                            paymentDate:
-                                                              new Date().toISOString(),
-                                                          }),
-                                                        },
-                                                      );
-
-                                                    if (response.ok) {
-                                                      fetchTransactions();
-                                                    } else {
-                                                      const errorData =
-                                                        await response
-                                                          .json()
-                                                          .catch(() => ({}));
-                                                      alert(
-                                                        errorData.error ||
-                                                          "Failed to update transaction",
-                                                      );
-                                                    }
-                                                  } else {
+                                                (async () => {
+                                                  try {
                                                     // For regular transactions, store paymentDate in notes as JSON
                                                     let currentNotes: any = {};
                                                     try {
@@ -2236,19 +2230,16 @@ export function FinancialOperationsView({
                                                           );
                                                       }
                                                     } catch (e) {
-                                                      // If notes is not JSON, treat it as plain text
                                                       currentNotes = {
                                                         originalNotes:
                                                           transaction.notes,
                                                       };
                                                     }
-
                                                     const updatedNotes = {
                                                       ...currentNotes,
                                                       paymentDate:
                                                         new Date().toISOString(),
                                                     };
-
                                                     const response =
                                                       await fetch(
                                                         `/api/transactions/${transaction.id}`,
@@ -2266,7 +2257,6 @@ export function FinancialOperationsView({
                                                           }),
                                                         },
                                                       );
-
                                                     if (response.ok) {
                                                       fetchTransactions();
                                                     } else {
@@ -2279,16 +2269,16 @@ export function FinancialOperationsView({
                                                           "Failed to update transaction",
                                                       );
                                                     }
+                                                  } catch (error) {
+                                                    console.error(
+                                                      "Error updating transaction:",
+                                                      error,
+                                                    );
+                                                    alert(
+                                                      "Failed to update transaction",
+                                                    );
                                                   }
-                                                } catch (error) {
-                                                  console.error(
-                                                    "Error updating transaction:",
-                                                    error,
-                                                  );
-                                                  alert(
-                                                    "Failed to update transaction",
-                                                  );
-                                                }
+                                                })();
                                               };
 
                                             const handleEdit = () => {
@@ -2722,6 +2712,294 @@ export function FinancialOperationsView({
                           parseFloat(selectedInvoice?.amount || "0")
                         ? "Mark as Paid"
                         : "Mark as Partially Paid"}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+
+            {/* Mark as paid dialog: payment type + optional invoice (vehicle/general/cost-item costs) */}
+            <Dialog
+              open={markAsPaidDialogOpen}
+              onOpenChange={(open) => {
+                setMarkAsPaidDialogOpen(open);
+                if (!open) {
+                  setCostToMarkAsPaid(null);
+                  setMarkAsPaidType("");
+                  setMarkAsPaidInvoiceUrl("");
+                  if (markAsPaidFileInputRef.current)
+                    markAsPaidFileInputRef.current.value = "";
+                  if (markAsPaidCameraInputRef.current)
+                    markAsPaidCameraInputRef.current.value = "";
+                }
+              }}
+            >
+              <DialogContent className="sm:max-w-md">
+                <DialogHeader className="space-y-1.5">
+                  <DialogTitle>Mark as paid</DialogTitle>
+                  <DialogDescription>
+                    Choose how this cost was paid and optionally attach an
+                    invoice document.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="px-6 pb-6 pt-1 space-y-6">
+                  <div className="space-y-2">
+                    <Label htmlFor="mark-paid-type" className="text-sm font-medium">
+                      Payment type <span className="text-destructive">*</span>
+                    </Label>
+                    <Select
+                      value={markAsPaidType}
+                      onValueChange={(v) =>
+                        setMarkAsPaidType(v as TransactionType)
+                      }
+                    >
+                      <SelectTrigger id="mark-paid-type" className="w-full">
+                        <SelectValue placeholder="Select type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="BANK_TRANSFER">
+                          Bank Transfer
+                        </SelectItem>
+                        <SelectItem value="PAYPAL">PayPal</SelectItem>
+                        <SelectItem value="CASH">Cash</SelectItem>
+                        <SelectItem value="WISE">Wise</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">
+                      Invoice document
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      Optional. Upload a file or take a photo.
+                    </p>
+                    <div className="space-y-3">
+                      <div className="flex gap-3 items-stretch">
+                        <input
+                          ref={markAsPaidFileInputRef}
+                          type="file"
+                          accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            if (!file) return;
+                            try {
+                              setMarkAsPaidUploading(true);
+                              const form = new FormData();
+                              form.append("file", file);
+                              form.append("context", "transaction");
+                              form.append(
+                                "expenseDate",
+                                new Date().toISOString().split("T")[0],
+                              );
+                              const res = await fetch("/api/upload", {
+                                method: "POST",
+                                body: form,
+                                credentials: "include",
+                              });
+                              if (res.ok) {
+                                const data = await res.json();
+                                setMarkAsPaidInvoiceUrl(data.url || "");
+                              } else {
+                                const err = await res.json();
+                                alert(err.error || "Upload failed");
+                              }
+                            } catch (err) {
+                              console.error(err);
+                              alert("Upload failed");
+                            } finally {
+                              setMarkAsPaidUploading(false);
+                            }
+                          }}
+                          className="sr-only"
+                          disabled={markAsPaidUploading}
+                          aria-hidden
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() =>
+                            markAsPaidFileInputRef.current?.click()
+                          }
+                          disabled={markAsPaidUploading}
+                          className="h-10 px-4"
+                        >
+                          <span className="material-symbols-outlined text-lg mr-2">
+                            upload_file
+                          </span>
+                          Choose file
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          onClick={() =>
+                            markAsPaidCameraInputRef.current?.click()
+                          }
+                          disabled={markAsPaidUploading}
+                          className="h-10 w-10 shrink-0"
+                          aria-label="Take photo"
+                        >
+                          <span className="material-symbols-outlined text-lg">
+                            camera_alt
+                          </span>
+                        </Button>
+                        <input
+                          ref={markAsPaidCameraInputRef}
+                          type="file"
+                          accept="image/*"
+                          capture="environment"
+                          className="sr-only"
+                          aria-hidden
+                          disabled={markAsPaidUploading}
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            if (!file) return;
+                            try {
+                              setMarkAsPaidUploading(true);
+                              const form = new FormData();
+                              form.append("file", file);
+                              form.append("context", "transaction");
+                              form.append(
+                                "expenseDate",
+                                new Date().toISOString().split("T")[0],
+                              );
+                              const res = await fetch("/api/upload", {
+                                method: "POST",
+                                body: form,
+                                credentials: "include",
+                              });
+                              if (res.ok) {
+                                const data = await res.json();
+                                setMarkAsPaidInvoiceUrl(data.url || "");
+                              } else {
+                                const err = await res.json();
+                                alert(err.error || "Upload failed");
+                              }
+                            } catch (err) {
+                              console.error(err);
+                              alert("Upload failed");
+                            } finally {
+                              setMarkAsPaidUploading(false);
+                            }
+                          }}
+                        />
+                      </div>
+                      {markAsPaidUploading && (
+                        <p className="text-sm text-muted-foreground flex items-center gap-2">
+                          <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" aria-hidden />
+                          Uploading…
+                        </p>
+                      )}
+                      {markAsPaidInvoiceUrl && !markAsPaidUploading && (
+                        <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-md border border-border">
+                          <span className="material-symbols-outlined text-base text-muted-foreground shrink-0">
+                            description
+                          </span>
+                          <a
+                            href={markAsPaidInvoiceUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-sm text-primary hover:underline flex-1 min-w-0 truncate"
+                          >
+                            View document
+                          </a>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              setMarkAsPaidInvoiceUrl("");
+                              if (markAsPaidFileInputRef.current)
+                                markAsPaidFileInputRef.current.value = "";
+                              if (markAsPaidCameraInputRef.current)
+                                markAsPaidCameraInputRef.current.value = "";
+                            }}
+                            className="shrink-0"
+                          >
+                            Remove
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                <DialogFooter className="px-6 pb-6 pt-4">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setMarkAsPaidDialogOpen(false);
+                      setCostToMarkAsPaid(null);
+                      setMarkAsPaidType("");
+                      setMarkAsPaidInvoiceUrl("");
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={async () => {
+                      if (!costToMarkAsPaid) return;
+                      if (!markAsPaidType) {
+                        alert("Please select a payment type");
+                        return;
+                      }
+                      try {
+                        const amount =
+                          typeof costToMarkAsPaid.amount === "string"
+                            ? costToMarkAsPaid.amount
+                            : String(costToMarkAsPaid.amount);
+                        const payload: Record<string, unknown> = {
+                          direction: "OUTGOING",
+                          type: markAsPaidType,
+                          amount: parseFloat(amount) || 0,
+                          currency:
+                            costToMarkAsPaid.currency ||
+                            "JPY",
+                          date: new Date().toISOString(),
+                          vendorId:
+                            costToMarkAsPaid.vendorId ||
+                            costToMarkAsPaid.vendor?.id ||
+                            null,
+                          vehicleId:
+                            costToMarkAsPaid.vehicleId ||
+                            costToMarkAsPaid.vehicle?.id ||
+                            null,
+                          invoiceUrl: markAsPaidInvoiceUrl || null,
+                        };
+                        if (costToMarkAsPaid.isVehicleStageCost) {
+                          payload.vehicleStageCostId =
+                            costToMarkAsPaid.id.replace(
+                              "vehicle-cost-",
+                              "",
+                            );
+                        } else if (costToMarkAsPaid.isGeneralCost) {
+                          payload.generalCostId = costToMarkAsPaid.id;
+                        } else if (costToMarkAsPaid.isCostItem) {
+                          payload.costItemId =
+                            costToMarkAsPaid.costItemId ||
+                            costToMarkAsPaid.id.replace("cost-item-", "");
+                        }
+                        const res = await fetch("/api/transactions", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify(payload),
+                        });
+                        if (res.ok) {
+                          fetchTransactions();
+                          setMarkAsPaidDialogOpen(false);
+                          setCostToMarkAsPaid(null);
+                          setMarkAsPaidType("");
+                          setMarkAsPaidInvoiceUrl("");
+                        } else {
+                          const err = await res.json().catch(() => ({}));
+                          alert(err.error || "Failed to record payment");
+                        }
+                      } catch (err) {
+                        console.error(err);
+                        alert("Failed to record payment");
+                      }
+                    }}
+                    disabled={!markAsPaidType}
+                  >
+                    Mark as paid
                   </Button>
                 </DialogFooter>
               </DialogContent>

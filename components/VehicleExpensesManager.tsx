@@ -609,6 +609,7 @@ export function VehicleExpensesManager({
                       const res = await fetch("/api/upload", {
                         method: "POST",
                         body: fd,
+                        credentials: "include",
                       });
                       if (res.ok) {
                         const d = await res.json();
@@ -641,6 +642,7 @@ export function VehicleExpensesManager({
                       const res = await fetch("/api/upload", {
                         method: "POST",
                         body: fd,
+                        credentials: "include",
                       });
                       if (res.ok) {
                         const d = await res.json();

@@ -297,9 +297,14 @@ model Customer {
   billingAddress    Json? // { street, city, state, zip, country }
   shippingAddress   Json? // { street, city, state, zip, country }
   portOfDestination String? // Port of destination
+  howFoundUs        String? // How the customer found us (JCT, Search Engine, etc.)
   notes             String?  @db.Text // Additional customer notes
   assignedToId      String? // Person In Charge (PIC) - assigned staff member
   shareToken        String?  @unique // Unique token for public customer portal sharing
+  passwordHash      String?  @db.Text // For customer portal login (optional; CRM-created customers have none)
+  emailVerifiedAt   DateTime? // Set when customer verifies email (required for portal login)
+  passwordResetToken       String?  @unique
+  passwordResetExpiresAt   DateTime?
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
@@ -338,6 +343,7 @@ model Vehicle {
   purchaseVendorId     String? // Vendor ID for dealer purchase (when purchaseSource = DEALER)
   purchasePhotoUrl     String? // URL to uploaded purchase photo (for dealer)
   purchaseDate         DateTime? // Purchase date from auction/dealer
+  notes                 String?        @db.Text // Notes visible to customer in portal (editable in admin vehicle page)
   createdById          String? // User who created the vehicle
   createdAt            DateTime        @default(now())
   updatedAt            DateTime        @updatedAt

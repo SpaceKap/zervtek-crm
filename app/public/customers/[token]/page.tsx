@@ -276,14 +276,6 @@ export default function PublicCustomerPortalPage() {
                                 {currentVehicle.vin}
                               </span>
                             </div>
-                            {currentVehicle.stockNo && (
-                              <div className="flex items-center gap-1.5">
-                                <span className="material-symbols-outlined text-base">
-                                  inventory_2
-                                </span>
-                                <span>Stock: {currentVehicle.stockNo}</span>
-                              </div>
-                            )}
                           </div>
                         </div>
                         {currentVehicle.currentShippingStage && (

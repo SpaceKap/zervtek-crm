@@ -35,6 +35,7 @@ import {
   getPostalPlaceholder,
 } from "@/lib/address-validation";
 import { validatePhoneNumber } from "@/lib/phone-validation";
+import { staffDisplayName } from "@/lib/staff-display";
 
 const customerSchema = z
   .object({
@@ -656,7 +657,7 @@ export function CustomerForm({
                           <SelectItem value="none">Not Assigned</SelectItem>
                           {users.map((user) => (
                             <SelectItem key={user.id} value={user.id}>
-                              {user.name || user.email}
+                              {staffDisplayName(user.name, user.email)}
                             </SelectItem>
                           ))}
                         </SelectContent>

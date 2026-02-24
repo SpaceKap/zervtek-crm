@@ -1,5 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  transpilePackages: ["@inquiry-pooler/db"],
   // Only use 'standalone' output for production builds
   ...(process.env.NODE_ENV === 'production' && { output: 'standalone' }),
   compress: true, // Enable gzip compression for API responses

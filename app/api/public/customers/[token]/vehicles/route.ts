@@ -30,7 +30,6 @@ export async function GET(
         model: true,
         year: true,
         vin: true,
-        stockNo: true,
         currentShippingStage: true,
         shippingStage: {
           include: {

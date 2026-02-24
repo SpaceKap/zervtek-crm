@@ -157,6 +157,10 @@ interface VehicleStageFormsProps {
     purchaseDate: Date | null;
   } | null;
   onUpdate: () => void;
+  /** Optional: update vehicle in parent state without refetch (e.g. isRegistered). Avoids full-page refresh. */
+  onVehiclePatch?: (patch: { isRegistered?: boolean | null }) => void;
+  /** Call when a document is uploaded from stage (so parent can refresh Documents tab). */
+  onDocumentUploaded?: () => void;
   /** Call after creating a vendor so the parent can refetch the vendors list. */
   onRefetchVendors?: () => void | Promise<void>;
   /** Call after creating a yard (or vendor with category YARD) so the parent can refetch the yards list. */
@@ -179,6 +183,8 @@ export function VehicleStageForms({
   isRegistered,
   vehicle,
   onUpdate,
+  onVehiclePatch,
+  onDocumentUploaded,
   onRefetchVendors,
   onRefetchYards,
 }: VehicleStageFormsProps) {
@@ -188,6 +194,9 @@ export function VehicleStageForms({
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isInitialMount = useRef(true);
   const previousFormDataRef = useRef<Partial<VehicleStageFormData>>({});
+  /** Sync from server only once per vehicle load. Never overwrite formData on refetch (e.g. after add fee, document upload, or Save) so checkboxes and vendors don't disappear. */
+  const hasSyncedForVehicleRef = useRef(false);
+  const lastVehicleIdRef = useRef<string>(vehicleId);
   const [documentUploadDialogOpen, setDocumentUploadDialogOpen] =
     useState(false);
   const [chargeDialogOpen, setChargeDialogOpen] = useState(false);
@@ -200,6 +209,75 @@ export function VehicleStageForms({
     useState<AddVendorForField>(null);
   const [addVendorInitialCategory, setAddVendorInitialCategory] =
     useState<VendorCategory>(VendorCategory.DEALERSHIP);
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const saveFeedbackTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  /** Bump to refresh Stage Costs list after adding via QuickChargeDialog (e.g. Inland Transport, Photo Inspection). */
+  const [stageCostsRefreshTrigger, setStageCostsRefreshTrigger] = useState(0);
+
+  // Build full PATCH body: normalize empty strings to null for optional IDs/enums so API accepts it
+  const buildStagePayload = useCallback(
+    (data: Partial<VehicleStageFormData>) => {
+      const emptyToNull = (v: string | undefined) => (v === "" || v === undefined ? null : v);
+      const num = (v: string | number | undefined) => {
+        if (v === "" || v === undefined) return null;
+        const n = typeof v === "number" ? v : parseInt(String(v), 10);
+        return Number.isNaN(n) ? null : n;
+      };
+      return {
+        stage: currentStage,
+        purchaseVendorId: emptyToNull(data.purchaseVendorId),
+        purchasePaid: data.purchasePaid ?? false,
+        purchasePaymentDeadline: data.purchasePaymentDeadline || null,
+        purchasePaymentDate: data.purchasePaymentDate || null,
+        yardId: data.yardId === "" ? null : (data.yardId ?? null),
+        transportArranged: data.transportArranged ?? false,
+        yardNotified: data.yardNotified ?? false,
+        photosRequested: data.photosRequested ?? false,
+        transportVendorId: emptyToNull(data.transportVendorId),
+        repairSkipped: data.repairSkipped ?? false,
+        repairVendorId: emptyToNull(data.repairVendorId),
+        numberPlatesReceived: data.numberPlatesReceived ?? false,
+        deregistrationComplete: data.deregistrationComplete ?? false,
+        exportCertificateUploaded: data.exportCertificateUploaded ?? false,
+        deregistrationSentToAuction: data.deregistrationSentToAuction ?? false,
+        insuranceRefundClaimed: data.insuranceRefundClaimed ?? false,
+        spareKeysReceived: data.spareKeysReceived ?? false,
+        maintenanceRecordsReceived: data.maintenanceRecordsReceived ?? false,
+        manualsReceived: data.manualsReceived ?? false,
+        cataloguesReceived: data.cataloguesReceived ?? false,
+        accessoriesReceived: data.accessoriesReceived ?? false,
+        otherItemsReceived: data.otherItemsReceived ?? false,
+        bookingType: emptyToNull(data.bookingType),
+        bookingRequested: data.bookingRequested ?? false,
+        bookingStatus: emptyToNull(data.bookingStatus),
+        bookingNumber: data.bookingNumber || null,
+        pod: data.pod || null,
+        pol: data.pol || null,
+        vesselName: data.vesselName || null,
+        voyageNo: data.voyageNo || null,
+        etd: data.etd || null,
+        eta: data.eta || null,
+        notes: data.notes || null,
+        containerNumber: data.containerNumber || null,
+        containerSize: data.containerSize || null,
+        sealNumber: data.sealNumber || null,
+        unitsInside: num(data.unitsInside),
+        siEcSentToForwarder: data.siEcSentToForwarder ?? false,
+        shippingOrderReceived: data.shippingOrderReceived ?? false,
+        freightVendorId: emptyToNull(data.freightVendorId),
+        blCopyUploaded: data.blCopyUploaded ?? false,
+        blDetailsConfirmed: data.blDetailsConfirmed ?? false,
+        blPaid: data.blPaid ?? false,
+        lcCopyUploaded: data.lcCopyUploaded ?? false,
+        exportDeclarationUploaded: data.exportDeclarationUploaded ?? false,
+        recycleApplied: data.recycleApplied ?? false,
+        blReleased: data.blReleased ?? false,
+        dhlTracking: data.dhlTracking || null,
+      };
+    },
+    [currentStage]
+  );
 
   // Helper function to safely parse dates
   const safeDateToString = (date: Date | string | null | undefined): string => {
@@ -230,99 +308,142 @@ export function VehicleStageForms({
   };
 
   useEffect(() => {
-    if (stageData) {
-      const initialData = {
-        purchaseVendorId: stageData.purchaseVendorId || "",
-        purchasePaid: stageData.purchasePaid || false,
-        purchasePaymentDeadline: safeDateToString(
-          stageData.purchasePaymentDeadline,
-        ),
-        purchasePaymentDate: safeDateToString(stageData.purchasePaymentDate),
-        yardId: stageData.yardId || "",
-        transportArranged: stageData.transportArranged,
-        yardNotified: stageData.yardNotified,
-        photosRequested: stageData.photosRequested,
-        transportVendorId: stageData.transportVendorId || "",
-        repairSkipped: stageData.repairSkipped ?? false,
-        repairVendorId: stageData.repairVendorId || "",
-        numberPlatesReceived: stageData.numberPlatesReceived ?? false,
-        deregistrationComplete: stageData.deregistrationComplete ?? false,
-        exportCertificateUploaded: stageData.exportCertificateUploaded,
-        deregistrationSentToAuction:
-          stageData.deregistrationSentToAuction ?? false,
-        insuranceRefundClaimed: stageData.insuranceRefundClaimed ?? false,
-        spareKeysReceived: stageData.spareKeysReceived,
-        maintenanceRecordsReceived: stageData.maintenanceRecordsReceived,
-        manualsReceived: stageData.manualsReceived,
-        cataloguesReceived: stageData.cataloguesReceived,
-        accessoriesReceived: stageData.accessoriesReceived,
-        otherItemsReceived: stageData.otherItemsReceived,
-        bookingType: stageData.bookingType || "",
-        bookingRequested: stageData.bookingRequested,
-        bookingStatus: stageData.bookingStatus || "",
-        bookingNumber: stageData.bookingNumber || "",
-        pod: stageData.pod || "",
-        pol: stageData.pol || "",
-        vesselName: stageData.vesselName || "",
-        voyageNo: stageData.voyageNo || "",
-        etd: safeDateToString(stageData.etd),
-        eta: safeDateToString(stageData.eta),
-        notes: stageData.notes || "",
-        containerNumber: stageData.containerNumber || "",
-        containerSize: stageData.containerSize || "",
-        sealNumber: stageData.sealNumber || "",
-        unitsInside: stageData.unitsInside?.toString() || "",
-        siEcSentToForwarder: stageData.siEcSentToForwarder,
-        shippingOrderReceived: stageData.shippingOrderReceived,
-        freightVendorId: stageData.freightVendorId || "",
-        blCopyUploaded: stageData.blCopyUploaded,
-        blDetailsConfirmed: stageData.blDetailsConfirmed,
-        blPaid: stageData.blPaid,
-        lcCopyUploaded: stageData.lcCopyUploaded,
-        exportDeclarationUploaded: stageData.exportDeclarationUploaded,
-        recycleApplied: stageData.recycleApplied,
-        blReleased: stageData.blReleased,
-        dhlTracking: stageData.dhlTracking || "",
-      };
-      setFormData(initialData);
-      previousFormDataRef.current = initialData;
-      isInitialMount.current = true;
+    return () => {
+      if (saveFeedbackTimeoutRef.current) {
+        clearTimeout(saveFeedbackTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Sync formData from server only once when we first load this vehicle. Never overwrite on refetch:
+  // - After "Add fee" (charge dialog) the server wasn't updated with the checkbox, so refetch would overwrite and the checkbox would disappear.
+  // - After Save we already have the right formData locally; no need to overwrite.
+  // - Same for document upload and any other onUpdate() call. Only the initial load should populate the form.
+  useEffect(() => {
+    if (!stageData) return;
+    const vehicleChanged = lastVehicleIdRef.current !== vehicleId;
+    if (vehicleChanged) {
+      lastVehicleIdRef.current = vehicleId;
+      hasSyncedForVehicleRef.current = false;
     }
-  }, [stageData]);
+    if (hasSyncedForVehicleRef.current) return;
+    hasSyncedForVehicleRef.current = true;
+    const initialData = {
+      purchaseVendorId: stageData.purchaseVendorId || "",
+      purchasePaid: stageData.purchasePaid || false,
+      purchasePaymentDeadline: safeDateToString(
+        stageData.purchasePaymentDeadline,
+      ),
+      purchasePaymentDate: safeDateToString(stageData.purchasePaymentDate),
+      yardId: stageData.yardId || "",
+      transportArranged: stageData.transportArranged,
+      yardNotified: stageData.yardNotified,
+      photosRequested: stageData.photosRequested,
+      transportVendorId: stageData.transportVendorId || "",
+      repairSkipped: stageData.repairSkipped ?? false,
+      repairVendorId: stageData.repairVendorId || "",
+      numberPlatesReceived: stageData.numberPlatesReceived ?? false,
+      deregistrationComplete: stageData.deregistrationComplete ?? false,
+      exportCertificateUploaded: stageData.exportCertificateUploaded,
+      deregistrationSentToAuction:
+        stageData.deregistrationSentToAuction ?? false,
+      insuranceRefundClaimed: stageData.insuranceRefundClaimed ?? false,
+      spareKeysReceived: stageData.spareKeysReceived,
+      maintenanceRecordsReceived: stageData.maintenanceRecordsReceived,
+      manualsReceived: stageData.manualsReceived,
+      cataloguesReceived: stageData.cataloguesReceived,
+      accessoriesReceived: stageData.accessoriesReceived,
+      otherItemsReceived: stageData.otherItemsReceived,
+      bookingType: stageData.bookingType || "",
+      bookingRequested: stageData.bookingRequested,
+      bookingStatus: stageData.bookingStatus || "",
+      bookingNumber: stageData.bookingNumber || "",
+      pod: stageData.pod || "",
+      pol: stageData.pol || "",
+      vesselName: stageData.vesselName || "",
+      voyageNo: stageData.voyageNo || "",
+      etd: safeDateToString(stageData.etd),
+      eta: safeDateToString(stageData.eta),
+      notes: stageData.notes || "",
+      containerNumber: stageData.containerNumber || "",
+      containerSize: stageData.containerSize || "",
+      sealNumber: stageData.sealNumber || "",
+      unitsInside: stageData.unitsInside?.toString() || "",
+      siEcSentToForwarder: stageData.siEcSentToForwarder,
+      shippingOrderReceived: stageData.shippingOrderReceived,
+      freightVendorId: stageData.freightVendorId || "",
+      blCopyUploaded: stageData.blCopyUploaded,
+      blDetailsConfirmed: stageData.blDetailsConfirmed,
+      blPaid: stageData.blPaid,
+      lcCopyUploaded: stageData.lcCopyUploaded,
+      exportDeclarationUploaded: stageData.exportDeclarationUploaded,
+      recycleApplied: stageData.recycleApplied,
+      blReleased: stageData.blReleased,
+      dhlTracking: stageData.dhlTracking || "",
+    };
+    setFormData(initialData);
+    previousFormDataRef.current = initialData;
+    isInitialMount.current = true;
+  }, [vehicleId, currentStage, stageData]);
 
   const handleSave = useCallback(async () => {
+    if (saveFeedbackTimeoutRef.current) {
+      clearTimeout(saveFeedbackTimeoutRef.current);
+      saveFeedbackTimeoutRef.current = null;
+    }
+    setSaveError(null);
+    setSaveStatus("saving");
+    setSaving(true);
     try {
-      setSaving(true);
+      const payload = buildStagePayload(formData);
       const response = await fetch(`/api/vehicles/${vehicleId}/stages`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          stage: currentStage,
-          ...formData,
-          etd: formData.etd || null,
-          eta: formData.eta || null,
-          purchasePaymentDeadline: formData.purchasePaymentDeadline || null,
-          purchasePaymentDate: formData.purchasePaymentDate || null,
-          unitsInside: formData.unitsInside
-            ? parseInt(formData.unitsInside)
-            : null,
-        }),
+        body: JSON.stringify(payload),
       });
 
       if (response.ok) {
-        onUpdate();
+        setSaveStatus("saved");
+        saveFeedbackTimeoutRef.current = setTimeout(() => setSaveStatus("idle"), 2000);
       } else {
-        const error = await response.json();
-        console.error("Error saving:", error.error);
-        // Don't show alert for auto-save, just log
+        const err = await response.json().catch(() => ({ error: "Save failed" }));
+        const message = err?.error ?? "Save failed";
+        setSaveError(message);
+        setSaveStatus("error");
+        console.error("Error saving:", message);
       }
     } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to save";
+      setSaveError(message);
+      setSaveStatus("error");
       console.error("Error saving stage data:", error);
-      // Don't show alert for auto-save, just log
     } finally {
       setSaving(false);
     }
-  }, [vehicleId, currentStage, formData, onUpdate]);
+  }, [vehicleId, formData, onUpdate, buildStagePayload]);
+
+  // Persist stage form data to the server (used after document upload / add fee so server stays in sync)
+  const saveWithData = useCallback(
+    async (data: Partial<VehicleStageFormData>) => {
+      try {
+        setSaving(true);
+        const merged = { ...formData, ...data };
+        const payload = buildStagePayload(merged);
+        const response = await fetch(`/api/vehicles/${vehicleId}/stages`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        return response.ok;
+      } catch (error) {
+        console.error("Error saving stage data:", error);
+        return false;
+      } finally {
+        setSaving(false);
+      }
+    },
+    [vehicleId, formData, buildStagePayload]
+  );
 
   // Auto-save with debouncing
   useEffect(() => {
@@ -529,45 +650,39 @@ export function VehicleStageForms({
         </div>
       </div>
 
-      {formData.transportArranged && (
-        <div className="border-t pt-4">
-          <h4 className="font-semibold mb-3">Transport Charges</h4>
-          <div className="mb-3">
-            <Label>Transport Company</Label>
-            <Select
-              value={formData.transportVendorId}
-              onValueChange={(value) =>
-                setFormData((prev) => ({ ...prev, transportVendorId: value }))
-              }
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select transport company" />
-              </SelectTrigger>
-              <SelectContent>
-                {vendors.map((vendor) => (
-                  <SelectItem key={vendor.id} value={vendor.id}>
-                    {vendor.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+      {(formData.transportArranged || formData.photosRequested) && (
+        <div className="border-t pt-4 space-y-3">
+          {formData.transportArranged && (
+            <div>
+              <Label>Transport Company</Label>
+              <Select
+                value={formData.transportVendorId}
+                onValueChange={(value) =>
+                  setFormData((prev) => ({ ...prev, transportVendorId: value }))
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select transport company" />
+                </SelectTrigger>
+                <SelectContent>
+                  {vendors.map((vendor) => (
+                    <SelectItem key={vendor.id} value={vendor.id}>
+                      {vendor.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+          {formData.photosRequested && (
+            <p className="text-sm text-muted-foreground">
+              Photos are requested from the selected yard above.
+            </p>
+          )}
           <VehicleCostsManager
             vehicleId={vehicleId}
             currentStage={ShippingStage.TRANSPORT}
-          />
-        </div>
-      )}
-
-      {formData.photosRequested && (
-        <div className="border-t pt-4">
-          <h4 className="font-semibold mb-3">Photo Inspection Charges</h4>
-          <p className="text-sm text-gray-500 dark:text-[#A1A1A1] mb-3">
-            Photos are requested from the selected yard above.
-          </p>
-          <VehicleCostsManager
-            vehicleId={vehicleId}
-            currentStage={ShippingStage.TRANSPORT}
+            refreshTrigger={stageCostsRefreshTrigger}
           />
         </div>
       )}
@@ -591,7 +706,6 @@ export function VehicleStageForms({
       });
       if (response.ok) {
         setFormData((prev) => ({ ...prev, repairSkipped: true }));
-        onUpdate();
       } else {
         const error = await response.json();
         alert(`Error: ${error.error}`);
@@ -617,7 +731,6 @@ export function VehicleStageForms({
       });
       if (response.ok) {
         setFormData((prev) => ({ ...prev, repairSkipped: false }));
-        onUpdate();
       } else {
         const error = await response.json();
         alert(`Error: ${error.error}`);
@@ -731,7 +844,7 @@ export function VehicleStageForms({
                           },
                         );
                         if (response.ok) {
-                          onUpdate();
+                          onVehiclePatch?.({ isRegistered: true }) ?? onUpdate();
                         }
                       } catch (error) {
                         console.error(
@@ -761,7 +874,7 @@ export function VehicleStageForms({
                           },
                         );
                         if (response.ok) {
-                          onUpdate();
+                          onVehiclePatch?.({ isRegistered: false }) ?? onUpdate();
                         }
                       } catch (error) {
                         console.error(
@@ -813,7 +926,7 @@ export function VehicleStageForms({
                       body: JSON.stringify({ isRegistered: null }),
                     });
                     if (response.ok) {
-                      onUpdate();
+                      onVehiclePatch?.({ isRegistered: null }) ?? onUpdate();
                     }
                   } catch (error) {
                     console.error("Error updating registration status:", error);
@@ -1092,7 +1205,7 @@ export function VehicleStageForms({
                     body: JSON.stringify({ isRegistered: null }),
                   });
                   if (response.ok) {
-                    onUpdate();
+                    onVehiclePatch?.({ isRegistered: null }) ?? onUpdate();
                   }
                 } catch (error) {
                   console.error("Error updating registration status:", error);
@@ -1665,48 +1778,40 @@ export function VehicleStageForms({
     string | null
   >(null);
 
-  const handleDocumentUploadSuccess = () => {
+  const handleDocumentUploadSuccess = async () => {
+    let nextData: Partial<VehicleStageFormData> | null = null;
     if (pendingDocumentField === "exportCertificate") {
-      setFormData((prev) => ({
-        ...prev,
-        exportCertificateUploaded: true,
-      }));
+      nextData = { ...formData, exportCertificateUploaded: true };
     } else if (pendingDocumentField === "blCopy") {
-      setFormData((prev) => ({
-        ...prev,
-        blCopyUploaded: true,
-      }));
+      nextData = { ...formData, blCopyUploaded: true };
     } else if (pendingDocumentField === "exportDeclaration") {
-      setFormData((prev) => ({
-        ...prev,
-        exportDeclarationUploaded: true,
-      }));
+      nextData = { ...formData, exportDeclarationUploaded: true };
     } else if (pendingDocumentField === "lcCopy") {
-      setFormData((prev) => ({
-        ...prev,
-        lcCopyUploaded: true,
-      }));
+      nextData = { ...formData, lcCopyUploaded: true };
     }
     setPendingDocumentField(null);
     setPendingDocumentCategory(null);
-    onUpdate();
+    if (nextData) {
+      setFormData(nextData);
+      await saveWithData(nextData);
+    }
+    onDocumentUploaded?.();
   };
 
-  const handleChargeSuccess = () => {
+  const handleChargeSuccess = async () => {
+    let nextData: Partial<VehicleStageFormData> | null = null;
     if (pendingChargeType === "Inland Transport") {
-      setFormData((prev) => ({
-        ...prev,
-        transportArranged: true,
-      }));
+      nextData = { ...formData, transportArranged: true };
     } else if (pendingChargeType === "Photo Inspection") {
-      setFormData((prev) => ({
-        ...prev,
-        photosRequested: true,
-      }));
+      nextData = { ...formData, photosRequested: true };
     }
     setPendingChargeType("");
     setPendingVendorId(null);
-    onUpdate();
+    if (nextData) {
+      setFormData(nextData);
+      await saveWithData(nextData);
+      setStageCostsRefreshTrigger((t) => t + 1);
+    }
   };
 
   const handleDocumentDialogClose = (open: boolean) => {
@@ -1762,16 +1867,35 @@ export function VehicleStageForms({
   return (
     <div className="space-y-4">
       {renderStageForm()}
-      {saving && (
-        <div className="flex justify-end pt-2">
+      <div className="flex items-center justify-end gap-3 pt-2 border-t flex-wrap">
+        {saveStatus === "saved" && (
+          <span className="text-xs text-green-600 dark:text-green-400 flex items-center gap-1">
+            <span className="material-symbols-outlined text-sm">check_circle</span>
+            Saved
+          </span>
+        )}
+        {saveStatus === "error" && saveError && (
+          <span className="text-xs text-destructive flex items-center gap-1" title={saveError}>
+            <span className="material-symbols-outlined text-sm">error</span>
+            {saveError}
+          </span>
+        )}
+        {saveStatus === "saving" && (
           <span className="text-xs text-muted-foreground flex items-center gap-2">
-            <span className="material-symbols-outlined text-sm animate-spin">
-              sync
-            </span>
+            <span className="material-symbols-outlined text-sm animate-spin">sync</span>
             Saving...
           </span>
-        </div>
-      )}
+        )}
+        <Button
+          type="button"
+          variant="default"
+          size="sm"
+          disabled={saving}
+          onClick={() => handleSave()}
+        >
+          {saving ? "Saving..." : "Save"}
+        </Button>
+      </div>
 
       {/* Document Upload Dialog */}
       {pendingDocumentCategory && (

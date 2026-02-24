@@ -36,6 +36,7 @@ import { VehicleStageHistory } from "@/components/VehicleStageHistory";
 import { VehicleExpensesManager } from "@/components/VehicleExpensesManager";
 import { StageNavigation } from "@/components/StageNavigation";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import Link from "next/link";
 
 interface Vendor {
@@ -75,6 +76,7 @@ interface Vehicle {
     email: string | null;
     phone?: string | null;
   } | null;
+  notes?: string | null;
   shippingStage: any;
   stageHistory: any[];
   invoices?: Array<{
@@ -150,6 +152,11 @@ export default function VehicleDetailPage() {
   >([]);
   const [assigningCustomerId, setAssigningCustomerId] = useState("");
   const [assigningLoading, setAssigningLoading] = useState(false);
+  const [notes, setNotes] = useState("");
+  const [notesSaving, setNotesSaving] = useState(false);
+  const [notesEditing, setNotesEditing] = useState(false);
+  const [notesSavedAt, setNotesSavedAt] = useState<number | null>(null);
+  const [documentsRefreshTrigger, setDocumentsRefreshTrigger] = useState(0);
 
   const fetchVendors = useCallback(async () => {
     try {
@@ -178,13 +185,15 @@ export default function VehicleDetailPage() {
     }
   }, []);
 
-  const fetchVehicle = useCallback(async () => {
+  const fetchVehicle = useCallback(async (skipLoading = false) => {
     try {
-      setLoading(true);
+      if (!skipLoading) setLoading(true);
       const response = await fetch(`/api/vehicles/${vehicleId}/stages`);
       if (response.ok) {
         const data = await response.json();
         setVehicle(data);
+        setNotes(data.notes ?? "");
+        setNotesEditing(!(data.notes ?? "").trim());
         setViewingStage(
           (prev) => prev || data.currentShippingStage || ShippingStage.PURCHASE,
         );
@@ -192,7 +201,7 @@ export default function VehicleDetailPage() {
     } catch (error) {
       console.error("Error fetching vehicle:", error);
     } finally {
-      setLoading(false);
+      if (!skipLoading) setLoading(false);
     }
   }, [vehicleId]);
 
@@ -240,6 +249,29 @@ export default function VehicleDetailPage() {
       alert("Failed to assign customer");
     } finally {
       setAssigningLoading(false);
+    }
+  };
+
+  const handleSaveNotes = async () => {
+    try {
+      setNotesSaving(true);
+      const res = await fetch(`/api/vehicles/${vehicleId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ notes: notes || null }),
+      });
+      if (res.ok) {
+        setVehicle((prev) => (prev ? { ...prev, notes: notes || null } : null));
+        setNotesSavedAt(Date.now());
+        setNotesEditing(false);
+      } else {
+        const err = await res.json();
+        alert(err.error || "Failed to save notes");
+      }
+    } catch (e) {
+      alert("Failed to save notes");
+    } finally {
+      setNotesSaving(false);
     }
   };
 
@@ -593,7 +625,13 @@ export default function VehicleDetailPage() {
                 lotNo: vehicle.lotNo,
                 purchaseDate: vehicle.purchaseDate,
               }}
-              onUpdate={fetchVehicle}
+              onUpdate={() => fetchVehicle(true)}
+              onVehiclePatch={(patch) =>
+                setVehicle((prev) => (prev ? { ...prev, ...patch } : null))
+              }
+              onDocumentUploaded={() =>
+                setDocumentsRefreshTrigger((t) => t + 1)
+              }
               onRefetchVendors={fetchVendors}
               onRefetchYards={fetchYards}
             />
@@ -646,6 +684,7 @@ export default function VehicleDetailPage() {
               { id: "expenses", label: "Expenses", icon: "receipt_long" },
               { id: "payments", label: "Payments", icon: "payments" },
               { id: "documents", label: "Documents", icon: "folder" },
+              { id: "notes", label: "Notes", icon: "note" },
               { id: "history", label: "History", icon: "history" },
             ].map((tab) => (
               <button
@@ -870,7 +909,7 @@ export default function VehicleDetailPage() {
               <div className="rounded-xl border bg-card p-6">
                 <VehicleExpensesManager
                   vehicleId={vehicleId}
-                  onUpdate={fetchVehicle}
+                  onUpdate={() => fetchVehicle(true)}
                 />
               </div>
             </TabsContent>
@@ -886,7 +925,72 @@ export default function VehicleDetailPage() {
                 <VehicleDocumentsManager
                   vehicleId={vehicleId}
                   currentStage={vehicle.currentShippingStage}
+                  refreshTrigger={documentsRefreshTrigger}
                 />
+              </div>
+            </TabsContent>
+
+            <TabsContent value="notes" className="mt-0">
+              <div className="rounded-xl border bg-card p-6">
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+                  Notes
+                </h3>
+                <p className="text-sm text-muted-foreground mb-4">
+                  These notes are visible to the customer on their vehicle portal page.
+                </p>
+                {notesEditing ? (
+                  <div className="space-y-3">
+                    <Textarea
+                      placeholder="Add notes for the customer..."
+                      value={notes}
+                      onChange={(e) => setNotes(e.target.value)}
+                      className="min-h-[120px] resize-y"
+                      disabled={notesSaving}
+                    />
+                    <Button
+                      size="sm"
+                      onClick={handleSaveNotes}
+                      disabled={notesSaving}
+                      className="gap-2"
+                    >
+                      <span className="material-symbols-outlined text-lg">
+                        {notesSaving ? "hourglass_empty" : "save"}
+                      </span>
+                      {notesSaving ? "Saving..." : "Save notes"}
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <div
+                      className={`min-h-[120px] rounded-lg border p-4 text-sm whitespace-pre-wrap ${
+                        notesSavedAt
+                          ? "bg-muted/50 text-muted-foreground border-muted"
+                          : "bg-background"
+                      }`}
+                    >
+                      {notes.trim() || (
+                        <span className="text-muted-foreground italic">No notes yet.</span>
+                      )}
+                    </div>
+                    {notesSavedAt != null && (
+                      <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+                        <span className="material-symbols-outlined text-sm text-green-600">
+                          check_circle
+                        </span>
+                        Saved
+                      </p>
+                    )}
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setNotesEditing(true)}
+                      className="gap-2"
+                    >
+                      <span className="material-symbols-outlined text-lg">edit</span>
+                      Edit notes
+                    </Button>
+                  </div>
+                )}
               </div>
             </TabsContent>
 

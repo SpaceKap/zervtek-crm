@@ -40,6 +40,8 @@ interface Document {
 interface VehicleDocumentsManagerProps {
   vehicleId: string;
   currentStage: ShippingStage | null;
+  /** Bump to refetch documents list (e.g. after upload from stage management). */
+  refreshTrigger?: number;
 }
 
 const documentCategories: Record<DocumentCategory, string> = {
@@ -85,6 +87,7 @@ const formatFileSize = (bytes: number | null | undefined) => {
 export function VehicleDocumentsManager({
   vehicleId,
   currentStage,
+  refreshTrigger,
 }: VehicleDocumentsManagerProps) {
   const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
@@ -110,7 +113,9 @@ export function VehicleDocumentsManager({
   const fetchDocuments = useCallback(async () => {
     try {
       // Fetch ALL documents (no stage filter)
-      const response = await fetch(`/api/vehicles/${vehicleId}/documents`);
+      const response = await fetch(`/api/vehicles/${vehicleId}/documents`, {
+        credentials: "include",
+      });
       if (response.ok) {
         const data = await response.json();
         setDocuments(data);
@@ -124,7 +129,7 @@ export function VehicleDocumentsManager({
 
   useEffect(() => {
     fetchDocuments();
-  }, [fetchDocuments]);
+  }, [fetchDocuments, refreshTrigger]);
 
   const validateAndProcessFile = async (selectedFile: File) => {
     setError(null);
@@ -176,6 +181,7 @@ export function VehicleDocumentsManager({
       const uploadResponse = await fetch("/api/upload", {
         method: "POST",
         body: uploadFormData,
+        credentials: "include",
       });
 
       if (uploadResponse.ok) {
@@ -289,6 +295,7 @@ export function VehicleDocumentsManager({
           {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
+            credentials: "include",
             body: JSON.stringify({
               ...formData,
               fileUrl: formData.fileUrl,
@@ -310,6 +317,7 @@ export function VehicleDocumentsManager({
         const response = await fetch(`/api/vehicles/${vehicleId}/documents`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
+          credentials: "include",
           body: JSON.stringify({
             ...formData,
             fileUrl: formData.fileUrl,
@@ -344,6 +352,7 @@ export function VehicleDocumentsManager({
         `/api/vehicles/${vehicleId}/documents/${docId}`,
         {
           method: "DELETE",
+          credentials: "include",
         },
       );
       if (response.ok) {

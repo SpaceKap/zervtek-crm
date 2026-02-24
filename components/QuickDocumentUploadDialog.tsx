@@ -89,6 +89,7 @@ export function QuickDocumentUploadDialog({
       const uploadResponse = await fetch("/api/upload", {
         method: "POST",
         body: uploadFormData,
+        credentials: "include",
       });
 
       if (!uploadResponse.ok) {
@@ -102,6 +103,7 @@ export function QuickDocumentUploadDialog({
       const response = await fetch(`/api/vehicles/${vehicleId}/documents`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({
           name: documentName || file.name,
           category,
@@ -110,7 +112,7 @@ export function QuickDocumentUploadDialog({
           fileType: file.type || null,
           fileSize: file.size || null,
           description: description || null,
-          visibleToCustomer: false, // Default to false, can be changed in Document Library
+          visibleToCustomer: true, // Sync to Documents tab and customer portal; can be toggled in Document Library
         }),
       });
 

@@ -3,6 +3,8 @@ import GoogleProvider from "next-auth/providers/google"
 import { prisma } from "./prisma"
 import { UserRole } from "@prisma/client"
 
+const THIRTY_DAYS = 30 * 24 * 60 * 60
+
 export const authOptions: NextAuthOptions = {
     providers: [
         GoogleProvider({
@@ -10,9 +12,17 @@ export const authOptions: NextAuthOptions = {
             clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
         }),
     ],
+    // Keep JWT and session expiry in sync so middleware and getServerSession agree
+    jwt: {
+        maxAge: THIRTY_DAYS,
+    },
     session: {
         strategy: "jwt",
+        maxAge: THIRTY_DAYS,
+        updateAge: 24 * 60 * 60, // refresh session when used if older than 24h
     },
+    // Trust request host (needed when NEXTAUTH_URL and request host can differ, e.g. dev/proxy)
+    trustHost: true,
     callbacks: {
         async signIn({ user, account, profile }) {
             if (!user.email) return false

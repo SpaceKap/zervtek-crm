@@ -11,7 +11,24 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 import { CustomerForm } from "./CustomerForm";
+import { staffDisplayName } from "@/lib/staff-display";
 import Link from "next/link";
 
 interface Customer {
@@ -24,6 +41,13 @@ interface Customer {
   shippingAddress: any;
   portOfDestination: string | null;
   createdAt: string;
+  assignedTo?: { id: string; name: string | null; email: string } | null;
+}
+
+interface StaffUser {
+  id: string;
+  name: string | null;
+  email: string;
 }
 
 export function CustomersList() {
@@ -33,10 +57,21 @@ export function CustomersList() {
   const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
+  const [assignCustomer, setAssignCustomer] = useState<Customer | null>(null);
+  const [assignStaffId, setAssignStaffId] = useState<string>("");
+  const [staff, setStaff] = useState<StaffUser[]>([]);
+  const [assigning, setAssigning] = useState(false);
 
   useEffect(() => {
     fetchCustomers();
   }, [search]);
+
+  useEffect(() => {
+    fetch("/api/users?excludeRole=ACCOUNTANT")
+      .then((r) => (r.ok ? r.json() : []))
+      .then(setStaff)
+      .catch(() => setStaff([]));
+  }, []);
 
   const fetchCustomers = async () => {
     try {
@@ -113,7 +148,7 @@ export function CustomersList() {
               {customers.map((customer) => (
                 <div
                   key={customer.id}
-                  className="flex items-center justify-between p-3 border rounded-lg hover:bg-accent"
+                  className="flex items-center justify-between gap-4 p-3 border rounded-lg hover:bg-accent"
                 >
                   <Link
                     href={`/dashboard/customers/${customer.id}`}
@@ -128,6 +163,41 @@ export function CustomersList() {
                       {customer.phone && <span>{customer.phone}</span>}
                     </div>
                   </Link>
+                  <div className="text-sm text-muted-foreground shrink-0 min-w-[140px] flex items-center gap-1.5">
+                    {customer.assignedTo ? (
+                      <>
+                        <span>{staffDisplayName(customer.assignedTo.name, customer.assignedTo.email)}</span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 px-1.5 text-primary"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            setAssignCustomer(customer);
+                            setAssignStaffId(customer.assignedTo!.id);
+                          }}
+                        >
+                          Change
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        <span>No person in charge</span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 px-1.5 text-primary"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            setAssignCustomer(customer);
+                            setAssignStaffId("");
+                          }}
+                        >
+                          Select
+                        </Button>
+                      </>
+                    )}
+                  </div>
                   <div className="flex items-center gap-2 shrink-0">
                     {session?.user?.role === "ADMIN" && (
                       <Button
@@ -181,6 +251,68 @@ export function CustomersList() {
           onClose={handleFormClose}
         />
       )}
+
+      <Dialog open={!!assignCustomer} onOpenChange={(open) => !open && setAssignCustomer(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Person in charge</DialogTitle>
+            <DialogDescription>
+              Assign a staff member to {assignCustomer?.name}. This is synced to the customer portal.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 py-2">
+            <Label>Staff member</Label>
+            <Select value={assignStaffId || "none"} onValueChange={setAssignStaffId}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Select staff member" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">None</SelectItem>
+                {staff.map((u) => (
+                  <SelectItem key={u.id} value={u.id}>
+                    {staffDisplayName(u.name, u.email)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAssignCustomer(null)}>
+              Cancel
+            </Button>
+            <Button
+              disabled={assigning}
+              onClick={async () => {
+                if (!assignCustomer) return;
+                setAssigning(true);
+                try {
+                  const res = await fetch(`/api/customers/${assignCustomer.id}`, {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      assignedToId: assignStaffId && assignStaffId !== "none" ? assignStaffId : null,
+                    }),
+                  });
+                  if (res.ok) {
+                    setAssignCustomer(null);
+                    setAssignStaffId("");
+                    fetchCustomers();
+                  } else {
+                    const d = await res.json();
+                    alert(d.error || "Failed to update");
+                  }
+                } catch (e) {
+                  alert("Failed to update");
+                } finally {
+                  setAssigning(false);
+                }
+              }}
+            >
+              {assigning ? "Saving…" : "Save"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

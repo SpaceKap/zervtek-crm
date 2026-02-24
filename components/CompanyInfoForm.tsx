@@ -235,6 +235,7 @@ export function CompanyInfoForm() {
                     const response = await fetch("/api/company/upload-logo", {
                       method: "POST",
                       body: formData,
+                      credentials: "include",
                     });
 
                     if (response.ok) {

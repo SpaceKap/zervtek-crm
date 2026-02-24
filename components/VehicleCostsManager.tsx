@@ -45,6 +45,8 @@ interface VehicleCostsManagerProps {
   vehicleId: string;
   currentStage: ShippingStage;
   onStageUpdate?: () => void;
+  /** Bump (e.g. after adding a cost from parent) to refetch the costs list. */
+  refreshTrigger?: number;
 }
 
 const costTypes = [
@@ -66,6 +68,7 @@ export function VehicleCostsManager({
   vehicleId,
   currentStage,
   onStageUpdate,
+  refreshTrigger,
 }: VehicleCostsManagerProps) {
   const isPurchaseStage = currentStage === ShippingStage.PURCHASE;
   const [costs, setCosts] = useState<Cost[]>([]);
@@ -228,7 +231,7 @@ export function VehicleCostsManager({
     if (isPurchaseStage) {
       fetchStageData();
     }
-  }, [vehicleId, currentStage, isPurchaseStage]);
+  }, [vehicleId, currentStage, isPurchaseStage, refreshTrigger]);
   const handleOpenDialog = (cost?: Cost) => {
     setError(null);
     if (cost) {

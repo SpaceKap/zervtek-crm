@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { canFinalizeInvoice } from "@/lib/permissions"
 import { InvoiceStatus } from "@prisma/client"
+import { invalidateCache } from "@/lib/cache"
 
 export async function POST(
   request: NextRequest,
@@ -51,6 +52,10 @@ export async function POST(
         charges: true,
       },
     })
+
+    if (updatedInvoice.shareToken) {
+      await invalidateCache(`invoice:token:${updatedInvoice.shareToken}`)
+    }
 
     return NextResponse.json(updatedInvoice)
   } catch (error) {

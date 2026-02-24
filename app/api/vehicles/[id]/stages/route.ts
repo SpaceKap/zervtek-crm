@@ -171,19 +171,22 @@ export async function PATCH(
     }
 
     const body = await request.json()
+    const raw = body as Record<string, unknown>
+    // Normalize empty strings to null for optional IDs and enums so Prisma doesn't fail
+    const emptyToNull = (v: unknown) => (v === "" ? null : v)
     const {
       stage,
-      purchaseVendorId,
+      purchaseVendorId: rawPurchaseVendorId,
       purchasePaid,
       purchasePaymentDeadline,
       purchasePaymentDate,
-      yardId,
+      yardId: rawYardId,
       transportArranged,
       yardNotified,
       photosRequested,
-      transportVendorId,
+      transportVendorId: rawTransportVendorId,
       repairSkipped,
-      repairVendorId,
+      repairVendorId: rawRepairVendorId,
       numberPlatesReceived,
       deregistrationComplete,
       exportCertificateUploaded,
@@ -195,9 +198,9 @@ export async function PATCH(
       cataloguesReceived,
       accessoriesReceived,
       otherItemsReceived,
-      bookingType,
+      bookingType: rawBookingType,
       bookingRequested,
-      bookingStatus,
+      bookingStatus: rawBookingStatus,
       bookingNumber,
       pod,
       pol,
@@ -212,8 +215,8 @@ export async function PATCH(
       unitsInside,
       siEcSentToForwarder,
       shippingOrderReceived,
-      forwardingVendorId,
-      freightVendorId,
+      forwardingVendorId: rawForwardingVendorId,
+      freightVendorId: rawFreightVendorId,
       blCopyUploaded,
       blDetailsConfirmed,
       blPaid,
@@ -223,7 +226,15 @@ export async function PATCH(
       blReleaseNotice,
       blReleased,
       dhlTracking,
-    } = body
+    } = raw
+    const purchaseVendorId = emptyToNull(rawPurchaseVendorId) as string | null
+    const yardId = rawYardId
+    const transportVendorId = emptyToNull(rawTransportVendorId) as string | null
+    const repairVendorId = emptyToNull(rawRepairVendorId) as string | null
+    const freightVendorId = emptyToNull(rawFreightVendorId) as string | null
+    const forwardingVendorId = emptyToNull(rawForwardingVendorId) as string | null
+    const bookingType = emptyToNull(rawBookingType) as BookingType | null
+    const bookingStatus = emptyToNull(rawBookingStatus) as BookingStatus | null
 
     // Get current vehicle and stage
     const vehicle = await prisma.vehicle.findUnique({
@@ -324,7 +335,10 @@ export async function PATCH(
     if (containerNumber !== undefined) updateData.containerNumber = containerNumber
     if (containerSize !== undefined) updateData.containerSize = containerSize
     if (sealNumber !== undefined) updateData.sealNumber = sealNumber
-    if (unitsInside !== undefined) updateData.unitsInside = unitsInside
+    if (unitsInside !== undefined) {
+      const parsed = unitsInside === "" || unitsInside == null ? null : parseInt(String(unitsInside), 10)
+      updateData.unitsInside = Number.isNaN(parsed) ? null : parsed
+    }
     if (siEcSentToForwarder !== undefined) updateData.siEcSentToForwarder = siEcSentToForwarder
     if (shippingOrderReceived !== undefined) updateData.shippingOrderReceived = shippingOrderReceived
     if (forwardingVendorId !== undefined) updateData.forwardingVendorId = forwardingVendorId
@@ -339,15 +353,22 @@ export async function PATCH(
     if (blReleased !== undefined) updateData.blReleased = blReleased
     if (dhlTracking !== undefined) updateData.dhlTracking = dhlTracking
 
-    const updatedStage = await prisma.vehicleShippingStage.upsert({
-      where: { vehicleId: params.id },
-      update: updateData,
-      create: {
-        vehicleId: params.id,
-        stage: stage || "PURCHASE",
-        ...updateData,
-      },
-    })
+    let updatedStage
+    try {
+      updatedStage = await prisma.vehicleShippingStage.upsert({
+        where: { vehicleId: params.id },
+        update: updateData,
+        create: {
+          vehicleId: params.id,
+          stage: stage || "PURCHASE",
+          ...updateData,
+        },
+      })
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to save stage"
+      console.error("Stage PATCH upsert error:", err)
+      return NextResponse.json({ error: message }, { status: 400 })
+    }
 
     // Update vehicle's current stage if changed
     if (stage && stage !== previousStage) {

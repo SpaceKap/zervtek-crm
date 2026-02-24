@@ -401,14 +401,25 @@ export async function GET(request: NextRequest) {
       paymentDate: t.paymentDate ? (t.paymentDate instanceof Date ? t.paymentDate.toISOString() : (typeof t.paymentDate === 'string' ? t.paymentDate : new Date(t.paymentDate).toISOString())) : null,
     }))
 
-    // Combine and sort by date
-    const allTransactions = [
-      ...normalizedTransactions,
-      ...generalCostsAsTransactions,
-      ...vehicleStageCostsAsTransactions,
-      ...costItemsAsTransactions,
-      ...invoicesAsTransactions,
-    ].sort((a, b) => {
+    // Combine by direction so INCOMING tab only shows payments received + invoices, OUTGOING only shows costs
+    const allTransactions = (
+      direction === "INCOMING"
+        ? [...normalizedTransactions, ...invoicesAsTransactions]
+        : direction === "OUTGOING"
+          ? [
+              ...normalizedTransactions,
+              ...generalCostsAsTransactions,
+              ...vehicleStageCostsAsTransactions,
+              ...costItemsAsTransactions,
+            ]
+          : [
+              ...normalizedTransactions,
+              ...generalCostsAsTransactions,
+              ...vehicleStageCostsAsTransactions,
+              ...costItemsAsTransactions,
+              ...invoicesAsTransactions,
+            ]
+    ).sort((a, b) => {
       const dateA = new Date(a.date).getTime()
       const dateB = new Date(b.date).getTime()
       if (isNaN(dateA) || isNaN(dateB)) return 0

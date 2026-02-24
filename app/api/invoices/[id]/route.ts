@@ -6,6 +6,7 @@ import { requireAuth, canEditInvoice, canViewAllInquiries, canDeleteInvoice } fr
 import { InvoiceStatus } from "@prisma/client"
 import { convertDecimalsToNumbers } from "@/lib/decimal"
 import { recalcInvoicePaymentStatus } from "@/lib/invoice-utils"
+import { invalidateCache } from "@/lib/cache"
 
 export async function GET(
   request: NextRequest,
@@ -206,6 +207,10 @@ export async function PATCH(
       },
     })
 
+    if (updatedInvoice.shareToken) {
+      await invalidateCache(`invoice:token:${updatedInvoice.shareToken}`)
+    }
+
     // Update charges if provided
     if (charges && Array.isArray(charges)) {
       // Delete existing charges
@@ -258,6 +263,9 @@ export async function PATCH(
         },
       })
 
+      if (invoiceWithCharges?.shareToken) {
+        await invalidateCache(`invoice:token:${invoiceWithCharges.shareToken}`)
+      }
       return NextResponse.json(convertDecimalsToNumbers(invoiceWithCharges))
     }
 
