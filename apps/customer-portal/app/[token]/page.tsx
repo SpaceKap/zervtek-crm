@@ -80,6 +80,7 @@ export default async function PortalPage({
         model: true,
         year: true,
         vin: true,
+        purchaseDate: true,
         currentShippingStage: true,
         shippingStage: {
           select: {
