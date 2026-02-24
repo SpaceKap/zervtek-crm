@@ -39,9 +39,41 @@ const registerSchema = z.object({
   { message: "Name and phone (country code + number) are required", path: ["email"] }
 );
 
+function getRegisterErrorResponse(e: unknown): NextResponse {
+  const err = e instanceof Error ? e : new Error(String(e));
+  console.error("Register error:", err);
+  const isDev = process.env.NODE_ENV === "development";
+  // Prisma errors: connection, unique constraint, etc.
+  const prismaCode = (e as { code?: string })?.code;
+  if (prismaCode) {
+    if (prismaCode === "P1001" || prismaCode === "P1002" || prismaCode === "P1017") {
+      return NextResponse.json(
+        { error: "Database unavailable. Please try again in a moment." },
+        { status: 503 }
+      );
+    }
+    if (prismaCode === "P2002") {
+      return NextResponse.json(
+        { error: "An account with this email already exists." },
+        { status: 409 }
+      );
+    }
+  }
+  const message = isDev ? err.message : "Registration failed. Please try again or contact support.";
+  return NextResponse.json({ error: message }, { status: 500 });
+}
+
 export async function POST(request: NextRequest) {
+  let body: unknown;
   try {
-    const body = await request.json();
+    body = await request.json();
+  } catch {
+    return NextResponse.json(
+      { error: "Invalid request body" },
+      { status: 400 }
+    );
+  }
+  try {
     const parsed = registerSchema.safeParse(body);
     if (!parsed.success) {
       const msg = parsed.error.issues.map((e) => e.message).join("; ");
@@ -157,22 +189,18 @@ export async function POST(request: NextRequest) {
       process.env.PORTAL_URL ||
       (request.headers.get("origin") ?? `http://localhost:${process.env.PORT ?? 3001}`);
     const verifyUrl = `${baseUrl.replace(/\/$/, "")}/api/verify-email?token=${emailVerificationToken}`;
-    await sendVerificationEmail(d.email, name, verifyUrl);
+    const emailSent = await sendVerificationEmail(d.email, name, verifyUrl);
+    if (!emailSent) {
+      console.warn("Register: verification email not sent (SMTP not configured or failed)", { email: d.email });
+    }
 
     return NextResponse.json({
-      message:
-        "Account created. Please check your email to verify your address before signing in.",
+      message: emailSent
+        ? "Account created. Please check your email to verify your address before signing in."
+        : "Account created. We could not send the verification email; please contact support to verify your email.",
       customer: { id: customer.id, name: customer.name, email: customer.email },
     });
   } catch (e) {
-    console.error("Register error:", e);
-    const message =
-      process.env.NODE_ENV === "development" && e instanceof Error
-        ? e.message
-        : "Registration failed";
-    return NextResponse.json(
-      { error: message },
-      { status: 500 }
-    );
+    return getRegisterErrorResponse(e);
   }
 }
