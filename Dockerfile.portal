@@ -1,0 +1,45 @@
+# Multi-stage build for Customer Portal (Next.js, monorepo app)
+# Build from repo root so workspace deps (@inquiry-pooler/db) resolve
+
+# Stage 1: Dependencies
+FROM node:20-alpine AS deps
+RUN apk add --no-cache libc6-compat
+WORKDIR /app
+COPY package.json package-lock.json* ./
+COPY packages/db/package.json packages/db/
+COPY apps/customer-portal/package.json apps/customer-portal/
+RUN npm ci
+
+# Stage 2: Builder
+FROM node:20-alpine AS builder
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+ENV NEXT_TELEMETRY_DISABLED 1
+ENV DATABASE_URL="postgresql://placeholder:placeholder@localhost:5432/placeholder"
+RUN npx prisma generate
+RUN npm run build:portal
+
+# Stage 3: Runner
+FROM node:20-alpine AS runner
+WORKDIR /app
+ENV NODE_ENV production
+ENV NEXT_TELEMETRY_DISABLED 1
+RUN addgroup --system --gid 1001 nodejs && adduser --system --uid 1001 nextjs
+
+COPY --from=builder /app/package.json ./
+COPY --from=builder /app/package-lock.json* ./
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/packages ./packages
+COPY --from=builder /app/apps/customer-portal ./apps/customer-portal
+COPY --from=builder /app/apps/customer-portal/.next ./apps/customer-portal/.next
+COPY --from=builder /app/apps/customer-portal/public ./apps/customer-portal/public
+
+RUN chown -R nextjs:nodejs /app
+USER nextjs
+
+EXPOSE 3001
+ENV PORT 3001
+ENV HOSTNAME "0.0.0.0"
+
+CMD ["npm", "run", "start", "-w", "customer-portal"]

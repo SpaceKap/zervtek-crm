@@ -22,6 +22,21 @@ services:
     networks:
       - app_network
 
+  redis:
+    image: redis:7-alpine
+    container_name: inquiry-pooler-redis
+    restart: unless-stopped
+    command: redis-server --appendonly no
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - app_network
+
   inquiry-pooler:
     build:
       context: .
@@ -32,6 +47,7 @@ services:
       - "3000:3000"
     environment:
       - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379}
       - SUPABASE_BACKUP_URL=${SUPABASE_BACKUP_URL}
       - NEXTAUTH_URL=${NEXTAUTH_URL}
       - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
@@ -49,9 +65,35 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  customer-portal:
+    build:
+      context: .
+      dockerfile: Dockerfile.portal
+    container_name: customer-portal
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - NEXTAUTH_URL=${PORTAL_NEXTAUTH_URL:-https://clients.zervtek.com}
+      - NEXTAUTH_SECRET=${PORTAL_NEXTAUTH_SECRET:-${NEXTAUTH_SECRET}}
+      - NEXT_PUBLIC_MAIN_APP_URL=${NEXTAUTH_URL:-https://crm.zervtek.com}
+      - SMTP_HOST=${SMTP_HOST:-}
+      - SMTP_PORT=${SMTP_PORT:-}
+      - SMTP_USER=${SMTP_USER:-}
+      - SMTP_PASS=${SMTP_PASS:-}
+      - EMAIL_FROM=${EMAIL_FROM:-}
+    networks:
+      - app_network
+      - caddy_proxy
 
 volumes:
   postgres_data:
+    driver: local
+  redis_data:
     driver: local
 
 networks:
