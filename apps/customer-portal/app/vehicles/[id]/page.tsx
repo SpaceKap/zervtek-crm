@@ -18,7 +18,7 @@ import {
   Calendar,
   Hash,
   CircleDot,
-  Image,
+  Image as ImageIcon,
 } from "lucide-react";
 import { InvoiceStatus } from "@prisma/client";
 import { prisma } from "@/lib/db";
@@ -713,7 +713,7 @@ export default async function VehiclePage({
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
                   <CardTitle className="text-lg flex items-center gap-2">
-                    <Image className="size-5" />
+                    <ImageIcon className="size-5" aria-hidden />
                     Photos and Videos ({mediaDocs.length})
                   </CardTitle>
                   <a
