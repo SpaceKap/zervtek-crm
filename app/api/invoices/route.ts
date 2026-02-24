@@ -312,6 +312,10 @@ export async function POST(request: NextRequest) {
         chargeTypeIds.push(await getOrCreateChargeTypeId(tx, name));
       }
 
+      const resolvedIssueDate = issueDate
+        ? (typeof issueDate === "string" ? new Date(issueDate) : issueDate)
+        : new Date();
+
       // Create the invoice (vehicleId optional for container/shipping invoices)
       const newInvoice = await tx.invoice.create({
         data: {
@@ -320,8 +324,8 @@ export async function POST(request: NextRequest) {
           vehicleId: vehicleId || null,
           createdById: user.id,
           status: invoiceStatus,
-          issueDate: issueDate ? (typeof issueDate === 'string' ? new Date(issueDate) : issueDate) : new Date(),
-          dueDate: dueDate ? (typeof dueDate === 'string' ? new Date(dueDate) : dueDate) : null,
+          issueDate: resolvedIssueDate,
+          dueDate: dueDate ? (typeof dueDate === "string" ? new Date(dueDate) : dueDate) : null,
           taxEnabled: taxEnabled || false,
           taxRate: taxRate ? parseFloat(taxRate.toString()) : 10,
           notes: notes || null,
@@ -344,11 +348,14 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      // Update vehicle's customerId if invoice has a vehicle
+      // Update vehicle: customerId and set purchaseDate to invoice Issue Date
       if (vehicleId) {
         await tx.vehicle.update({
           where: { id: vehicleId },
-          data: { customerId: customerId },
+          data: {
+            customerId: customerId,
+            purchaseDate: resolvedIssueDate,
+          },
         });
       }
 
