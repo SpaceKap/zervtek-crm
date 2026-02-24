@@ -618,6 +618,40 @@ export function VehicleDocumentsManager({
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-6 px-6 pb-4">
+            {/* Category – first so user picks type (e.g. Photos) before uploading */}
+            <div className="space-y-2">
+              <Label htmlFor="category" className="text-sm font-semibold flex items-center gap-2">
+                <span className="material-symbols-outlined text-base">category</span>
+                Category
+                <span className="text-destructive">*</span>
+              </Label>
+              <Select
+                value={formData.category || undefined}
+                onValueChange={(value) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    category: value as DocumentCategory,
+                  }))
+                }
+              >
+                <SelectTrigger id="category" className="h-11">
+                  <SelectValue placeholder="Select category" />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(documentCategories)
+                    .filter(
+                      ([value]) =>
+                        !hiddenCategories.includes(value as DocumentCategory),
+                    )
+                    .map(([value, label]) => (
+                      <SelectItem key={value} value={value}>
+                        {label}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            </div>
+
             {/* File Upload */}
             <div className="space-y-3">
               <Label htmlFor="file" className="text-sm font-semibold flex items-center gap-2">
@@ -853,40 +887,6 @@ export function VehicleDocumentsManager({
               </div>
             )}
 
-            {/* Category */}
-            <div className="space-y-2">
-              <Label htmlFor="category" className="text-sm font-semibold flex items-center gap-2">
-                <span className="material-symbols-outlined text-base">category</span>
-                Category
-                <span className="text-destructive">*</span>
-              </Label>
-              <Select
-                value={formData.category || undefined}
-                onValueChange={(value) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    category: value as DocumentCategory,
-                  }))
-                }
-              >
-                <SelectTrigger id="category" className="h-11">
-                  <SelectValue placeholder="Select category" />
-                </SelectTrigger>
-                <SelectContent>
-                  {Object.entries(documentCategories)
-                    .filter(
-                      ([value]) =>
-                        !hiddenCategories.includes(value as DocumentCategory),
-                    )
-                    .map(([value, label]) => (
-                      <SelectItem key={value} value={value}>
-                        {label}
-                      </SelectItem>
-                    ))}
-                </SelectContent>
-              </Select>
-            </div>
-
             {/* Stage Tag */}
             <div className="space-y-2">
               <Label htmlFor="stageTag" className="text-sm font-semibold flex items-center gap-2">
@@ -1009,9 +1009,10 @@ export function VehicleDocumentsManager({
                 disabled={
                   saving ||
                   uploading ||
-                  !formData.name ||
                   !formData.category ||
-                  !formData.fileUrl
+                  (isMultiMediaMode && !editingDocument
+                    ? multiFiles.length === 0
+                    : !formData.name || !formData.fileUrl)
                 }
                 className="h-11 min-w-[140px]"
               >
