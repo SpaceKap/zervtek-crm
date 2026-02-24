@@ -18,6 +18,7 @@ import {
   Calendar,
   Hash,
   CircleDot,
+  Image,
 } from "lucide-react";
 import { InvoiceStatus } from "@prisma/client";
 import { prisma } from "@/lib/db";
@@ -25,6 +26,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { MediaGridWithPreview } from "@/components/MediaGridWithPreview";
 
 const STAGE_LABELS: Record<string, string> = {
   PURCHASE: "Purchase",
@@ -146,7 +148,6 @@ export default async function VehiclePage({
           containerNumber: true,
           containerSize: true,
           dhlTracking: true,
-          yard: { select: { name: true } },
         },
       },
       documents: {
@@ -155,6 +156,7 @@ export default async function VehiclePage({
           id: true,
           name: true,
           category: true,
+          fileType: true,
           fileUrl: true,
           createdAt: true,
         },
@@ -270,6 +272,8 @@ export default async function VehiclePage({
 
   const stage = vehicle.shippingStage as any;
   const hasAnyAccessory = stage && ACCESSORY_LABELS.some(({ key }) => stage[key] === true);
+  const mediaDocs = vehicle.documents.filter((d) => d.category === "PHOTOS");
+  const otherDocs = vehicle.documents.filter((d) => d.category !== "PHOTOS");
   const hasBookingDetails =
     stage &&
     !!(
@@ -703,45 +707,88 @@ export default async function VehiclePage({
                 </CardContent>
               </Card>
             )}
+
+            {/* Photos and Videos – left column underneath Booking/ship or Invoice */}
+            {mediaDocs.length > 0 && (
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <Image className="size-5" />
+                    Photos and Videos ({mediaDocs.length})
+                  </CardTitle>
+                  <a
+                    href={`/api/vehicles/${vehicle.id}/media-archive`}
+                    download
+                    className={cn(buttonVariants({ variant: "ghost", size: "icon" }), "shrink-0")}
+                    title="Download all as ZIP"
+                    aria-label="Download all photos and videos as ZIP"
+                  >
+                    <Download className="size-5" />
+                  </a>
+                </CardHeader>
+                <CardContent>
+                  <MediaGridWithPreview mediaDocs={mediaDocs} mainAppUrl={mainAppUrl} />
+                </CardContent>
+              </Card>
+            )}
           </div>
 
           {/* Right 1/4: Documents, Notes, Accessories received stacked */}
           <div className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <FileText className="size-5" />
-                  Documents ({vehicle.documents.length})
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {vehicle.documents.length === 0 ? (
+            {(mediaDocs.length > 0 || otherDocs.length > 0) && (
+              <>
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <FileText className="size-5" />
+                      Documents ({otherDocs.length})
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {otherDocs.length === 0 ? (
+                      <p className="text-muted-foreground text-sm">
+                        No other documents shared for this vehicle.
+                      </p>
+                    ) : (
+                      <div className="space-y-2">
+                        {otherDocs.map((doc) => (
+                          <a
+                            key={doc.id}
+                            href={doc.fileUrl.startsWith("http") ? doc.fileUrl : `${mainAppUrl}${doc.fileUrl.startsWith("/") ? "" : "/"}${doc.fileUrl}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-3 rounded-lg border p-3 transition-colors hover:border-primary hover:bg-muted/50"
+                          >
+                            <FileText className="size-5 text-primary shrink-0" />
+                            <div className="min-w-0 flex-1">
+                              <div className="font-medium text-sm">
+                                {doc.category.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase())}
+                              </div>
+                            </div>
+                            <ExternalLink className="size-4 shrink-0 text-muted-foreground" />
+                          </a>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </>
+            )}
+            {vehicle.documents.length === 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <FileText className="size-5" />
+                    Documents (0)
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
                   <p className="text-muted-foreground text-sm">
                     No documents shared for this vehicle yet.
                   </p>
-                ) : (
-                  <div className="space-y-2">
-                    {vehicle.documents.map((doc) => (
-                      <a
-                        key={doc.id}
-                        href={doc.fileUrl.startsWith("http") ? doc.fileUrl : `${mainAppUrl}${doc.fileUrl.startsWith("/") ? "" : "/"}${doc.fileUrl}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-3 rounded-lg border p-3 transition-colors hover:border-primary hover:bg-muted/50"
-                      >
-                        <FileText className="size-5 text-primary shrink-0" />
-                        <div className="min-w-0 flex-1">
-                          <div className="font-medium text-sm">
-                            {doc.category.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase())}
-                          </div>
-                        </div>
-                        <ExternalLink className="size-4 shrink-0 text-muted-foreground" />
-                      </a>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            )}
             <Card>
               <CardHeader>
                 <CardTitle className="text-lg">Notes</CardTitle>
@@ -802,19 +849,6 @@ export default async function VehiclePage({
                   Track on DHL
                   <ExternalLink className="size-3" />
                 </a>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Storage yard */}
-        {stage?.yard && (
-          <Card>
-            <CardContent className="flex items-center gap-3 pt-6">
-              <MapPin className="size-5 text-muted-foreground" />
-              <div>
-                <div className="font-medium">{stage.yard.name}</div>
-                <div className="text-xs text-muted-foreground">Storage yard</div>
               </div>
             </CardContent>
           </Card>

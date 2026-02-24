@@ -191,10 +191,11 @@ export default async function PortalPage({
     (sum, t) => sum + Number(t.amount),
     0
   );
+  const documentCount = allDocuments.filter((d) => d.category !== "PHOTOS").length;
   const stats = {
     vehicles: vehicles.length,
     inTransit,
-    documents: allDocuments.length,
+    documents: documentCount,
     invoices: invoices.length,
     unpaidInvoices,
     overdueInvoices,

@@ -450,39 +450,6 @@ export default function VehicleDetailPage() {
                   {stageLabels[vehicle.currentShippingStage]}
                 </Badge>
               )}
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() => setActiveTab("documents")}
-                className="gap-2 bg-slate-700/50 hover:bg-slate-700 text-slate-200 border-0"
-              >
-                <span className="material-symbols-outlined text-lg">
-                  upload_file
-                </span>
-                Upload Document
-              </Button>
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() => setActiveTab("expenses")}
-                className="gap-2 bg-slate-700/50 hover:bg-slate-700 text-slate-200 border-0"
-              >
-                <span className="material-symbols-outlined text-lg">
-                  receipt_long
-                </span>
-                Add Expense
-              </Button>
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() => setActiveTab("payments")}
-                className="gap-2 bg-slate-700/50 hover:bg-slate-700 text-slate-200 border-0"
-              >
-                <span className="material-symbols-outlined text-lg">
-                  payments
-                </span>
-                Add Payment
-              </Button>
               {session?.user?.role === "ADMIN" && (
                 <Button
                   variant="outline"
@@ -552,171 +519,185 @@ export default function VehicleDetailPage() {
         </div>
       </div>
 
-      {/* Stage Pipeline */}
-      <Card>
-        <CardHeader className="pb-4">
-          <div className="space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <div>
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <span className="material-symbols-outlined text-xl text-muted-foreground">
-                    settings
-                  </span>
-                  Stage Management
-                </CardTitle>
-                <CardDescription className="mt-0.5">
-                  Configure stage-specific settings and requirements
-                </CardDescription>
-              </div>
-              <div className="flex items-center gap-3">
-                <Label className="text-sm text-muted-foreground whitespace-nowrap">
-                  Current Stage:
-                </Label>
-                <Select
-                  value={vehicle.currentShippingStage || "PURCHASE"}
-                  onValueChange={(value) =>
-                    handleStageChange(value as ShippingStage)
-                  }
-                  disabled={savingStage}
-                >
-                  <SelectTrigger className="w-[180px]">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Object.entries(stageLabels).map(([value, label]) => (
-                      <SelectItem key={value} value={value}>
-                        {label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
+      {/* Two-column: Stage Management 1/2 + Vehicle details 1/2 */}
+      <div className="flex flex-col xl:flex-row gap-6">
+        {/* Stage Management - 1/2 */}
+        <div className="xl:w-1/2 min-w-0">
+          <Card>
+            <CardHeader className="pb-4">
+              <div className="space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                  <div>
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <span className="material-symbols-outlined text-xl text-muted-foreground">
+                        settings
+                      </span>
+                      Stage Management
+                    </CardTitle>
+                    <CardDescription className="mt-0.5">
+                      Configure stage-specific settings and requirements
+                    </CardDescription>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Label className="text-sm text-muted-foreground whitespace-nowrap">
+                      Current Stage:
+                    </Label>
+                    <Select
+                      value={vehicle.currentShippingStage || "PURCHASE"}
+                      onValueChange={(value) =>
+                        handleStageChange(value as ShippingStage)
+                      }
+                      disabled={savingStage}
+                    >
+                      <SelectTrigger className="w-[180px]">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Object.entries(stageLabels).map(([value, label]) => (
+                          <SelectItem key={value} value={value}>
+                            {label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
 
-            {viewingStage && (
-              <div className="pt-4 border-t">
-                <StageNavigation
-                  currentStage={vehicle.currentShippingStage}
-                  viewingStage={viewingStage}
-                  onViewingStageChange={setViewingStage}
-                  disabled={savingStage}
+                {viewingStage && (
+                  <div className="pt-4 border-t">
+                    <StageNavigation
+                      currentStage={vehicle.currentShippingStage}
+                      viewingStage={viewingStage}
+                      onViewingStageChange={setViewingStage}
+                      disabled={savingStage}
+                    />
+                  </div>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent>
+              {viewingStage ? (
+                <VehicleStageForms
+                  vehicleId={vehicleId}
+                  currentStage={viewingStage}
+                  stageData={vehicle.shippingStage}
+                  vendors={vendors}
+                  yards={yards}
+                  isRegistered={vehicle.isRegistered}
+                  vehicle={{
+                    vin: vehicle.vin,
+                    stockNo: vehicle.stockNo,
+                    make: vehicle.make,
+                    model: vehicle.model,
+                    year: vehicle.year,
+                    chassisNo: vehicle.chassisNo,
+                    auctionHouse: vehicle.auctionHouse,
+                    lotNo: vehicle.lotNo,
+                    purchaseDate: vehicle.purchaseDate,
+                  }}
+                  onUpdate={() => fetchVehicle(true)}
+                  onVehiclePatch={(patch) =>
+                    setVehicle((prev) => (prev ? { ...prev, ...patch } : null))
+                  }
+                  onDocumentUploaded={() =>
+                    setDocumentsRefreshTrigger((t) => t + 1)
+                  }
+                  onRefetchVendors={fetchVendors}
+                  onRefetchYards={fetchYards}
                 />
-              </div>
-            )}
-          </div>
-        </CardHeader>
-        <CardContent>
-          {viewingStage ? (
-            <VehicleStageForms
-              vehicleId={vehicleId}
-              currentStage={viewingStage}
-              stageData={vehicle.shippingStage}
-              vendors={vendors}
-              yards={yards}
-              isRegistered={vehicle.isRegistered}
-              vehicle={{
-                vin: vehicle.vin,
-                stockNo: vehicle.stockNo,
-                make: vehicle.make,
-                model: vehicle.model,
-                year: vehicle.year,
-                chassisNo: vehicle.chassisNo,
-                auctionHouse: vehicle.auctionHouse,
-                lotNo: vehicle.lotNo,
-                purchaseDate: vehicle.purchaseDate,
-              }}
-              onUpdate={() => fetchVehicle(true)}
-              onVehiclePatch={(patch) =>
-                setVehicle((prev) => (prev ? { ...prev, ...patch } : null))
-              }
-              onDocumentUploaded={() =>
-                setDocumentsRefreshTrigger((t) => t + 1)
-              }
-              onRefetchVendors={fetchVendors}
-              onRefetchYards={fetchYards}
-            />
-          ) : (
-            <div className="text-center py-12">
-              <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
-                <span className="material-symbols-outlined text-3xl text-muted-foreground">
-                  info
-                </span>
-              </div>
-              <p className="text-muted-foreground mb-4">
-                Please select a shipping stage first
-              </p>
-              <Select
-                value={viewingStage || "PURCHASE"}
-                onValueChange={(value) => {
-                  setViewingStage(value as ShippingStage);
-                }}
-                disabled={savingStage}
-              >
-                <SelectTrigger className="w-48 mx-auto">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {Object.entries(stageLabels).map(([value, label]) => (
-                    <SelectItem key={value} value={value}>
-                      {label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+              ) : (
+                <div className="text-center py-12">
+                  <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
+                    <span className="material-symbols-outlined text-3xl text-muted-foreground">
+                      info
+                    </span>
+                  </div>
+                  <p className="text-muted-foreground mb-4">
+                    Please select a shipping stage first
+                  </p>
+                  <Select
+                    value={viewingStage || "PURCHASE"}
+                    onValueChange={(value) => {
+                      setViewingStage(value as ShippingStage);
+                    }}
+                    disabled={savingStage}
+                  >
+                    <SelectTrigger className="w-48 mx-auto">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.entries(stageLabels).map(([value, label]) => (
+                        <SelectItem key={value} value={value}>
+                          {label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
 
-      {/* Details Section - Below Stage Pipeline */}
-      <div className="space-y-0">
-        <Tabs
-          defaultValue="overview"
-          value={activeTab}
-          onValueChange={setActiveTab}
-        >
-          {/* Underline-style tab navigation */}
-          <nav
-            className="flex gap-8 border-b border-border overflow-x-auto pb-px"
-            aria-label="Vehicle details"
-          >
-            {[
-              { id: "expenses", label: "Expenses", icon: "receipt_long" },
-              { id: "payments", label: "Payments", icon: "payments" },
-              { id: "documents", label: "Documents", icon: "folder" },
-              { id: "notes", label: "Notes", icon: "note" },
-              { id: "history", label: "History", icon: "history" },
-            ].map((tab) => (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => setActiveTab(tab.id)}
-                className={`
-                  flex items-center gap-2 py-4 px-1 text-sm font-medium whitespace-nowrap
-                  border-b-2 -mb-px transition-colors
-                  ${
-                    activeTab === tab.id
-                      ? "border-primary text-foreground"
-                      : "border-transparent text-muted-foreground hover:text-foreground"
-                  }
-                `}
-              >
-                <span className="material-symbols-outlined text-lg">
-                  {tab.icon}
+        {/* Vehicle details - 1/2 (Expenses, Payments, Documents, Notes, History) */}
+        <div className="xl:w-1/2 min-w-0 flex flex-col">
+          <Card className="flex flex-col flex-1 min-h-0 overflow-hidden">
+            <CardHeader className="pb-3 border-b border-border/50">
+              <CardTitle className="text-base flex items-center gap-2">
+                <span className="material-symbols-outlined text-lg text-muted-foreground">
+                  list_alt
                 </span>
-                {tab.label}
-              </button>
-            ))}
-          </nav>
+                Vehicle details
+              </CardTitle>
+              <CardDescription className="sr-only">
+                Expenses, payments, documents, notes, and history for this vehicle
+              </CardDescription>
+            </CardHeader>
+            <Tabs
+              defaultValue="overview"
+              value={activeTab}
+              onValueChange={setActiveTab}
+              className="flex flex-col flex-1 min-h-0 overflow-hidden"
+            >
+              <nav
+                className="flex gap-1 border-b border-border bg-muted/30 px-4 -mx-0 overflow-x-auto shrink-0"
+                aria-label="Vehicle details"
+              >
+                {[
+                  { id: "expenses", label: "Expenses", icon: "receipt_long" },
+                  { id: "payments", label: "Payments", icon: "payments" },
+                  { id: "documents", label: "Documents", icon: "folder" },
+                  { id: "notes", label: "Notes", icon: "note" },
+                  { id: "history", label: "History", icon: "history" },
+                ].map((tab) => (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`
+                      flex items-center gap-2 py-3 px-3 text-sm font-medium whitespace-nowrap rounded-t-md transition-colors -mb-px
+                      ${
+                        activeTab === tab.id
+                          ? "bg-card text-foreground border border-b-0 border-border shadow-sm"
+                          : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                      }
+                    `}
+                  >
+                    <span className="material-symbols-outlined text-[1.25rem]">
+                      {tab.icon}
+                    </span>
+                    {tab.label}
+                  </button>
+                ))}
+              </nav>
 
-          {/* Tab content */}
-          <div className="pt-6">
-            <TabsContent value="overview" className="mt-0">
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className="flex-1 overflow-y-auto p-4 min-h-0">
+            <TabsContent value="overview" className="mt-0 data-[state=inactive]:hidden">
+              <div className="space-y-4">
                 {/* Customer card */}
-                <div className="lg:col-span-2">
-                  <div className="rounded-xl border bg-card p-6">
-                    <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-4">
+                <div>
+                  <div className="rounded-lg border bg-muted/20 p-4">
+                    <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
                       Customer & Location
                     </h3>
                     {vehicle.customer ? (
@@ -795,8 +776,8 @@ export default function VehicleDetailPage() {
 
                 {/* Invoices card - view only */}
                 <div>
-                  <div className="rounded-xl border bg-card p-6 h-full">
-                    <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-4">
+                  <div className="rounded-lg border bg-muted/20 p-4">
+                    <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
                       Invoices
                     </h3>
                     {vehicle.invoices && vehicle.invoices.length > 0 ? (
@@ -891,8 +872,8 @@ export default function VehicleDetailPage() {
                         })()}
                       </div>
                     ) : (
-                      <div className="flex flex-col items-center justify-center py-8 text-center">
-                        <span className="material-symbols-outlined text-3xl text-muted-foreground/50 mb-2">
+                      <div className="flex flex-col items-center justify-center py-6 text-center">
+                        <span className="material-symbols-outlined text-2xl text-muted-foreground/50 mb-1.5">
                           receipt_long
                         </span>
                         <p className="text-sm text-muted-foreground">
@@ -905,8 +886,8 @@ export default function VehicleDetailPage() {
               </div>
             </TabsContent>
 
-            <TabsContent value="expenses" className="mt-0">
-              <div className="rounded-xl border bg-card p-6">
+            <TabsContent value="expenses" className="mt-0 data-[state=inactive]:hidden">
+              <div className="rounded-lg border bg-muted/20 p-4">
                 <VehicleExpensesManager
                   vehicleId={vehicleId}
                   onUpdate={() => fetchVehicle(true)}
@@ -914,14 +895,14 @@ export default function VehicleDetailPage() {
               </div>
             </TabsContent>
 
-            <TabsContent value="payments" className="mt-0">
-              <div className="rounded-xl border bg-card p-6">
+            <TabsContent value="payments" className="mt-0 data-[state=inactive]:hidden">
+              <div className="rounded-lg border bg-muted/20 p-4">
                 <VehiclePaymentTracker vehicleId={vehicleId} />
               </div>
             </TabsContent>
 
-            <TabsContent value="documents" className="mt-0">
-              <div className="rounded-xl border bg-card p-6">
+            <TabsContent value="documents" className="mt-0 data-[state=inactive]:hidden">
+              <div className="rounded-lg border bg-muted/20 p-4">
                 <VehicleDocumentsManager
                   vehicleId={vehicleId}
                   currentStage={vehicle.currentShippingStage}
@@ -930,37 +911,51 @@ export default function VehicleDetailPage() {
               </div>
             </TabsContent>
 
-            <TabsContent value="notes" className="mt-0">
-              <div className="rounded-xl border bg-card p-6">
-                <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
-                  Notes
-                </h3>
-                <p className="text-sm text-muted-foreground mb-4">
-                  These notes are visible to the customer on their vehicle portal page.
-                </p>
-                {notesEditing ? (
-                  <div className="space-y-3">
-                    <Textarea
-                      placeholder="Add notes for the customer..."
-                      value={notes}
-                      onChange={(e) => setNotes(e.target.value)}
-                      className="min-h-[120px] resize-y"
-                      disabled={notesSaving}
-                    />
+            <TabsContent value="notes" className="mt-0 data-[state=inactive]:hidden">
+              <div className="rounded-lg border bg-muted/20 p-4 space-y-4">
+                <div className="flex justify-between items-start gap-4">
+                  <div>
+                    <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      Notes
+                    </h3>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Visible to the customer on their vehicle portal.
+                    </p>
+                  </div>
+                  {notesEditing ? (
                     <Button
                       size="sm"
                       onClick={handleSaveNotes}
                       disabled={notesSaving}
-                      className="gap-2"
+                      className="gap-2 shrink-0"
                     >
                       <span className="material-symbols-outlined text-lg">
                         {notesSaving ? "hourglass_empty" : "save"}
                       </span>
                       {notesSaving ? "Saving..." : "Save notes"}
                     </Button>
-                  </div>
+                  ) : (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setNotesEditing(true)}
+                      className="gap-2 shrink-0"
+                    >
+                      <span className="material-symbols-outlined text-lg">edit</span>
+                      Edit notes
+                    </Button>
+                  )}
+                </div>
+                {notesEditing ? (
+                  <Textarea
+                    placeholder="Add notes for the customer..."
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    className="min-h-[120px] resize-y"
+                    disabled={notesSaving}
+                  />
                 ) : (
-                  <div className="space-y-3">
+                  <div className="space-y-2">
                     <div
                       className={`min-h-[120px] rounded-lg border p-4 text-sm whitespace-pre-wrap ${
                         notesSavedAt
@@ -980,27 +975,20 @@ export default function VehicleDetailPage() {
                         Saved
                       </p>
                     )}
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => setNotesEditing(true)}
-                      className="gap-2"
-                    >
-                      <span className="material-symbols-outlined text-lg">edit</span>
-                      Edit notes
-                    </Button>
                   </div>
                 )}
               </div>
             </TabsContent>
 
-            <TabsContent value="history" className="mt-0">
-              <div className="rounded-xl border bg-card p-6">
+            <TabsContent value="history" className="mt-0 data-[state=inactive]:hidden">
+              <div className="rounded-lg border bg-muted/20 p-4">
                 <VehicleStageHistory vehicleId={vehicleId} />
               </div>
             </TabsContent>
-          </div>
-        </Tabs>
+              </div>
+            </Tabs>
+          </Card>
+        </div>
       </div>
 
       {/* Assign Customer Dialog */}

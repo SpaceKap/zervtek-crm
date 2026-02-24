@@ -6,6 +6,13 @@ import { canManageVehicleStages } from "@/lib/permissions"
 import { ShippingStage, BookingType, BookingStatus } from "@prisma/client"
 import { convertDecimalsToNumbers } from "@/lib/decimal"
 
+function toDateOrNull(v: unknown): Date | null {
+  if (v == null || v === "") return null
+  if (typeof v === "string" || typeof v === "number") return new Date(v)
+  if (v instanceof Date) return v
+  return null
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -256,8 +263,8 @@ export async function PATCH(
     if (stage !== undefined) updateData.stage = stage
     if (purchaseVendorId !== undefined) updateData.purchaseVendorId = purchaseVendorId
     if (purchasePaid !== undefined) updateData.purchasePaid = purchasePaid
-    if (purchasePaymentDeadline !== undefined) updateData.purchasePaymentDeadline = purchasePaymentDeadline ? new Date(purchasePaymentDeadline) : null
-    if (purchasePaymentDate !== undefined) updateData.purchasePaymentDate = purchasePaymentDate ? new Date(purchasePaymentDate) : null
+    if (purchasePaymentDeadline !== undefined) updateData.purchasePaymentDeadline = toDateOrNull(purchasePaymentDeadline)
+    if (purchasePaymentDate !== undefined) updateData.purchasePaymentDate = toDateOrNull(purchasePaymentDate)
     if (yardId !== undefined) {
       // Handle vendor-based yards (IDs starting with "vendor-")
       if (yardId && typeof yardId === "string" && yardId.startsWith("vendor-")) {
@@ -329,8 +336,8 @@ export async function PATCH(
     if (pol !== undefined) updateData.pol = pol
     if (vesselName !== undefined) updateData.vesselName = vesselName
     if (voyageNo !== undefined) updateData.voyageNo = voyageNo
-    if (etd !== undefined) updateData.etd = etd ? new Date(etd) : null
-    if (eta !== undefined) updateData.eta = eta ? new Date(eta) : null
+    if (etd !== undefined) updateData.etd = toDateOrNull(etd)
+    if (eta !== undefined) updateData.eta = toDateOrNull(eta)
     if (notes !== undefined) updateData.notes = notes
     if (containerNumber !== undefined) updateData.containerNumber = containerNumber
     if (containerSize !== undefined) updateData.containerSize = containerSize

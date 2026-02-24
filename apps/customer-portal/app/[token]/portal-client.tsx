@@ -90,69 +90,71 @@ export function PortalClient({
   };
 
   return (
-    <div className="space-y-6">
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <Card className="border-muted/50">
-          <CardContent className="flex items-center gap-4 p-4">
-            <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
-              <Car className="size-5 text-primary" />
+    <div className="space-y-5">
+      {/* Overview stats – compact equal-height cards */}
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+        <Card className="overflow-hidden border-muted/50">
+          <CardContent className="flex items-center gap-3 p-3 sm:p-4">
+            <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 sm:size-10">
+              <Car className="size-4 text-primary sm:size-5" />
             </div>
-            <div className="min-w-0">
-              <p className="text-2xl font-semibold tabular-nums">{stats.vehicles}</p>
-              <p className="text-xs text-muted-foreground">Vehicles</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="border-muted/50">
-          <CardContent className="flex items-center gap-4 p-4">
-            <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-blue-500/10">
-              <Ship className="size-5 text-blue-600" />
-            </div>
-            <div className="min-w-0">
-              <p className="text-2xl font-semibold tabular-nums">{stats.inTransit}</p>
-              <p className="text-xs text-muted-foreground">In transit</p>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-xl font-semibold tabular-nums sm:text-2xl">{stats.vehicles}</p>
+              <p className="truncate text-xs text-muted-foreground">Vehicles</p>
             </div>
           </CardContent>
         </Card>
-        <Card className="border-muted/50">
-          <CardContent className="flex items-center gap-4 p-4">
-            <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-amber-500/10">
-              <FileText className="size-5 text-amber-600" />
+        <Card className="overflow-hidden border-muted/50">
+          <CardContent className="flex items-center gap-3 p-3 sm:p-4">
+            <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-blue-500/10 sm:size-10">
+              <Ship className="size-4 text-blue-600 sm:size-5" />
             </div>
-            <div className="min-w-0">
-              <p className="text-2xl font-semibold tabular-nums">{stats.documents}</p>
-              <p className="text-xs text-muted-foreground">Documents</p>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-xl font-semibold tabular-nums sm:text-2xl">{stats.inTransit}</p>
+              <p className="truncate text-xs text-muted-foreground">In transit</p>
             </div>
           </CardContent>
         </Card>
-        <Card className="border-muted/50">
-          <CardContent className="flex items-center gap-4 p-4">
-            <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10">
-              <Receipt className="size-5 text-emerald-600" />
+        <Card className="overflow-hidden border-muted/50">
+          <CardContent className="flex items-center gap-3 p-3 sm:p-4">
+            <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-amber-500/10 sm:size-10">
+              <FileText className="size-4 text-amber-600 sm:size-5" />
             </div>
-            <div className="min-w-0">
-              <p className="text-2xl font-semibold tabular-nums">{stats.invoices}</p>
-              <p className="text-xs text-muted-foreground">Invoices</p>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-xl font-semibold tabular-nums sm:text-2xl">{stats.documents}</p>
+              <p className="truncate text-xs text-muted-foreground">Documents</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="overflow-hidden border-muted/50">
+          <CardContent className="flex items-center gap-3 p-3 sm:p-4">
+            <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10 sm:size-10">
+              <Receipt className="size-4 text-emerald-600 sm:size-5" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-xl font-semibold tabular-nums sm:text-2xl">{stats.invoices}</p>
+              <p className="truncate text-xs text-muted-foreground">Invoices</p>
             </div>
           </CardContent>
         </Card>
       </div>
 
+      {/* Financial summary – single row that wraps */}
       {(stats.unpaidInvoices > 0 ||
         stats.overdueInvoices > 0 ||
         (stats.paymentsReceived > 0 && stats.totalReceivedFormatted)) && (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
           {stats.overdueInvoices > 0 && (
-            <Card className="border-destructive/30 bg-destructive/5">
-              <CardContent className="flex items-center gap-4 p-4">
-                <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-destructive/10">
-                  <AlertCircle className="size-5 text-destructive" />
+            <Card className="overflow-hidden border-destructive/30 bg-destructive/5">
+              <CardContent className="flex items-center gap-3 p-3 sm:p-4">
+                <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-destructive/10 sm:size-10">
+                  <AlertCircle className="size-4 text-destructive sm:size-5" />
                 </div>
-                <div className="min-w-0">
-                  <p className="text-2xl font-semibold tabular-nums text-destructive">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-xl font-semibold tabular-nums text-destructive sm:text-2xl">
                     {stats.overdueInvoices}
                   </p>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="truncate text-xs text-muted-foreground">
                     Overdue invoice{stats.overdueInvoices !== 1 ? "s" : ""}
                   </p>
                 </div>
@@ -160,14 +162,14 @@ export function PortalClient({
             </Card>
           )}
           {stats.unpaidInvoices > 0 && stats.overdueInvoices !== stats.unpaidInvoices && (
-            <Card className="border-amber-500/30 bg-amber-500/5">
-              <CardContent className="flex items-center gap-4 p-4">
-                <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-amber-500/10">
-                  <Receipt className="size-5 text-amber-600" />
+            <Card className="overflow-hidden border-amber-500/30 bg-amber-500/5">
+              <CardContent className="flex items-center gap-3 p-3 sm:p-4">
+                <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-amber-500/10 sm:size-10">
+                  <Receipt className="size-4 text-amber-600 sm:size-5" />
                 </div>
-                <div className="min-w-0">
-                  <p className="text-2xl font-semibold tabular-nums">{stats.unpaidInvoices}</p>
-                  <p className="text-xs text-muted-foreground">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-xl font-semibold tabular-nums sm:text-2xl">{stats.unpaidInvoices}</p>
+                  <p className="truncate text-xs text-muted-foreground">
                     Unpaid invoice{stats.unpaidInvoices !== 1 ? "s" : ""}
                   </p>
                 </div>
@@ -175,16 +177,16 @@ export function PortalClient({
             </Card>
           )}
           {stats.paymentsReceived > 0 && stats.totalReceivedFormatted && (
-            <Card className="border-muted/50">
-              <CardContent className="flex items-center gap-4 p-4">
-                <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10">
-                  <CreditCard className="size-5 text-emerald-600" />
+            <Card className="overflow-hidden border-muted/50">
+              <CardContent className="flex items-center gap-3 p-3 sm:p-4">
+                <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10 sm:size-10">
+                  <CreditCard className="size-4 text-emerald-600 sm:size-5" />
                 </div>
-                <div className="min-w-0">
-                  <p className="text-lg font-semibold tabular-nums leading-tight">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-lg font-semibold tabular-nums leading-tight sm:text-xl">
                     {stats.totalReceivedFormatted}
                   </p>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="truncate text-xs text-muted-foreground">
                     {stats.paymentsReceived} payment
                     {stats.paymentsReceived !== 1 ? "s" : ""} received
                   </p>
