@@ -384,13 +384,13 @@ export async function PATCH(
         data: { currentShippingStage: stage },
       })
 
-      // Create history entry
+      // Create history entry (stage is validated by use above as currentShippingStage)
       await prisma.vehicleStageHistory.create({
         data: {
           vehicleId: params.id,
           userId: session.user.id,
           previousStage: previousStage || null,
-          newStage: stage,
+          newStage: stage as ShippingStage,
           action: `Stage changed from ${previousStage || "N/A"} to ${stage}`,
           notes: body.notes || null,
         },
