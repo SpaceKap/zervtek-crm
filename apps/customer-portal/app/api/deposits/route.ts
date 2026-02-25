@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
     });
 
     if (!parsed.success) {
-      const msg = parsed.error.errors.map((e) => e.message).join("; ");
+      const msg = parsed.error.issues.map((e) => e.message).join("; ");
       return NextResponse.json({ error: msg || "Validation failed" }, { status: 400 });
     }
 
