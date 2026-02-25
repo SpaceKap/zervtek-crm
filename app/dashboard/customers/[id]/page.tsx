@@ -21,7 +21,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { staffDisplayName } from "@/lib/staff-display";
-import { getInvoiceTotalWithTax } from "@/lib/invoice-utils";
+import { getInvoiceTotalWithTax } from "@/lib/invoice-totals";
 import Link from "next/link";
 import { format } from "date-fns";
 import { ShippingStage, PaymentStatus, InvoiceStatus, TransactionDirection } from "@prisma/client";
