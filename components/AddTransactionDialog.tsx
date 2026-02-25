@@ -434,27 +434,31 @@ export function AddTransactionDialog({
         ? formData.vendorId
         : formData.customerId || null;
 
+      // When editing, preserve existing relation/display fields so they don't disappear after save
+      const existing = transaction ? (transaction as any) : null;
+      const payload = {
+        ...formData,
+        amount: formData.amount.replace(/,/g, ""), // Remove commas before sending
+        vendorId: finalVendorId,
+        customerId: finalCustomerId,
+        vehicleId: formData.vehicleId || (existing?.vehicleId ?? null),
+        invoiceId: formData.invoiceId || (existing?.invoiceId ?? null),
+        invoiceUrl: uploadedFileUrl ?? existing?.invoiceUrl ?? null,
+        referenceNumber: existing?.referenceNumber ?? null,
+        description: formData.description || null,
+        notes: existing?.notes ?? null,
+        date: formData.date || null,
+        paymentDeadline: formData.paymentDeadline,
+        exchangeRate:
+          formData.currency !== "JPY" && formData.exchangeRate
+            ? parseFloat(formData.exchangeRate)
+            : null,
+      };
+
       const response = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...formData,
-          amount: formData.amount.replace(/,/g, ""), // Remove commas before sending
-          vendorId: finalVendorId,
-          customerId: finalCustomerId,
-          vehicleId: formData.vehicleId || null,
-          invoiceId: formData.invoiceId || null,
-          invoiceUrl: uploadedFileUrl || null,
-          referenceNumber: null,
-          description: formData.description || null,
-          notes: null,
-          date: formData.date || null,
-          paymentDeadline: formData.paymentDeadline,
-          exchangeRate:
-            formData.currency !== "JPY" && formData.exchangeRate
-              ? parseFloat(formData.exchangeRate)
-              : null,
-        }),
+        body: JSON.stringify(payload),
       });
 
       if (response.ok) {

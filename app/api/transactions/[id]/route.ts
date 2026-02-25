@@ -11,6 +11,29 @@ import {
   hasPartialPayment,
 } from "@/lib/invoice-utils"
 
+/** Compute totalCharges, totalReceived, purchasePaid for a vehicle (for VehicleShippingStage sync). */
+async function getVehiclePaymentSummary(tx: typeof prisma, vehicleId: string) {
+  const vehicleTransactions = await tx.transaction.findMany({
+    where: { vehicleId, direction: "INCOMING" },
+  })
+  const totalReceived = vehicleTransactions.reduce(
+    (sum, t) => sum + parseFloat(t.amount.toString()),
+    0,
+  )
+  const vehicleInvoices = await tx.invoice.findMany({
+    where: { vehicleId },
+    include: {
+      charges: { include: { chargeType: { select: { name: true } } } },
+    },
+  })
+  const totalCharges = vehicleInvoices.reduce(
+    (sum, inv) => sum + getInvoiceTotalWithTax(inv),
+    0,
+  )
+  const purchasePaid = totalCharges > 0 && isAmountPaidInFull(totalReceived, totalCharges)
+  return { totalCharges, totalReceived, purchasePaid }
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -188,10 +211,21 @@ export async function PATCH(
           (sum, t) => sum + parseFloat(t.amount.toString()),
           0,
         )
+        const vehicleInvoices = await tx.invoice.findMany({
+          where: { vehicleId: oldVehicleId },
+          include: {
+            charges: { include: { chargeType: { select: { name: true } } } },
+          },
+        })
+        const totalCharges = vehicleInvoices.reduce(
+          (sum, inv) => sum + getInvoiceTotalWithTax(inv),
+          0,
+        )
+        const purchasePaid = totalCharges > 0 && isAmountPaidInFull(totalReceived, totalCharges)
         await tx.vehicleShippingStage.upsert({
           where: { vehicleId: oldVehicleId },
-          update: { totalReceived },
-          create: { vehicleId: oldVehicleId, stage: "PURCHASE", totalReceived },
+          update: { totalCharges, totalReceived, purchasePaid },
+          create: { vehicleId: oldVehicleId, stage: "PURCHASE", totalCharges, totalReceived, purchasePaid },
         })
       }
 
@@ -230,20 +264,11 @@ export async function PATCH(
 
       // Sync NEW vehicle payment tracking
       if (finalVehicleId && finalDirection === "INCOMING") {
-        const vehicleTransactions = await tx.transaction.findMany({
-          where: {
-            vehicleId: finalVehicleId,
-            direction: "INCOMING",
-          },
-        })
-        const totalReceived = vehicleTransactions.reduce(
-          (sum, t) => sum + parseFloat(t.amount.toString()),
-          0,
-        )
+        const { totalCharges, totalReceived, purchasePaid } = await getVehiclePaymentSummary(tx, finalVehicleId)
         await tx.vehicleShippingStage.upsert({
           where: { vehicleId: finalVehicleId },
-          update: { totalReceived },
-          create: { vehicleId: finalVehicleId, stage: "PURCHASE", totalReceived },
+          update: { totalCharges, totalReceived, purchasePaid },
+          create: { vehicleId: finalVehicleId, stage: "PURCHASE", totalCharges, totalReceived, purchasePaid },
         })
       }
 
@@ -352,29 +377,16 @@ export async function DELETE(
 
       // Sync vehicle payment tracking if transaction was linked to a vehicle
       if (transaction?.vehicleId && transaction.direction === "INCOMING") {
-        // Get all remaining transactions for this vehicle
-        const vehicleTransactions = await tx.transaction.findMany({
-          where: {
-            vehicleId: transaction.vehicleId,
-            direction: "INCOMING",
-          },
-        })
-
-        const totalReceived = vehicleTransactions.reduce(
-          (sum, t) => sum + parseFloat(t.amount.toString()),
-          0,
-        )
-
-        // Update vehicle shipping stage totalReceived
+        const { totalCharges, totalReceived, purchasePaid } = await getVehiclePaymentSummary(tx, transaction.vehicleId)
         await tx.vehicleShippingStage.upsert({
           where: { vehicleId: transaction.vehicleId },
-          update: {
-            totalReceived: totalReceived,
-          },
+          update: { totalCharges, totalReceived, purchasePaid },
           create: {
             vehicleId: transaction.vehicleId,
             stage: "PURCHASE",
-            totalReceived: totalReceived,
+            totalCharges,
+            totalReceived,
+            purchasePaid,
           },
         })
       }

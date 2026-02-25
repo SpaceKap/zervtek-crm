@@ -4,6 +4,9 @@ import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { InquirySource, InquiryStatus, UserRole } from "@prisma/client"
 import { canViewAllInquiries } from "@/lib/permissions"
+import { getCached, invalidateCachePattern, cacheKeyFromSearchParams } from "@/lib/cache"
+
+const INQUIRIES_LIST_TTL = 60
 
 export async function GET(request: NextRequest) {
   try {
@@ -13,17 +16,19 @@ export async function GET(request: NextRequest) {
     }
 
     const searchParams = request.nextUrl.searchParams
-    const status = searchParams.get("status") as InquiryStatus | null
-    const source = searchParams.get("source") as InquirySource | null
-    const assignedToMe = searchParams.get("assignedToMe") === "true"
-    const userId = searchParams.get("userId") // For manager filtering: "me", "all", or specific user ID
-    const unassignedOnly = searchParams.get("unassignedOnly") === "true" // Explicitly request unassigned inquiries
+    const cacheKey = `inquiries:list:${session.user.id}:${cacheKeyFromSearchParams(searchParams)}`
+    const filteredInquiries = await getCached(
+      cacheKey,
+      async () => {
+        const status = searchParams.get("status") as InquiryStatus | null
+        const source = searchParams.get("source") as InquirySource | null
+        const assignedToMe = searchParams.get("assignedToMe") === "true"
+        const userId = searchParams.get("userId")
+        const unassignedOnly = searchParams.get("unassignedOnly") === "true"
 
-    const isManager = session.user.role === UserRole.MANAGER || session.user.role === UserRole.ADMIN
-    const canViewAll = canViewAllInquiries(session.user.role)
+        const canViewAll = canViewAllInquiries(session.user.role)
 
-    // Build where clause
-    const where: any = {}
+        const where: Record<string, unknown> = {}
 
     // Exclude failed leads filter (defined early so we can use it)
     // IMPORTANT: Prisma JSON path queries can fail with null/undefined metadata
@@ -107,10 +112,9 @@ export async function GET(request: NextRequest) {
     // Currently disabled - relying on client-side filter for reliability
     if (!unassignedOnly && failedLeadsFilter) {
       if (Object.keys(where).length === 0) {
-        // If where is empty, just use the failed leads filter
         where.AND = [failedLeadsFilter]
       } else if (where.AND) {
-        where.AND.push(failedLeadsFilter)
+        (where.AND as unknown[]).push(failedLeadsFilter)
       } else {
         // Convert existing direct properties to AND array to properly combine with failed leads filter
         const existingConditions: any[] = []
@@ -131,44 +135,38 @@ export async function GET(request: NextRequest) {
       console.log("unassignedOnly:", unassignedOnly, "status:", status, "source:", source)
     }
 
-    const inquiries = await prisma.inquiry.findMany({
-      where,
-      include: {
-        assignedTo: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            image: true,
+        const inquiries = await prisma.inquiry.findMany({
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          where: where as any,
+          include: {
+            assignedTo: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                image: true,
+              },
+            },
           },
-        },
-      },
-      orderBy: {
-        createdAt: "desc",
-      },
-    })
+          orderBy: {
+            createdAt: "desc",
+          },
+        })
 
-    if (process.env.NODE_ENV === "development") {
-      console.log(`Inquiries API returned ${inquiries.length} inquiries`)
-      if (inquiries.length > 0) {
-        console.log(`Sample inquiry metadata:`, inquiries[0]?.metadata)
-        console.log(`Sample inquiry assignedToId:`, inquiries[0]?.assignedToId)
-      }
-    }
+        if (process.env.NODE_ENV === "development") {
+          console.log(`Inquiries API returned ${inquiries.length} inquiries`)
+        }
 
-    // Filter out failed leads as a fallback (in case Prisma JSON query doesn't work)
-    const filteredInquiries = inquiries.filter((inq) => {
-      const metadata = inq.metadata as any
-      const isFailed = metadata?.isFailedLead === true
-      if (isFailed && process.env.NODE_ENV === "development") {
-        console.log(`Filtering out failed lead: ${inq.id}, metadata:`, metadata)
-      }
-      return !isFailed
-    })
+        return inquiries.filter((inq) => {
+          const metadata = inq.metadata as { isFailedLead?: boolean } | null
+          return !metadata?.isFailedLead
+        })
+      },
+      INQUIRIES_LIST_TTL
+    )
 
     if (process.env.NODE_ENV === "development") {
       console.log(`After filtering failed leads: ${filteredInquiries.length} inquiries`)
-      console.log(`Unassigned inquiries: ${filteredInquiries.filter(i => !i.assignedToId).length}`)
     }
 
     return NextResponse.json(filteredInquiries)
@@ -267,6 +265,9 @@ export async function POST(request: NextRequest) {
         newStatus: InquiryStatus.NEW,
       },
     })
+
+    await invalidateCachePattern("inquiries:list:")
+    await invalidateCachePattern("kanban:")
 
     return NextResponse.json(inquiry, { status: 201 })
   } catch (error) {

@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { UserRole } from "@prisma/client"
 import { canAssignInquiry } from "@/lib/permissions"
+import { invalidateCachePattern } from "@/lib/cache"
 
 export async function POST(
   request: NextRequest,
@@ -127,6 +128,9 @@ export async function POST(
             : null,
       },
     })
+
+    await invalidateCachePattern("inquiries:list:")
+    await invalidateCachePattern("kanban:")
 
     return NextResponse.json(updatedInquiry)
   } catch (error) {

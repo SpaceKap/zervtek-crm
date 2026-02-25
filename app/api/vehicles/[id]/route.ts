@@ -5,6 +5,9 @@ import { prisma } from "@/lib/prisma"
 import { canManageVehicleStages } from "@/lib/permissions"
 import { convertDecimalsToNumbers } from "@/lib/decimal"
 import { UserRole } from "@prisma/client"
+import { getCached, invalidateCache, invalidateCachePattern } from "@/lib/cache"
+
+const VEHICLE_CACHE_TTL = 300 // 5 minutes
 
 export async function GET(
   request: NextRequest,
@@ -16,18 +19,27 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const vehicle = await prisma.vehicle.findUnique({
-      where: { id: params.id },
-      include: {
-        customer: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
+    const cacheKey = `vehicle:id:${params.id}`
+    const vehicle = await getCached(
+      cacheKey,
+      async () => {
+        const v = await prisma.vehicle.findUnique({
+          where: { id: params.id },
+          include: {
+            customer: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              },
+            },
           },
-        },
+        })
+        return v
       },
-    })
+      VEHICLE_CACHE_TTL,
+      (v) => v != null
+    )
 
     if (!vehicle) {
       return NextResponse.json(
@@ -107,6 +119,9 @@ export async function PATCH(
       return updatedVehicle
     })
 
+    await invalidateCache(`vehicle:id:${params.id}`)
+    await invalidateCachePattern("vehicles:list:")
+
     return NextResponse.json(convertDecimalsToNumbers(vehicle))
   } catch (error) {
     console.error("Error updating vehicle:", error)
@@ -143,6 +158,9 @@ export async function DELETE(
     await prisma.vehicle.delete({
       where: { id: params.id },
     })
+
+    await invalidateCache(`vehicle:id:${params.id}`)
+    await invalidateCachePattern("vehicles:list:")
 
     return NextResponse.json({ success: true })
   } catch (error) {

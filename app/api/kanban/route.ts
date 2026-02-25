@@ -4,6 +4,9 @@ import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { InquiryStatus, UserRole } from "@prisma/client"
 import { canViewAllInquiries } from "@/lib/permissions"
+import { getCached, cacheKeyFromSearchParams, invalidateCachePattern } from "@/lib/cache"
+
+const KANBAN_CACHE_TTL = 45
 
 export async function GET(request: NextRequest) {
   try {
@@ -13,28 +16,27 @@ export async function GET(request: NextRequest) {
     }
 
     const searchParams = request.nextUrl.searchParams
-    const userId = searchParams.get("userId") // For manager to view specific user's board or "me" for own inquiries
+    const cacheKey = `kanban:${session.user.id}:${cacheKeyFromSearchParams(searchParams)}`
+    const result = await getCached(
+      cacheKey,
+      async () => {
+        const userId = searchParams.get("userId")
 
-    const isManager = session.user.role === UserRole.MANAGER || session.user.role === UserRole.ADMIN
-    const canViewAll = canViewAllInquiries(session.user.role)
-    
-    // Determine target user ID
-    let targetUserId: string | null = null
-    if (!canViewAll) {
-      // Sales staff always see their own inquiries
-      targetUserId = session.user.id
-    } else if (userId === "me" || userId === session.user.id) {
-      // Manager viewing their own inquiries
-      targetUserId = session.user.id
-    } else if (userId && userId !== "all") {
-      // Manager viewing specific user's board
-      targetUserId = userId
-    } else {
-      // Manager viewing all inquiries (no filter)
-      targetUserId = null
-    }
+        const isManager = session.user.role === UserRole.MANAGER || session.user.role === UserRole.ADMIN
+        const canViewAll = canViewAllInquiries(session.user.role)
 
-    // Get all kanban stages - use raw query to avoid enum validation issues
+        let targetUserId: string | null = null
+        if (!canViewAll) {
+          targetUserId = session.user.id
+        } else if (userId === "me" || userId === session.user.id) {
+          targetUserId = session.user.id
+        } else if (userId && userId !== "all") {
+          targetUserId = userId
+        } else {
+          targetUserId = null
+        }
+
+        // Get all kanban stages - use raw query to avoid enum validation issues
     // We'll filter invalid stages manually
     let stages: Array<{
       id: string;
@@ -210,14 +212,19 @@ export async function GET(request: NextRequest) {
     
     console.log(`[Kanban API] Filtered to ${validStages.length} valid stages (removed ${stages.length - validStages.length} invalid)`);
 
-    console.log(`[Kanban API] Returning ${boardData.length} stages with ${inquiries.length} total inquiries`)
-    
-    return NextResponse.json({
-      stages: boardData,
-      userId: targetUserId,
-      isManager,
-      viewMode: targetUserId === null ? "all" : targetUserId === session.user.id ? "me" : "user",
-    })
+        console.log(`[Kanban API] Returning ${boardData.length} stages with ${inquiries.length} total inquiries`)
+
+        return {
+          stages: boardData,
+          userId: targetUserId,
+          isManager,
+          viewMode: targetUserId === null ? "all" : targetUserId === session.user.id ? "me" : "user",
+        }
+      },
+      KANBAN_CACHE_TTL
+    )
+
+    return NextResponse.json(result)
   } catch (error) {
     console.error("[Kanban API] Error fetching kanban board:", error)
     if (error instanceof Error) {
@@ -321,6 +328,9 @@ export async function PATCH(request: NextRequest) {
           : null,
       },
     })
+
+    await invalidateCachePattern("kanban:")
+    await invalidateCachePattern("inquiries:list:")
 
     return NextResponse.json(updatedInquiry)
   } catch (error) {

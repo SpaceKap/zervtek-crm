@@ -4,6 +4,9 @@ import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { requireAuth, canViewCustomers } from "@/lib/permissions"
 import { UserRole } from "@prisma/client"
+import { getCached, invalidateCachePattern, cacheKeyFromSearchParams } from "@/lib/cache"
+
+const CUSTOMERS_LIST_TTL = 90
 
 export async function GET(request: NextRequest) {
   try {
@@ -13,75 +16,81 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url)
-    const search = searchParams.get("search")
+    const cacheKey = `customers:list:${user.id}:${cacheKeyFromSearchParams(searchParams)}`
+    const customers = await getCached(
+      cacheKey,
+      async () => {
+        const search = searchParams.get("search")
+        const searchWhere = search
+          ? {
+              OR: [
+                { name: { contains: search, mode: "insensitive" as const } },
+                { email: { contains: search, mode: "insensitive" as const } },
+                { phone: { contains: search, mode: "insensitive" as const } },
+                { country: { contains: search, mode: "insensitive" as const } },
+              ],
+            }
+          : {}
 
-    const searchWhere = search
-      ? {
-          OR: [
-            { name: { contains: search, mode: "insensitive" as const } },
-            { email: { contains: search, mode: "insensitive" as const } },
-            { phone: { contains: search, mode: "insensitive" as const } },
-            { country: { contains: search, mode: "insensitive" as const } },
-          ],
+        let roleWhere: Record<string, unknown> = {}
+        if (user.role === UserRole.SALES) {
+          roleWhere = { assignedToId: user.id }
+        } else if (user.role === UserRole.MANAGER) {
+          const salesIds = await prisma.user.findMany({
+            where: { role: UserRole.SALES },
+            select: { id: true },
+          })
+          const allowedIds = [user.id, ...salesIds.map((u) => u.id)]
+          roleWhere = {
+            OR: [
+              { assignedToId: { in: allowedIds } },
+              { assignedToId: null },
+            ],
+          }
         }
-      : {}
 
-    // Role-based: Sales = own, Manager = own + sales staff + unassigned, Admin/BackOffice/Accountant = all
-    let roleWhere: Record<string, unknown> = {}
-    if (user.role === UserRole.SALES) {
-      roleWhere = { assignedToId: user.id }
-    } else if (user.role === UserRole.MANAGER) {
-      const salesIds = await prisma.user.findMany({
-        where: { role: UserRole.SALES },
-        select: { id: true },
-      })
-      const allowedIds = [user.id, ...salesIds.map((u) => u.id)]
-      roleWhere = {
-        OR: [
-          { assignedToId: { in: allowedIds } },
-          { assignedToId: null },
-        ],
-      }
-    }
+        const where =
+          Object.keys(searchWhere).length > 0 && Object.keys(roleWhere).length > 0
+            ? { AND: [searchWhere, roleWhere] }
+            : Object.keys(roleWhere).length > 0
+              ? roleWhere
+              : searchWhere
 
-    const where =
-      Object.keys(searchWhere).length > 0 && Object.keys(roleWhere).length > 0
-        ? { AND: [searchWhere, roleWhere] }
-        : Object.keys(roleWhere).length > 0
-          ? roleWhere
-          : searchWhere
-
-    const customers = await prisma.customer.findMany({
-      where,
-      orderBy: { name: "asc" },
-      include: {
-        assignedTo: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
+        return prisma.customer.findMany({
+          where,
+          orderBy: { name: "asc" },
+          include: {
+            assignedTo: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              },
+            },
+            _count: {
+              select: {
+                invoices: true,
+                vehicles: true,
+                transactions: true,
+              },
+            },
           },
-        },
-        _count: {
-          select: {
-            invoices: true,
-            vehicles: true,
-            transactions: true,
-          },
-        },
+        })
       },
-    })
+      CUSTOMERS_LIST_TTL
+    )
 
     console.log(`[Customers API] Returning ${customers.length} customers`)
     return NextResponse.json(customers)
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("[Customers API] Error fetching customers:", error)
+    const err = error as { message?: string; code?: string; stack?: string }
     return NextResponse.json(
-      { 
+      {
         error: "Failed to fetch customers",
-        details: error.message || String(error),
-        code: error.code || "UNKNOWN",
-        stack: process.env.NODE_ENV === "development" ? error.stack : undefined
+        details: err?.message || String(error),
+        code: err?.code || "UNKNOWN",
+        stack: process.env.NODE_ENV === "development" ? err?.stack : undefined,
       },
       { status: 500 }
     )
@@ -123,6 +132,8 @@ export async function POST(request: NextRequest) {
         assignedToId: assignedToId || null,
       } as any, // Type assertion to bypass Prisma type checking
     })
+
+    await invalidateCachePattern("customers:list:")
 
     return NextResponse.json(customer, { status: 201 })
   } catch (error) {

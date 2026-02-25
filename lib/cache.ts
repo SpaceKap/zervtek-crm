@@ -51,6 +51,34 @@ export async function invalidateCache(key: string): Promise<void> {
 }
 
 /**
+ * Invalidate all keys matching a prefix (e.g. "customers:list:" to clear all customer list caches).
+ * Uses SCAN to avoid blocking.
+ */
+export async function invalidateCachePattern(prefix: string): Promise<void> {
+  const redis = getRedis();
+  if (!redis) return;
+  try {
+    const keys: string[] = [];
+    let cursor = "0";
+    do {
+      const [nextCursor, found] = await redis.scan(cursor, "MATCH", `${prefix}*`, "COUNT", 100);
+      cursor = nextCursor;
+      keys.push(...found);
+    } while (cursor !== "0");
+    if (keys.length > 0) await redis.del(...keys);
+  } catch {
+    // Ignore
+  }
+}
+
+/** Build a stable cache key suffix from URL search params (sorted). */
+export function cacheKeyFromSearchParams(searchParams: URLSearchParams): string {
+  const entries = Array.from(searchParams.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+  if (entries.length === 0) return "default";
+  return entries.map(([k, v]) => `${k}=${v}`).join("&");
+}
+
+/**
  * Rate limit by key (e.g. IP). Returns true if under limit, false if over.
  * Uses Redis INCR + EXPIRE. Window is 1 minute, max 20 requests per key.
  * If Redis is not configured, falls back to allowing the request (no rate limit).

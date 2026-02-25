@@ -5,6 +5,9 @@ import { prisma } from "@/lib/prisma"
 import { requireAuth, canViewVehicles } from "@/lib/permissions"
 import { ShippingStage, PurchaseSource, UserRole } from "@prisma/client"
 import { convertDecimalsToNumbers } from "@/lib/decimal"
+import { getCached, invalidateCachePattern, cacheKeyFromSearchParams } from "@/lib/cache"
+
+const VEHICLES_LIST_TTL = 90
 
 export async function GET(request: NextRequest) {
   try {
@@ -18,146 +21,154 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url)
-    const search = searchParams.get("search")
-    const vin = searchParams.get("vin")
-    const customerId = searchParams.get("customerId")
-    const stage = searchParams.get("stage") as ShippingStage | null
-    const startDate = searchParams.get("startDate")
-    const endDate = searchParams.get("endDate")
-    const filterType = searchParams.get("filterType") // "all" | "mine" for Manager/Admin/BackOffice
+    const cacheKey = `vehicles:list:${session.user.id}:${cacheKeyFromSearchParams(searchParams)}`
+    const convertedVehicles = await getCached(
+      cacheKey,
+      async () => {
+        const search = searchParams.get("search")
+        const vin = searchParams.get("vin")
+        const customerId = searchParams.get("customerId")
+        const stage = searchParams.get("stage") as ShippingStage | null
+        const startDate = searchParams.get("startDate")
+        const endDate = searchParams.get("endDate")
+        const filterType = searchParams.get("filterType")
 
-    const where: any = {}
-    if (vin) {
-      where.vin = { contains: vin, mode: "insensitive" as const }
-    } else if (search) {
-      where.OR = [
-        { vin: { contains: search, mode: "insensitive" as const } },
-        { make: { contains: search, mode: "insensitive" as const } },
-        { model: { contains: search, mode: "insensitive" as const } },
-      ]
-    }
-
-    if (customerId) {
-      where.customerId = customerId
-    }
-
-    if (stage) {
-      where.currentShippingStage = stage
-    }
-
-    // Role-based: Sales=own, Manager=own+sales+unassigned, Admin/BackOffice=all
-    if (!customerId) {
-      const isAdmin = session.user.role === UserRole.ADMIN
-      const isManager = session.user.role === UserRole.MANAGER
-      const isBackOffice = session.user.role === UserRole.BACK_OFFICE_STAFF
-      const isSales = session.user.role === UserRole.SALES
-
-      let roleWhere: any = {}
-      if (isSales) {
-        roleWhere.customer = { assignedToId: session.user.id }
-      } else if (isManager) {
-        if (filterType === "mine") {
-          roleWhere.customer = { assignedToId: session.user.id }
-        } else {
-          const salesIds = await prisma.user.findMany({
-            where: { role: UserRole.SALES },
-            select: { id: true },
-          })
-          const allowedIds = [session.user.id, ...salesIds.map((u) => u.id)]
-          roleWhere.OR = [
-            { customerId: null },
-            {
-              customer: {
-                OR: [
-                  { assignedToId: { in: allowedIds } },
-                  { assignedToId: null },
-                ],
-              },
-            },
+        const where: Record<string, unknown> = {}
+        if (vin) {
+          where.vin = { contains: vin, mode: "insensitive" as const }
+        } else if (search) {
+          where.OR = [
+            { vin: { contains: search, mode: "insensitive" as const } },
+            { make: { contains: search, mode: "insensitive" as const } },
+            { model: { contains: search, mode: "insensitive" as const } },
           ]
         }
-      } else if (filterType === "mine" && (isAdmin || isBackOffice)) {
-        roleWhere.customer = { assignedToId: session.user.id }
-      }
 
-      if (Object.keys(roleWhere).length > 0) {
-        where.AND = where.AND || []
-        where.AND.push(roleWhere)
-      }
-    }
-    
-    // Remove any empty where conditions to avoid query issues
-    Object.keys(where).forEach(key => {
-      if (where[key] === undefined || where[key] === null) {
-        delete where[key]
-      }
-    })
+        if (customerId) {
+          where.customerId = customerId
+        }
 
-    if (startDate || endDate) {
-      where.createdAt = {}
-      if (startDate) {
-        where.createdAt.gte = new Date(startDate)
-      }
-      if (endDate) {
-        where.createdAt.lte = new Date(endDate)
-      }
-    }
+        if (stage) {
+          where.currentShippingStage = stage
+        }
 
-    const vehicles = await prisma.vehicle.findMany({
-      where,
-      include: {
-        customer: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
-        shippingStage: {
-          select: {
-            stage: true,
-            etd: true,
-            eta: true,
-            yard: {
+        if (!customerId) {
+          const isAdmin = session.user.role === UserRole.ADMIN
+          const isManager = session.user.role === UserRole.MANAGER
+          const isBackOffice = session.user.role === UserRole.BACK_OFFICE_STAFF
+          const isSales = session.user.role === UserRole.SALES
+
+          const roleWhere: Record<string, unknown> = {}
+          if (isSales) {
+            roleWhere.customer = { assignedToId: session.user.id }
+          } else if (isManager) {
+            if (filterType === "mine") {
+              roleWhere.customer = { assignedToId: session.user.id }
+            } else {
+              const salesIds = await prisma.user.findMany({
+                where: { role: UserRole.SALES },
+                select: { id: true },
+              })
+              const allowedIds = [session.user.id, ...salesIds.map((u) => u.id)]
+              roleWhere.OR = [
+                { customerId: null },
+                {
+                  customer: {
+                    OR: [
+                      { assignedToId: { in: allowedIds } },
+                      { assignedToId: null },
+                    ],
+                  },
+                },
+              ]
+            }
+          } else if (filterType === "mine" && (isAdmin || isBackOffice)) {
+            roleWhere.customer = { assignedToId: session.user.id }
+          }
+
+          if (Object.keys(roleWhere).length > 0) {
+            where.AND = (where.AND as unknown[]) || []
+            ;(where.AND as unknown[]).push(roleWhere)
+          }
+        }
+
+        Object.keys(where).forEach((key) => {
+          if (where[key] === undefined || where[key] === null) {
+            delete where[key]
+          }
+        })
+
+        if (startDate || endDate) {
+          where.createdAt = {}
+          if (startDate) {
+            (where.createdAt as Record<string, Date>).gte = new Date(startDate)
+          }
+          if (endDate) {
+            (where.createdAt as Record<string, Date>).lte = new Date(endDate)
+          }
+        }
+
+        const vehicles = await prisma.vehicle.findMany({
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          where: where as any,
+          include: {
+            customer: {
               select: {
                 id: true,
                 name: true,
+                email: true,
               },
             },
-          },
-        },
-        _count: {
-          select: {
-            documents: true,
-            stageCosts: true,
-          },
-        },
-        invoices: {
-          select: {
-            id: true,
-            invoiceNumber: true,
-            status: true,
+            shippingStage: {
+              select: {
+                stage: true,
+                etd: true,
+                eta: true,
+                yard: {
+                  select: {
+                    id: true,
+                    name: true,
+                  },
+                },
+              },
+            },
+            _count: {
+              select: {
+                documents: true,
+                stageCosts: true,
+              },
+            },
+            invoices: {
+              select: {
+                id: true,
+                invoiceNumber: true,
+                status: true,
+              },
+              orderBy: { createdAt: "desc" },
+              take: 1,
+            },
           },
           orderBy: { createdAt: "desc" },
-          take: 1,
-        },
-      },
-      orderBy: { createdAt: "desc" },
-      take: 100,
-    })
+          take: 100,
+        })
 
-    const convertedVehicles = convertDecimalsToNumbers(vehicles)
+        return convertDecimalsToNumbers(vehicles)
+      },
+      VEHICLES_LIST_TTL
+    )
+
     console.log(`[Vehicles API] Returning ${convertedVehicles.length} vehicles`)
     return NextResponse.json(convertedVehicles)
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("[Vehicles API] Error fetching vehicles:", error)
     // Return more detailed error for debugging
+    const err = error as { message?: string; code?: string; stack?: string }
     return NextResponse.json(
-      { 
+      {
         error: "Failed to fetch vehicles",
-        details: error.message || String(error),
-        code: error.code || "UNKNOWN",
-        stack: process.env.NODE_ENV === "development" ? error.stack : undefined
+        details: err?.message || String(error),
+        code: err?.code || "UNKNOWN",
+        stack: process.env.NODE_ENV === "development" ? err?.stack : undefined,
       },
       { status: 500 }
     )
@@ -259,9 +270,12 @@ export async function POST(request: NextRequest) {
       },
     })
 
+    await invalidateCachePattern("vehicles:list:")
+
     return NextResponse.json(vehicle, { status: 201 })
-  } catch (error: any) {
-    if (error.code === "P2002") {
+  } catch (error: unknown) {
+    const err = error as { code?: string }
+    if (err?.code === "P2002") {
       return NextResponse.json(
         { error: "Vehicle with this VIN already exists" },
         { status: 400 }

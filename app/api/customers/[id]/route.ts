@@ -3,6 +3,9 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { UserRole } from "@prisma/client";
+import { getCached, invalidateCache, invalidateCachePattern } from "@/lib/cache";
+
+const CUSTOMER_CACHE_TTL = 300; // 5 minutes
 
 export async function GET(
   request: NextRequest,
@@ -14,183 +17,119 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    console.log(`[Customer API] Fetching customer with ID: ${params.id}`);
-    
-    // First, try to find the customer
-    const customer = await prisma.customer.findUnique({
-      where: { id: params.id },
-      include: {
-        assignedTo: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
-        vehicles: {
+    const cacheKey = `customer:id:${params.id}`;
+    const body = await getCached<{ __notFound?: boolean; error?: string; [k: string]: unknown }>(
+      cacheKey,
+      async () => {
+        const customer = await prisma.customer.findUnique({
+          where: { id: params.id },
           include: {
-            invoices: {
-              select: {
-                id: true,
-                invoiceNumber: true,
-                status: true,
-                paymentStatus: true,
-                issueDate: true,
-                dueDate: true,
-                finalizedAt: true,
-              },
-              orderBy: {
-                createdAt: "desc",
-              },
-            },
-            shippingStage: {
-              include: {
-                yard: {
-                  select: {
-                    id: true,
-                    name: true,
-                  },
-                },
-              },
-            },
-          },
-          orderBy: {
-            createdAt: "desc",
-          },
-        },
-        invoices: {
-          include: {
-            vehicle: {
-              select: {
-                id: true,
-                vin: true,
-                make: true,
-                model: true,
-                year: true,
-              },
-            },
-            charges: {
-              include: {
-                chargeType: {
-                  select: {
-                    id: true,
-                    name: true,
-                  },
-                },
-              },
-            },
-          },
-          orderBy: {
-            createdAt: "desc",
-          },
-        },
-        transactions: {
-          include: {
-            vehicle: {
-              select: {
-                id: true,
-                vin: true,
-                make: true,
-                model: true,
-                year: true,
-              },
-            },
-            vendor: {
+            assignedTo: {
               select: {
                 id: true,
                 name: true,
+                email: true,
               },
             },
+            vehicles: {
+              include: {
+                invoices: {
+                  select: {
+                    id: true,
+                    invoiceNumber: true,
+                    status: true,
+                    paymentStatus: true,
+                    issueDate: true,
+                    dueDate: true,
+                    finalizedAt: true,
+                  },
+                  orderBy: { createdAt: "desc" as const },
+                },
+                shippingStage: {
+                  include: {
+                    yard: { select: { id: true, name: true } },
+                  },
+                },
+              },
+              orderBy: { createdAt: "desc" as const },
+            },
+            invoices: {
+              include: {
+                vehicle: { select: { id: true, vin: true, make: true, model: true, year: true } },
+                charges: { include: { chargeType: { select: { id: true, name: true } } } },
+              },
+              orderBy: { createdAt: "desc" as const },
+            },
+            transactions: {
+              include: {
+                vehicle: { select: { id: true, vin: true, make: true, model: true, year: true } },
+                vendor: { select: { id: true, name: true } },
+              },
+              orderBy: { date: "desc" as const },
+            },
           },
-          orderBy: {
-            date: "desc",
-          },
-        },
-      },
-    });
+        });
 
-    if (!customer) {
-      // Try to find by name as a fallback for debugging
-      const customerByName = await prisma.customer.findFirst({
-        where: {
-          name: {
-            contains: params.id,
-            mode: "insensitive",
-          },
-        },
-        select: {
-          id: true,
-          name: true,
-        },
-      });
-      
-      console.log(`[Customer API] Customer not found with ID: ${params.id}`);
-      if (customerByName) {
-        console.log(`[Customer API] Found customer by name search: ${customerByName.name} (ID: ${customerByName.id})`);
-      }
-      
-      // Also check total customer count
-      const totalCustomers = await prisma.customer.count();
-      console.log(`[Customer API] Total customers in database: ${totalCustomers}`);
-      
+        if (!customer) {
+          const customerByName = await prisma.customer.findFirst({
+            where: { name: { contains: params.id, mode: "insensitive" } },
+            select: { id: true, name: true },
+          });
+          const totalCustomers = await prisma.customer.count();
+          return {
+            __notFound: true,
+            error: "Customer not found",
+            searchedId: params.id,
+            totalCustomers,
+            suggestion: customerByName ? `Did you mean: ${customerByName.name} (ID: ${customerByName.id})?` : null,
+          };
+        }
+
+        const vehicleIds = customer.vehicles?.map((v: { id: string }) => v.id) || [];
+        const documents =
+          vehicleIds.length > 0
+            ? await prisma.vehicleDocument.findMany({
+                where: { vehicleId: { in: vehicleIds } },
+                include: {
+                  vehicle: { select: { id: true, vin: true, make: true, model: true, year: true } },
+                },
+                orderBy: { createdAt: "desc" },
+              })
+            : [];
+
+        return { ...customer, documents };
+      },
+      CUSTOMER_CACHE_TTL,
+      (v) => !v.__notFound
+    );
+
+    if (body.__notFound) {
       return NextResponse.json(
-        { 
-          error: "Customer not found",
-          searchedId: params.id,
-          totalCustomers,
-          suggestion: customerByName ? `Did you mean: ${customerByName.name} (ID: ${customerByName.id})?` : null,
+        {
+          error: body.error,
+          searchedId: body.searchedId,
+          totalCustomers: body.totalCustomers,
+          suggestion: body.suggestion ?? null,
         },
         { status: 404 }
       );
     }
-    
-    console.log(`[Customer API] Found customer: ${customer.name} (ID: ${customer.id})`);
 
-    // Get all documents for customer's vehicles
-    const vehicleIds = customer.vehicles?.map((v: any) => v.id) || [];
-    const documents = vehicleIds.length > 0
-      ? await prisma.vehicleDocument.findMany({
-          where: {
-            vehicleId: {
-              in: vehicleIds,
-            },
-          },
-          include: {
-            vehicle: {
-              select: {
-                id: true,
-                vin: true,
-                make: true,
-                model: true,
-                year: true,
-              },
-            },
-          },
-          orderBy: {
-            createdAt: "desc",
-          },
-        })
-      : [];
-
-    return NextResponse.json({
-      ...customer,
-      documents: documents || [],
-    });
-  } catch (error: any) {
+    return NextResponse.json(body);
+  } catch (error: unknown) {
     console.error("[Customer API] Error fetching customer:", error);
+    const err = error as { message?: string; code?: string; meta?: unknown; stack?: string };
     console.error("[Customer API] Error details:", {
-      message: error?.message || String(error),
-      code: error?.code,
-      meta: error?.meta,
-      stack: error?.stack,
+      message: err?.message || String(error),
+      code: err?.code,
+      meta: err?.meta,
+      stack: err?.stack,
     });
     return NextResponse.json(
-      { 
+      {
         error: "Failed to fetch customer",
-        details: process.env.NODE_ENV === "development" 
-          ? (error?.message || String(error))
-          : "An error occurred while fetching customer data",
-        code: error?.code || "UNKNOWN",
+        details: process.env.NODE_ENV === "development" ? (err?.message || String(error)) : "An error occurred while fetching customer data",
+        code: err?.code || "UNKNOWN",
       },
       { status: 500 }
     );
@@ -248,7 +187,7 @@ export async function PATCH(
 
     const updatedCustomer = await prisma.customer.update({
       where: { id: params.id },
-      data: updateData as any,
+      data: updateData as Record<string, unknown>,
       include: {
         assignedTo: {
           select: {
@@ -260,15 +199,17 @@ export async function PATCH(
       },
     });
 
+    await invalidateCache(`customer:id:${params.id}`);
+    await invalidateCachePattern("customers:list:");
+
     return NextResponse.json(updatedCustomer);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("[Customer API] Error updating customer:", error);
+    const err = error as { message?: string };
     return NextResponse.json(
       {
         error: "Failed to update customer",
-        details: process.env.NODE_ENV === "development"
-          ? (error?.message || String(error))
-          : "An error occurred while updating customer",
+        details: process.env.NODE_ENV === "development" ? (err?.message || String(error)) : "An error occurred while updating customer",
       },
       { status: 500 }
     );
@@ -301,6 +242,9 @@ export async function DELETE(
     await prisma.customer.delete({
       where: { id: params.id },
     });
+
+    await invalidateCache(`customer:id:${params.id}`);
+    await invalidateCachePattern("customers:list:");
 
     return NextResponse.json({ success: true });
   } catch (error) {

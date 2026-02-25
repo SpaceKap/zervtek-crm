@@ -615,7 +615,6 @@ export async function POST(request: NextRequest) {
 
       // Sync vehicle payment tracking if transaction is linked to a vehicle
       if (vehicleId && direction === "INCOMING") {
-        // Get all transactions for this vehicle
         const vehicleTransactions = await tx.transaction.findMany({
           where: {
             vehicleId: vehicleId,
@@ -628,16 +627,32 @@ export async function POST(request: NextRequest) {
           0,
         )
 
-        // Update vehicle shipping stage totalReceived
+        // Total charges = sum of invoice totals for this vehicle (so shipping pipeline card shows correct amount and Paid/Pending)
+        const vehicleInvoices = await tx.invoice.findMany({
+          where: { vehicleId: vehicleId },
+          include: {
+            charges: { include: { chargeType: { select: { name: true } } } },
+          },
+        })
+        const totalCharges = vehicleInvoices.reduce(
+          (sum, inv) => sum + getInvoiceTotalWithTax(inv),
+          0,
+        )
+        const purchasePaid = totalCharges > 0 && isAmountPaidInFull(totalReceived, totalCharges)
+
         await tx.vehicleShippingStage.upsert({
           where: { vehicleId: vehicleId },
           update: {
-            totalReceived: totalReceived,
+            totalCharges,
+            totalReceived,
+            purchasePaid,
           },
           create: {
             vehicleId: vehicleId,
             stage: "PURCHASE",
-            totalReceived: totalReceived,
+            totalCharges,
+            totalReceived,
+            purchasePaid,
           },
         })
       }
