@@ -11,7 +11,8 @@
     "db:studio": "prisma studio --browser none"
   },
   "dependencies": {
-    "@prisma/client": "5.22.0"
+    "@prisma/client": "5.22.0",
+    "server-only": "^0.0.1"
   },
   "devDependencies": {
     "prisma": "5.22.0",

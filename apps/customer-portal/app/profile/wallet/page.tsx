@@ -82,6 +82,7 @@ export default async function WalletPage() {
   if (!session?.user?.id) redirect("/login");
 
   const customerId = session.user.id as string;
+  // Fetch all transactions for this customer (no filter by direction/type) so wallet shows full history
   const transactions = await prisma.transaction.findMany({
     where: { customerId },
     select: {
