@@ -52,11 +52,18 @@ export default async function WalletPage() {
     }),
   ]);
 
-  const bankDetails =
-    companyInfo?.bankDetails1 &&
-    (typeof companyInfo.bankDetails1 === "string"
-      ? (JSON.parse(companyInfo.bankDetails1) as Record<string, string>)
-      : (companyInfo.bankDetails1 as Record<string, string>));
+  const bankDetailsRaw =
+    companyInfo?.bankDetails1 != null
+      ? typeof companyInfo.bankDetails1 === "string"
+        ? (JSON.parse(companyInfo.bankDetails1) as Record<string, string>)
+        : (companyInfo.bankDetails1 as Record<string, string>)
+      : null;
+  const bankDetails: Record<string, string> | null =
+    bankDetailsRaw != null &&
+    typeof bankDetailsRaw === "object" &&
+    !Array.isArray(bankDetailsRaw)
+      ? bankDetailsRaw
+      : null;
 
   // Wallet balance = Deposits − (Applied to invoice + Refunds). Do not add "Payment for Invoice".
   const totalDepositsJy = transactions
@@ -144,7 +151,7 @@ export default async function WalletPage() {
             </div>
           </div>
           <CardContent className="pt-6">
-            <RecordDepositFormWrapper bankDetails={bankDetails ?? null} />
+            <RecordDepositFormWrapper bankDetails={bankDetails} />
             <div className="mt-6 flex items-center justify-center gap-1.5 border-t pt-4 text-xs text-muted-foreground">
               <Lock className="size-3.5" />
               <span>Your payment details are protected with encryption.</span>
