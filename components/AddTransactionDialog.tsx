@@ -1,10 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import {
-  TransactionDirection,
-  TransactionType,
-} from "@/lib/constants-client";
+import { TransactionDirection, TransactionType } from "@prisma/client";
 import {
   Dialog,
   DialogContent,

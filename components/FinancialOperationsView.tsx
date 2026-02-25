@@ -16,9 +16,7 @@ import {
   TransactionDirection,
   TransactionType,
   UserRole,
-  ShippingStage,
-  DocumentCategory,
-} from "@/lib/constants-client";
+} from "@prisma/client";
 import {
   Card,
   CardContent,
@@ -45,6 +43,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { ShippingStage, DocumentCategory } from "@prisma/client";
 import { format } from "date-fns";
 
 interface FinancialOperationsViewProps {
@@ -192,8 +191,6 @@ export function FinancialOperationsView({
   );
   const [amountReceived, setAmountReceived] = useState("");
   const [markingPayment, setMarkingPayment] = useState(false);
-  const [applyFromWallet, setApplyFromWallet] = useState(false);
-  const [walletBalance, setWalletBalance] = useState<number | null>(null);
 
   // Mark as paid dialog (for costs without payment type: vehicle stage cost, general cost, cost item)
   const [markAsPaidDialogOpen, setMarkAsPaidDialogOpen] = useState(false);
@@ -231,18 +228,6 @@ export function FinancialOperationsView({
         .catch((err) => console.error("Error fetching vendors:", err));
     }
   }, [activeSection]);
-
-  // Fetch customer wallet balance when payment dialog opens with an invoice that has a customer
-  useEffect(() => {
-    if (!paymentDialogOpen || !selectedInvoice?.customer?.id) {
-      setWalletBalance(null);
-      return;
-    }
-    fetch(`/api/customers/${selectedInvoice.customer.id}/wallet-balance`)
-      .then((res) => (res.ok ? res.json() : Promise.reject(res)))
-      .then((data) => setWalletBalance(data.balance ?? 0))
-      .catch(() => setWalletBalance(null));
-  }, [paymentDialogOpen, selectedInvoice?.customer?.id]);
 
   // Invoice management state
   const [invoiceTab, setInvoiceTab] = useState<"customer" | "shared">(
@@ -1982,27 +1967,6 @@ export function FinancialOperationsView({
                                             Invoice
                                           </span>
                                         )}
-                                        {transaction.description === "Deposit" && (
-                                          <span className="inline-flex items-center rounded-md bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 mt-1">
-                                            Deposit
-                                          </span>
-                                        )}
-                                        {transaction.description === "Deposit" &&
-                                          !(transaction as any).depositReceivedAt && (
-                                            <span className="inline-flex items-center rounded-md bg-yellow-100 px-2 py-0.5 text-xs font-medium text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300 mt-1 ml-1">
-                                              Pending
-                                            </span>
-                                          )}
-                                        {(transaction as any).depositProofUrl && (
-                                          <a
-                                            href={(transaction as any).depositProofUrl}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="text-xs text-primary hover:underline mt-1 block"
-                                          >
-                                            View proof
-                                          </a>
-                                        )}
                                       </div>
                                     </td>
                                     {transactionTab === "OUTGOING" ? (
@@ -2479,15 +2443,14 @@ export function FinancialOperationsView({
                                               setTransactionDialogOpen(true);
                                             };
 
-                                            const isPendingDeposit =
-                                              transaction.description === "Deposit" &&
-                                              !(transaction as any).depositReceivedAt;
-
                                             const handleDelete = async () => {
-                                              const msg = isPendingDeposit
-                                                ? "Delete this pending deposit? It will be removed from the customer's wallet too."
-                                                : "Are you sure you want to delete this transaction? This action cannot be undone.";
-                                              if (!confirm(msg)) return;
+                                              if (
+                                                !confirm(
+                                                  "Are you sure you want to delete this transaction? This action cannot be undone.",
+                                                )
+                                              ) {
+                                                return;
+                                              }
 
                                               try {
                                                 const response = await fetch(
@@ -2526,26 +2489,6 @@ export function FinancialOperationsView({
                                               }
                                             };
 
-                                            const handleMarkDepositReceived = async () => {
-                                              if (!confirm("Mark this deposit as received?")) return;
-                                              try {
-                                                const res = await fetch(
-                                                  `/api/transactions/${transaction.id}`,
-                                                  {
-                                                    method: "PATCH",
-                                                    headers: { "Content-Type": "application/json" },
-                                                    body: JSON.stringify({
-                                                      depositReceivedAt: new Date().toISOString(),
-                                                    }),
-                                                  },
-                                                );
-                                                if (res.ok) fetchTransactions();
-                                                else alert("Failed to mark as received");
-                                              } catch (e) {
-                                                alert("Failed to mark as received");
-                                              }
-                                            };
-
                                             const handleMarkPayment = () => {
                                               setSelectedInvoice(transaction);
                                               setAmountReceived(
@@ -2562,7 +2505,7 @@ export function FinancialOperationsView({
                                                   "overdue");
 
                                             return (
-                                              <div className="flex items-center gap-2 flex-wrap">
+                                              <div className="flex items-center gap-2">
                                                 <Button
                                                   variant="ghost"
                                                   size="sm"
@@ -2574,20 +2517,6 @@ export function FinancialOperationsView({
                                                     edit
                                                   </span>
                                                 </Button>
-                                                {isPendingDeposit && (
-                                                  <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    onClick={handleMarkDepositReceived}
-                                                    className="h-8 px-2 text-xs hover:bg-green-50 dark:hover:bg-green-900/20 text-green-600 dark:text-green-400"
-                                                    title="Mark deposit received"
-                                                  >
-                                                    <span className="material-symbols-outlined text-sm mr-1">
-                                                      check
-                                                    </span>
-                                                    Mark received
-                                                  </Button>
-                                                )}
                                                 {isInvoiceDue && (
                                                   <Button
                                                     variant="ghost"
@@ -2724,24 +2653,6 @@ export function FinancialOperationsView({
                       className="mt-1.5"
                     />
                   </div>
-                  {selectedInvoice?.customer?.id && walletBalance !== null && (
-                    <div className="flex items-center gap-3 rounded-lg border bg-muted/30 p-3">
-                      <input
-                        type="checkbox"
-                        id="apply-from-wallet"
-                        checked={applyFromWallet}
-                        onChange={(e) => setApplyFromWallet(e.target.checked)}
-                        className="h-4 w-4 rounded border-input"
-                      />
-                      <Label
-                        htmlFor="apply-from-wallet"
-                        className="cursor-pointer text-sm font-normal"
-                      >
-                        Apply from customer wallet (Balance: ¥
-                        {walletBalance.toLocaleString()})
-                      </Label>
-                    </div>
-                  )}
                 </div>
                 <DialogFooter>
                   <Button
@@ -2750,7 +2661,6 @@ export function FinancialOperationsView({
                       setPaymentDialogOpen(false);
                       setSelectedInvoice(null);
                       setAmountReceived("");
-                      setApplyFromWallet(false);
                     }}
                     disabled={markingPayment}
                   >
@@ -2766,6 +2676,10 @@ export function FinancialOperationsView({
                       try {
                         setMarkingPayment(true);
                         const receivedAmount = parseFloat(amountReceived);
+                        const invoiceAmount = parseFloat(
+                          selectedInvoice.amount,
+                        );
+
                         const response = await fetch(
                           `/api/invoices/${selectedInvoice.invoiceId}/payment`,
                           {
@@ -2774,7 +2688,6 @@ export function FinancialOperationsView({
                             body: JSON.stringify({
                               amountReceived: receivedAmount,
                               paidAt: new Date().toISOString(),
-                              applyFromWallet: applyFromWallet || undefined,
                             }),
                           },
                         );
@@ -2784,7 +2697,6 @@ export function FinancialOperationsView({
                           setPaymentDialogOpen(false);
                           setSelectedInvoice(null);
                           setAmountReceived("");
-                          setApplyFromWallet(false);
                         } else {
                           const error = await response.json();
                           alert(error.error || "Failed to mark payment");

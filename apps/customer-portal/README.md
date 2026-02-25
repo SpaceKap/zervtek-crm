@@ -21,25 +21,6 @@ Customers open the portal via a share link that includes their token:
 
 The `shareToken` is generated in the admin app per customer and shared with the customer.
 
-## Deploying to VPS
-
-1. **Environment variables**  
-   Copy `apps/customer-portal/.env.example` to `.env` in this app (or use the root monorepo `.env` and ensure the portal reads it). Set at least:
-
-   - **`NEXTAUTH_URL`** – Public URL of the customer portal (e.g. `https://portal.yourdomain.com`). No trailing slash. Required for auth and email links.
-   - **`NEXTAUTH_SECRET`** – Use e.g. `openssl rand -base64 32`.
-   - **`NEXT_PUBLIC_MAIN_APP_URL`** or **`MAIN_APP_URL`** – Public URL of the main CRM app (e.g. `https://crm.yourdomain.com`). Used for invoice and document links from the portal.
-   - **`DATABASE_URL`** – Same database as the main app.
-
-2. **Behind a reverse proxy**  
-   If the app is behind nginx/traefik (or similar), set **`AUTH_TRUST_HOST=true`** so NextAuth trusts `X-Forwarded-Host` and `X-Forwarded-Proto`.
-
-3. **HTTPS**  
-   Use `https://` for `NEXTAUTH_URL` and the main app URL on VPS so cookies and redirects work correctly.
-
-4. **Email (verification / password reset)**  
-   Configure `SMTP_*` and `EMAIL_FROM` so verification and reset links use the correct portal base URL (from `NEXTAUTH_URL` or `PORTAL_URL`).
-
 ## Stack
 
 - Next.js 14 (App Router)

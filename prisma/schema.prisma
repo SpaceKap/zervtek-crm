@@ -833,8 +833,6 @@ model Transaction {
   createdById        String? // User who created the transaction
   createdAt          DateTime             @default(now())
   updatedAt          DateTime             @updatedAt
-  depositReceivedAt   DateTime?            // When staff confirmed receipt of a customer deposit
-  depositProofUrl     String?              // Screenshot/proof URL for pending deposits
 
   vendor           Vendor?           @relation(fields: [vendorId], references: [id], onDelete: SetNull)
   customer         Customer?        @relation(fields: [customerId], references: [id], onDelete: SetNull)

@@ -109,7 +109,6 @@ export async function PATCH(
       invoiceUrl,
       referenceNumber,
       notes,
-      depositReceivedAt,
     } = body
 
     // Get current transaction to check for changes
@@ -151,9 +150,6 @@ export async function PATCH(
     if (invoiceUrl !== undefined) updateData.invoiceUrl = invoiceUrl
     if (referenceNumber !== undefined) updateData.referenceNumber = referenceNumber
     if (notes !== undefined) updateData.notes = notes
-    if (depositReceivedAt !== undefined) {
-      updateData.depositReceivedAt = depositReceivedAt ? new Date(depositReceivedAt) : null
-    }
 
     // Update transaction and sync with invoice/vehicle
     const transaction = await prisma.$transaction(async (tx) => {
