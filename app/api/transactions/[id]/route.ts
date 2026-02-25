@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { canManageTransactions } from "@/lib/permissions"
-import { TransactionDirection, TransactionType } from "@prisma/client"
+import { PrismaClient, TransactionDirection, TransactionType } from "@prisma/client"
 import { convertDecimalsToNumbers } from "@/lib/decimal"
 import {
   getInvoiceTotalWithTax,
@@ -11,8 +11,14 @@ import {
   hasPartialPayment,
 } from "@/lib/invoice-utils"
 
+/** Transaction client type (same as callback param of prisma.$transaction). */
+type TxClient = Omit<
+  PrismaClient,
+  "$connect" | "$disconnect" | "$on" | "$transaction" | "$use" | "$extends"
+>
+
 /** Compute totalCharges, totalReceived, purchasePaid for a vehicle (for VehicleShippingStage sync). */
-async function getVehiclePaymentSummary(tx: typeof prisma, vehicleId: string) {
+async function getVehiclePaymentSummary(tx: TxClient, vehicleId: string) {
   const vehicleTransactions = await tx.transaction.findMany({
     where: { vehicleId, direction: "INCOMING" },
   })
