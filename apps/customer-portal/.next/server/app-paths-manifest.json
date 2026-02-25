@@ -1,8 +1,0 @@
-{
-  "/page": "app/page.js",
-  "/vehicles/[id]/page": "app/vehicles/[id]/page.js",
-  "/forgot-password/page": "app/forgot-password/page.js",
-  "/profile/page": "app/profile/page.js",
-  "/register/page": "app/register/page.js",
-  "/[token]/page": "app/[token]/page.js"
-}
