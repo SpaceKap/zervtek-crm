@@ -139,6 +139,8 @@ export async function GET(request: NextRequest) {
         status: true,
         paymentStatus: true,
         createdAt: true,
+        taxEnabled: true,
+        taxRate: true,
         customer: {
           select: {
             id: true,
@@ -167,6 +169,7 @@ export async function GET(request: NextRequest) {
             id: true,
             description: true,
             amount: true,
+            chargeType: { select: { name: true } },
           },
           take: 10, // Limit charges per invoice for list view
         },
@@ -273,17 +276,18 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Validate status and auto-set to PENDING_APPROVAL for staff/managers (unless admin)
+    // Validate status; staff/managers can create as DRAFT or PENDING_APPROVAL (admin can set any)
     const validStatuses = Object.values(InvoiceStatus);
     let invoiceStatus: InvoiceStatus;
     if (user.role === "ADMIN") {
-      // Admin can set any status
-      invoiceStatus = validStatuses.includes(status as InvoiceStatus) 
-        ? (status as InvoiceStatus) 
+      invoiceStatus = validStatuses.includes(status as InvoiceStatus)
+        ? (status as InvoiceStatus)
         : InvoiceStatus.DRAFT;
     } else {
-      // Staff and managers: automatically set to PENDING_APPROVAL
-      invoiceStatus = InvoiceStatus.PENDING_APPROVAL;
+      // Staff/managers: honour DRAFT when requested, otherwise default to PENDING_APPROVAL
+      invoiceStatus = (status === InvoiceStatus.DRAFT || status === "DRAFT")
+        ? InvoiceStatus.DRAFT
+        : InvoiceStatus.PENDING_APPROVAL;
     }
 
     // Default Wise payment link (can be overridden by admin later)

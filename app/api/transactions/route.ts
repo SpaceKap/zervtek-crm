@@ -332,6 +332,7 @@ export async function GET(request: NextRequest) {
           charges: {
             select: {
               amount: true,
+              chargeType: { select: { name: true } },
             },
           },
         },

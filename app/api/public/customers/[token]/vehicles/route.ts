@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { getInvoiceTotalWithTax } from "@/lib/invoice-utils"
 
 export async function GET(
   request: NextRequest,
@@ -59,10 +60,13 @@ export async function GET(
             issueDate: true,
             dueDate: true,
             paymentStatus: true,
+            taxEnabled: true,
+            taxRate: true,
             charges: {
               select: {
                 description: true,
                 amount: true,
+                chargeType: { select: { name: true } },
               },
             },
           },
@@ -71,9 +75,18 @@ export async function GET(
       orderBy: { createdAt: "desc" },
     })
 
+    // Add canonical totalAmount per invoice (charges + tax; deposits/discounts subtract)
+    const vehiclesWithTotals = vehicles.map((v) => ({
+      ...v,
+      invoices: v.invoices.map((inv) => ({
+        ...inv,
+        totalAmount: getInvoiceTotalWithTax(inv),
+      })),
+    }))
+
     return NextResponse.json({
       customer,
-      vehicles,
+      vehicles: vehiclesWithTotals,
     })
   } catch (error) {
     console.error("Error fetching public customer vehicles:", error)

@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma"
 import { requireAuth, canEditInvoice, canViewAllInquiries, canDeleteInvoice } from "@/lib/permissions"
 import { InvoiceStatus } from "@prisma/client"
 import { convertDecimalsToNumbers } from "@/lib/decimal"
-import { recalcInvoicePaymentStatus } from "@/lib/invoice-utils"
+import { recalcInvoicePaymentStatus, getInvoiceTotalWithTax } from "@/lib/invoice-utils"
 import { invalidateCache } from "@/lib/cache"
 
 export async function GET(
@@ -155,12 +155,16 @@ export async function PATCH(
     if (customerId !== undefined) updateData.customerId = customerId
     if (vehicleId !== undefined) updateData.vehicleId = vehicleId
     if (status !== undefined) {
-      // Staff and managers: automatically set to PENDING_APPROVAL when updating (unless admin)
       if (user.role === "ADMIN") {
         updateData.status = status as InvoiceStatus
       } else {
-        // Only allow setting to PENDING_APPROVAL for staff/managers
-        updateData.status = InvoiceStatus.PENDING_APPROVAL
+        // Staff/managers: preserve DRAFT when saving; only set PENDING_APPROVAL when explicitly submitting
+        if (status === InvoiceStatus.DRAFT || status === "DRAFT") {
+          updateData.status = InvoiceStatus.DRAFT
+        } else if (status === InvoiceStatus.PENDING_APPROVAL || status === "PENDING_APPROVAL") {
+          updateData.status = InvoiceStatus.PENDING_APPROVAL
+        }
+        // Other statuses (APPROVED, FINALIZED) only admin can set — leave status unchanged
       }
     }
     if (issueDate !== undefined)
@@ -258,7 +262,7 @@ export async function PATCH(
 
       await recalcInvoicePaymentStatus(params.id)
 
-      // Fetch updated invoice with charges
+      // Fetch updated invoice with charges (and tax fields for total)
       const invoiceWithCharges = await prisma.invoice.findUnique({
         where: { id: params.id },
         include: {
@@ -269,13 +273,40 @@ export async function PATCH(
               chargeType: true,
             },
           },
+          costInvoice: { select: { id: true } },
         },
       })
+
+      // Sync cost invoice totalRevenue so vehicle page and everywhere use invoice total as source of truth
+      if (invoiceWithCharges) {
+        const totalRevenue = getInvoiceTotalWithTax(invoiceWithCharges)
+        await prisma.costInvoice.updateMany({
+          where: { invoiceId: params.id },
+          data: { totalRevenue },
+        })
+      }
 
       if (invoiceWithCharges?.shareToken) {
         await invalidateCache(`invoice:token:${invoiceWithCharges.shareToken}`)
       }
       return NextResponse.json(convertDecimalsToNumbers(invoiceWithCharges))
+    }
+
+    // When only tax (or other fields) changed, sync cost invoice totalRevenue from current charges
+    if (taxEnabled !== undefined || taxRate !== undefined) {
+      const inv = await prisma.invoice.findUnique({
+        where: { id: params.id },
+        include: {
+          charges: { include: { chargeType: true } },
+        },
+      })
+      if (inv) {
+        const totalRevenue = getInvoiceTotalWithTax(inv)
+        await prisma.costInvoice.updateMany({
+          where: { invoiceId: params.id },
+          data: { totalRevenue },
+        })
+      }
     }
 
     return NextResponse.json(convertDecimalsToNumbers(updatedInvoice))

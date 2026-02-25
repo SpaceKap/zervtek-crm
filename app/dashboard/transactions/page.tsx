@@ -24,6 +24,8 @@ interface Transaction {
   invoiceUrl: string | null;
   referenceNumber: string | null;
   notes: string | null;
+  depositReceivedAt: string | null;
+  depositProofUrl: string | null;
 }
 
 export default function TransactionsPage() {
@@ -238,35 +240,123 @@ export default function TransactionsPage() {
                           : "N/A"}
                       </td>
                       <td className="py-3 px-4 text-gray-900 dark:text-white">
-                        {transaction.description || "N/A"}
+                        <div className="flex flex-wrap items-center gap-2">
+                          {transaction.description || "N/A"}
+                          {transaction.description === "Deposit" && (
+                            <span className="inline-flex items-center rounded-md bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">
+                              Deposit
+                            </span>
+                          )}
+                          {transaction.description === "Deposit" &&
+                            !transaction.depositReceivedAt && (
+                              <span className="inline-flex items-center rounded-md bg-yellow-100 px-2 py-0.5 text-xs font-medium text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300">
+                                Pending
+                              </span>
+                            )}
+                          {transaction.depositProofUrl && (
+                            <a
+                              href={transaction.depositProofUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs text-primary hover:underline"
+                            >
+                              Proof
+                            </a>
+                          )}
+                        </div>
                       </td>
                       <td className="py-3 px-4">
-                        <button
-                          onClick={async () => {
-                            // Fetch full transaction data
-                            try {
-                              const response = await fetch(
-                                `/api/transactions/${transaction.id}`,
-                              );
-                              if (response.ok) {
-                                const fullTransaction = await response.json();
-                                setEditingTransaction(fullTransaction);
-                                setDialogOpen(true);
-                              } else {
+                        <div className="flex flex-wrap items-center gap-2">
+                          {transaction.description === "Deposit" &&
+                            !transaction.depositReceivedAt && (
+                              <>
+                                <button
+                                  onClick={async () => {
+                                    if (
+                                      !confirm(
+                                        "Mark this deposit as received?",
+                                      )
+                                    )
+                                      return;
+                                    try {
+                                      const res = await fetch(
+                                        `/api/transactions/${transaction.id}`,
+                                        {
+                                          method: "PATCH",
+                                          headers: {
+                                            "Content-Type":
+                                              "application/json",
+                                          },
+                                          body: JSON.stringify({
+                                            depositReceivedAt: new Date().toISOString(),
+                                          }),
+                                        },
+                                      );
+                                      if (res.ok) fetchTransactions();
+                                      else
+                                        alert(
+                                          "Failed to mark as received",
+                                        );
+                                    } catch (e) {
+                                      alert("Failed to mark as received");
+                                    }
+                                  }}
+                                  className="text-sm text-green-600 hover:underline dark:text-green-400"
+                                >
+                                  Mark received
+                                </button>
+                                <button
+                                  onClick={async () => {
+                                    if (
+                                      !confirm(
+                                        "Delete this pending deposit? It will be removed from the customer's wallet too.",
+                                      )
+                                    )
+                                      return;
+                                    try {
+                                      const res = await fetch(
+                                        `/api/transactions/${transaction.id}`,
+                                        { method: "DELETE" },
+                                      );
+                                      if (res.ok) fetchTransactions();
+                                      else alert("Failed to delete");
+                                    } catch (e) {
+                                      alert("Failed to delete");
+                                    }
+                                  }}
+                                  className="text-sm text-red-600 hover:underline dark:text-red-400"
+                                >
+                                  Delete
+                                </button>
+                              </>
+                            )}
+                          <button
+                            onClick={async () => {
+                              try {
+                                const response = await fetch(
+                                  `/api/transactions/${transaction.id}`,
+                                );
+                                if (response.ok) {
+                                  const fullTransaction =
+                                    await response.json();
+                                  setEditingTransaction(fullTransaction);
+                                  setDialogOpen(true);
+                                } else {
+                                  alert("Failed to load transaction details");
+                                }
+                              } catch (error) {
+                                console.error(
+                                  "Error fetching transaction:",
+                                  error,
+                                );
                                 alert("Failed to load transaction details");
                               }
-                            } catch (error) {
-                              console.error(
-                                "Error fetching transaction:",
-                                error,
-                              );
-                              alert("Failed to load transaction details");
-                            }
-                          }}
-                          className="text-primary hover:underline"
-                        >
-                          Edit
-                        </button>
+                            }}
+                            className="text-primary hover:underline"
+                          >
+                            Edit
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}

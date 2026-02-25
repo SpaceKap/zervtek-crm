@@ -1,10 +1,7 @@
-import { redirect } from "next/navigation";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { notFound } from "next/navigation";
 import Link from "next/link";
 import { format } from "date-fns";
-import { ArrowLeft, Lock, Wallet as WalletIcon } from "lucide-react";
+import { ArrowLeft, Wallet as WalletIcon } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -14,7 +11,8 @@ import {
 } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { RecordDepositFormWrapper } from "./RecordDepositFormWrapper";
+import { prisma } from "@/lib/db";
+import { PortalHeader } from "@/components/PortalHeader";
 
 function formatDate(d: Date | null | undefined): string {
   if (d == null) return "—";
@@ -22,41 +20,38 @@ function formatDate(d: Date | null | undefined): string {
   return isNaN(date.getTime()) ? "—" : format(date, "MMM d, yyyy");
 }
 
-export default async function WalletPage() {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) redirect("/login");
+export default async function TokenWalletPage({
+  params,
+}: {
+  params: Promise<{ token: string }>;
+}) {
+  const { token } = await params;
 
-  const customerId = session.user.id as string;
+  const customer = await prisma.customer.findUnique({
+    where: { shareToken: token },
+    select: { id: true, name: true },
+  });
 
-  const [transactions, companyInfo] = await Promise.all([
-    prisma.transaction.findMany({
-      where: { customerId },
-      select: {
-        id: true,
-        date: true,
-        amount: true,
-        currency: true,
-        description: true,
-        type: true,
-        direction: true,
-        invoiceId: true,
-        depositReceivedAt: true,
-        depositProofUrl: true,
-        referenceNumber: true,
-        invoice: { select: { invoiceNumber: true } },
-      },
-      orderBy: { date: "desc" },
-    }),
-    prisma.companyInfo.findFirst({
-      select: { bankDetails1: true },
-    }),
-  ]);
+  if (!customer) notFound();
 
-  const bankDetails =
-    companyInfo?.bankDetails1 &&
-    (typeof companyInfo.bankDetails1 === "string"
-      ? (JSON.parse(companyInfo.bankDetails1) as Record<string, string>)
-      : (companyInfo.bankDetails1 as Record<string, string>));
+  const transactions = await prisma.transaction.findMany({
+    where: { customerId: customer.id },
+    select: {
+      id: true,
+      date: true,
+      amount: true,
+      currency: true,
+      description: true,
+      type: true,
+      direction: true,
+      invoiceId: true,
+      depositReceivedAt: true,
+      depositProofUrl: true,
+      referenceNumber: true,
+      invoice: { select: { invoiceNumber: true } },
+    },
+    orderBy: { date: "desc" },
+  });
 
   // Wallet balance = Deposits − (Applied to invoice + Refunds). Do not add "Payment for Invoice".
   const totalDepositsJy = transactions
@@ -96,59 +91,33 @@ export default async function WalletPage() {
 
   return (
     <div className="min-h-screen bg-muted/30">
-      <div className="container mx-auto max-w-3xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
-        <Link
-          href="/"
-          className={cn(
-            buttonVariants({ variant: "ghost" }),
-            "mb-4 inline-flex min-h-[44px] items-center sm:min-h-0"
-          )}
-        >
-          <ArrowLeft className="mr-2 size-4 shrink-0" />
-          Back to portal
-        </Link>
-
-        <Card className="relative min-w-0 overflow-hidden mb-6 border-2 shadow-md pt-0">
-          <div className="border-b bg-muted/40 px-6 py-4">
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex items-center gap-2">
-                <div className="flex size-9 items-center justify-center rounded-lg bg-primary/10">
-                  <WalletIcon className="size-5 text-primary" />
-                </div>
-                <div>
-                  <CardTitle className="text-base font-semibold tracking-tight">
-                    Add funds to your wallet
-                  </CardTitle>
-                  <CardDescription className="mt-0 text-xs">
-                    All amounts in JPY · Secure payment
-                  </CardDescription>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="text-right">
-                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                    Wallet balance
-                  </p>
-                  <p className="text-xl font-semibold tabular-nums">
-                    ¥{balanceJy.toLocaleString()}
-                  </p>
-                  <p className="text-[10px] text-muted-foreground mt-0.5">
-                    Deposits − (Applied to invoices + Refunds)
-                  </p>
-                </div>
-                <div className="hidden items-center gap-1.5 rounded-full border bg-background px-3 py-1.5 text-xs text-muted-foreground sm:flex">
-                  <Lock className="size-3.5" />
-                  <span>Secured</span>
-                </div>
-              </div>
-            </div>
+      <PortalHeader
+        title={customer.name}
+        subtitle="Wallet"
+        backLink={{ href: `/${token}`, label: "Back to portal" }}
+        badge={
+          <div className="flex min-h-[44px] items-center gap-2 rounded-lg bg-primary/10 px-4 py-2 sm:min-h-0">
+            <WalletIcon className="size-4 shrink-0 text-primary" />
+            <span className="text-sm font-medium tabular-nums">
+              ¥{balanceJy.toLocaleString()}
+            </span>
           </div>
-          <CardContent className="pt-6">
-            <RecordDepositFormWrapper bankDetails={bankDetails ?? null} />
-            <div className="mt-6 flex items-center justify-center gap-1.5 border-t pt-4 text-xs text-muted-foreground">
-              <Lock className="size-3.5" />
-              <span>Your payment details are protected with encryption.</span>
-            </div>
+        }
+      />
+
+      <main className="container mx-auto max-w-3xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+        <Card className="min-w-0 overflow-hidden mb-6">
+          <CardHeader>
+            <CardTitle>Wallet balance</CardTitle>
+            <CardDescription>
+              Deposits − (Applied to invoices + Refunds). Payments credited to
+              invoices do not increase this balance.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-semibold tabular-nums">
+              ¥{balanceJy.toLocaleString()}
+            </p>
           </CardContent>
         </Card>
 
@@ -171,7 +140,8 @@ export default async function WalletPage() {
                   const isRefund =
                     isOutgoing && (tx.description === "Refund" || false);
                   const isDeposit = tx.description === "Deposit";
-                  const isPendingDeposit = isDeposit && !tx.depositReceivedAt;
+                  const isPendingDeposit =
+                    isDeposit && !tx.depositReceivedAt;
                   const label = isRefund
                       ? "Refund"
                       : isPendingDeposit
@@ -180,7 +150,7 @@ export default async function WalletPage() {
                           ? "Deposit"
                           : "Payment";
                   const amount = Number(tx.amount);
-                  const showAsCredit = isRefund;
+                  const showAsCredit = isRefund; // only actual refunds show as + green
                   return (
                     <li
                       key={tx.id}
@@ -238,7 +208,7 @@ export default async function WalletPage() {
             )}
           </CardContent>
         </Card>
-      </div>
+      </main>
     </div>
   );
 }

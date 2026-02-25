@@ -21,6 +21,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { staffDisplayName } from "@/lib/staff-display";
+import { getInvoiceTotalWithTax } from "@/lib/invoice-utils";
 import Link from "next/link";
 import { format } from "date-fns";
 import { ShippingStage, PaymentStatus, InvoiceStatus, TransactionDirection } from "@prisma/client";
@@ -85,6 +86,8 @@ interface Customer {
     issueDate: Date;
     dueDate: Date | null;
     finalizedAt: Date | null;
+    taxEnabled?: boolean;
+    taxRate?: number | null;
     vehicle: {
       id: string;
       vin: string;
@@ -445,14 +448,7 @@ export default function CustomerDetailPage() {
         inv.paymentStatus === "PENDING" ||
         inv.paymentStatus === "PARTIALLY_PAID",
     )
-    .reduce((sum, inv) => {
-      const total = inv.charges.reduce(
-        (chargeSum, charge) =>
-          chargeSum + parseFloat(charge.amount?.toString() || "0"),
-        0,
-      );
-      return sum + total;
-    }, 0);
+    .reduce((sum, inv) => sum + getInvoiceTotalWithTax(inv), 0);
 
   return (
     <div className="space-y-6 pb-8">
@@ -512,6 +508,12 @@ export default function CustomerDetailPage() {
                     <div className="flex items-center gap-2">
                       <span className="material-symbols-outlined text-base shrink-0">public</span>
                       {customer.country}
+                    </div>
+                  )}
+                  {customer.portOfDestination && (
+                    <div className="flex items-center gap-2">
+                      <span className="material-symbols-outlined text-base shrink-0">anchor</span>
+                      Port of destination: <span className="font-medium text-foreground">{customer.portOfDestination}</span>
                     </div>
                   )}
                 </div>
@@ -760,11 +762,7 @@ export default function CustomerDetailPage() {
             </Card>
           ) : (
             customer.invoices.map((invoice) => {
-              const totalAmount = invoice.charges.reduce(
-                (sum, charge) =>
-                  sum + parseFloat(charge.amount?.toString() || "0"),
-                0,
-              );
+              const totalAmount = getInvoiceTotalWithTax(invoice);
               return (
                 <Card key={invoice.id}>
                   <CardHeader>
@@ -902,11 +900,7 @@ export default function CustomerDetailPage() {
                 </h4>
                 <div className="space-y-2">
                   {customer.invoices.map((invoice) => {
-                    const totalAmount = invoice.charges.reduce(
-                      (sum, charge) =>
-                        sum + parseFloat(charge.amount?.toString() || "0"),
-                      0,
-                    );
+                    const totalAmount = getInvoiceTotalWithTax(invoice);
                     return (
                       <Card key={`invoice-${invoice.id}`}>
                         <CardContent className="pt-6">

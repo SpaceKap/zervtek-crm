@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { getChargesSubtotal } from "@/lib/charge-utils";
+import { getInvoiceTotalWithTax } from "@/lib/invoice-utils";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -99,8 +99,8 @@ export function InvoicesList({ refreshTrigger = 0 }: InvoicesListProps) {
     fetchInvoices();
   }, [fetchInvoices, refreshTrigger]);
 
-  const calculateTotal = (charges: Array<{ amount: number | string; chargeType?: string | { name?: string } | null }>) =>
-    getChargesSubtotal(charges);
+  const calculateTotal = (invoice: { charges: Array<{ amount: number | string; chargeType?: string | { name?: string } | null }>; taxEnabled?: boolean; taxRate?: unknown }) =>
+    getInvoiceTotalWithTax(invoice);
 
   if (loading) {
     return <div className="text-muted-foreground">Loading...</div>;
@@ -160,7 +160,7 @@ export function InvoicesList({ refreshTrigger = 0 }: InvoicesListProps) {
         ) : (
           <div className="space-y-3">
             {invoices.map((invoice) => {
-              const total = calculateTotal(invoice.charges);
+              const total = calculateTotal(invoice);
               const vehicleDisplay = invoice.vehicle
                 ? (invoice.vehicle.make && invoice.vehicle.model
                     ? `${invoice.vehicle.year || ""} ${invoice.vehicle.make} ${invoice.vehicle.model}`.trim()

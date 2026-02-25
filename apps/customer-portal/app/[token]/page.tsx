@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { format } from "date-fns";
+import Link from "next/link";
 import {
   Car,
   FileText,
@@ -10,6 +11,7 @@ import {
   MapPin,
   CreditCard,
   ExternalLink,
+  Wallet,
 } from "lucide-react";
 import { prisma } from "@/lib/db";
 import {
@@ -218,11 +220,20 @@ export default async function PortalPage({
         title={customer.name}
         subtitle="Vehicle tracking portal"
         badge={
-          <div className="flex min-h-[44px] items-center gap-2 rounded-lg bg-primary/10 px-4 py-2 sm:min-h-0">
-            <Car className="size-4 shrink-0 text-primary" />
-            <span className="text-sm font-medium">
-              {vehicles.length} vehicle{vehicles.length !== 1 ? "s" : ""}
-            </span>
+          <div className="flex min-h-[44px] flex-wrap items-center gap-2 sm:min-h-0">
+            <Link
+              href={`/${token}/wallet`}
+              className="inline-flex items-center gap-2 rounded-lg bg-primary/10 px-4 py-2 text-sm font-medium text-primary transition-colors hover:bg-primary/20"
+            >
+              <Wallet className="size-4 shrink-0" />
+              Wallet
+            </Link>
+            <div className="flex items-center gap-2 rounded-lg bg-muted px-4 py-2">
+              <Car className="size-4 shrink-0 text-muted-foreground" />
+              <span className="text-sm font-medium">
+                {vehicles.length} vehicle{vehicles.length !== 1 ? "s" : ""}
+              </span>
+            </div>
           </div>
         }
       />
@@ -237,6 +248,13 @@ export default async function PortalPage({
                 Your vehicles will appear here once they are added to the
                 system.
               </p>
+              <Link
+                href={`/${token}/wallet`}
+                className="mt-6 inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+              >
+                <Wallet className="size-4 shrink-0" />
+                View wallet
+              </Link>
             </CardContent>
           </Card>
         ) : (

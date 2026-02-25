@@ -33,7 +33,10 @@
     "cleanup-unassigned-inquiries": "tsx scripts/cleanup-unassigned-inquiries.ts",
     "recalc-invoice-payment-status": "tsx scripts/recalc-invoice-payment-status.ts",
     "sample-invoice-pdf": "tsx scripts/generate-sample-invoice-pdf.ts",
-    "sync-vehicle-purchase-date": "tsx scripts/sync-vehicle-purchase-date-from-invoice.ts"
+    "sync-vehicle-purchase-date": "tsx scripts/sync-vehicle-purchase-date-from-invoice.ts",
+    "test:wallet": "tsx scripts/test-wallet-system.ts",
+    "test:wallet:only": "tsx scripts/test-wallet-system.ts --only",
+    "test:wallet:clean": "tsx scripts/test-wallet-system.ts --clean"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.6.0",

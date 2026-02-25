@@ -88,5 +88,20 @@ export async function PATCH(request: NextRequest) {
       portOfDestination: true,
     },
   });
+
+  // Notify CRM to invalidate cache so customer/vehicle pages show updated data (e.g. port of destination)
+  const crmUrl = process.env.CRM_URL;
+  const crmSecret = process.env.CRM_INTERNAL_SECRET;
+  if (crmUrl && crmSecret) {
+    fetch(`${crmUrl.replace(/\/$/, "")}/api/internal/invalidate-customer-cache`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-internal-secret": crmSecret,
+      },
+      body: JSON.stringify({ customerId: customer.id }),
+    }).catch(() => {});
+  }
+
   return NextResponse.json(customer);
 }

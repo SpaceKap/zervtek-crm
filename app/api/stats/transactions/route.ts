@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { requireAuth } from "@/lib/permissions"
 import { UserRole } from "@prisma/client"
+import { getInvoiceTotalWithTax } from "@/lib/invoice-utils"
 
 export const dynamic = "force-dynamic";
 
@@ -22,7 +23,7 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Fetch all invoices with related data
+    // Fetch all invoices with related data (chargeType needed for correct total: deposits/discounts subtract)
     const invoices = await prisma.invoice.findMany({
       include: {
         customer: {
@@ -46,6 +47,7 @@ export async function GET(request: NextRequest) {
             id: true,
             description: true,
             amount: true,
+            chargeType: { select: { name: true } },
           },
         },
       },
@@ -111,12 +113,9 @@ export async function GET(request: NextRequest) {
       orderBy: { date: "desc" },
     })
 
-    // Transform invoices into transaction format
+    // Transform invoices into transaction format (total = charges subtotal + tax; deposits/discounts subtract)
     const invoiceTransactions = invoices.map((invoice) => {
-      const totalAmount = invoice.charges.reduce(
-        (sum, charge) => sum + Number(charge.amount),
-        0
-      )
+      const totalAmount = getInvoiceTotalWithTax(invoice)
 
       return {
         id: invoice.id,

@@ -201,6 +201,8 @@ export async function PATCH(
 
     await invalidateCache(`customer:id:${params.id}`);
     await invalidateCachePattern("customers:list:");
+    // So vehicle pages refetch and show updated customer (e.g. port of destination)
+    await invalidateCachePattern("vehicle:id:");
 
     return NextResponse.json(updatedCustomer);
   } catch (error: unknown) {

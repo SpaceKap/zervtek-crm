@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { format } from "date-fns";
 import { PublicInvoiceView } from "@/components/PublicInvoiceView";
+import { getInvoiceTotalWithTax } from "@/lib/invoice-utils";
 
 export default async function PublicInvoicePage({
   params,
@@ -42,18 +42,8 @@ export default async function PublicInvoicePage({
   // Get company info
   const companyInfo = await prisma.companyInfo.findFirst();
 
-  // Calculate total amount
-  const totalCharges = invoice.charges.reduce(
-    (sum, charge) => sum + parseFloat(charge.amount.toString()),
-    0,
-  );
-
-  let totalAmount = totalCharges;
-  if (invoice.taxEnabled && invoice.taxRate) {
-    const taxRate = parseFloat(invoice.taxRate.toString());
-    const taxAmount = totalCharges * (taxRate / 100);
-    totalAmount += taxAmount;
-  }
+  // Invoice total (charges subtotal + tax; deposits/discounts subtract)
+  const totalAmount = getInvoiceTotalWithTax(invoice);
 
   return (
     <PublicInvoiceView

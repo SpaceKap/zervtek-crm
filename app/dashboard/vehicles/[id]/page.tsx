@@ -75,6 +75,7 @@ interface Vehicle {
     name: string;
     email: string | null;
     phone?: string | null;
+    portOfDestination: string | null;
   } | null;
   notes?: string | null;
   shippingStage: any;
@@ -417,15 +418,23 @@ export default function VehicleDetailPage() {
                   </span>
                 </div>
                 {vehicle.customer ? (
-                  <Link
-                    href={`/dashboard/customers/${vehicle.customer.id}`}
-                    className="inline-flex items-center gap-1.5 mt-3 text-amber-400 hover:text-amber-300 transition-colors text-sm font-medium"
-                  >
-                    <span className="material-symbols-outlined text-base">
-                      person
-                    </span>
-                    {vehicle.customer.name}
-                  </Link>
+                  <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1">
+                    <Link
+                      href={`/dashboard/customers/${vehicle.customer.id}`}
+                      className="inline-flex items-center gap-1.5 text-amber-400 hover:text-amber-300 transition-colors text-sm font-medium"
+                    >
+                      <span className="material-symbols-outlined text-base">
+                        person
+                      </span>
+                      {vehicle.customer.name}
+                    </Link>
+                    {vehicle.customer.portOfDestination && (
+                      <span className="inline-flex items-center gap-1.5 text-sm text-slate-400">
+                        <span className="material-symbols-outlined text-base">anchor</span>
+                        Port: <span className="text-slate-200 font-medium">{vehicle.customer.portOfDestination}</span>
+                      </span>
+                    )}
+                  </div>
                 ) : (
                   <Button
                     variant="outline"
@@ -726,6 +735,12 @@ export default function VehicleDetailPage() {
                             {vehicle.customer.phone && (
                               <p className="text-sm text-muted-foreground truncate">
                                 {vehicle.customer.phone}
+                              </p>
+                            )}
+                            {vehicle.customer.portOfDestination && (
+                              <p className="text-sm text-muted-foreground mt-1 flex items-center gap-1.5">
+                                <span className="material-symbols-outlined text-base">anchor</span>
+                                Port of destination: <span className="font-medium text-foreground">{vehicle.customer.portOfDestination}</span>
                               </p>
                             )}
                             <span className="inline-flex items-center gap-1 mt-2 text-sm font-medium text-primary">

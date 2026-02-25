@@ -515,13 +515,7 @@ export default function PublicCustomerPortalPage() {
                 ) : (
                   <div className="space-y-4">
                     {allInvoices.map((invoice: any) => {
-                      const totalAmount =
-                        invoice.charges?.reduce(
-                          (sum: number, charge: any) =>
-                            sum +
-                            parseFloat(charge.amount?.toString() || "0"),
-                          0
-                        ) || 0;
+                      const totalAmount = invoice.totalAmount ?? 0;
                       const isPaid = invoice.paymentStatus === "PAID";
                       const isOverdue = invoice.paymentStatus === "OVERDUE";
                       const isPartial =

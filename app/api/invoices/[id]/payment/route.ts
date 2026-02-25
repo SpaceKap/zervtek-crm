@@ -17,7 +17,7 @@ export async function PATCH(
 
     // Allow managers, accountants, and admins to update payment status (or via webhook with secret)
     const body = await request.json()
-    const { paymentStatus, paidAt, amountReceived, webhookSecret } = body
+    const { paymentStatus, paidAt, amountReceived, webhookSecret, applyFromWallet } = body
 
     // Check webhook secret if provided (for Wise webhooks)
     if (webhookSecret) {
@@ -86,6 +86,30 @@ export async function PATCH(
       ? parseFloat(amountReceived.toString())
       : null
 
+    // When applying from wallet, validate balance: Deposits − (Applied to invoice + Refunds)
+    if (applyFromWallet && receivedAmount != null && receivedAmount > 0 && !webhookSecret) {
+      const customerTx = await prisma.transaction.findMany({
+        where: { customerId: invoice.customerId },
+        select: { direction: true, amount: true, currency: true, description: true },
+      })
+      const walletBalance = customerTx.reduce((sum, tx) => {
+        const amt = Number(tx.amount)
+        const isJy = (tx.currency || "JPY").toUpperCase() === "JPY"
+        if (!isJy) return sum
+        if (tx.direction === "INCOMING") {
+          if (tx.description === "Deposit") return sum + amt
+          return sum
+        }
+        return sum - amt
+      }, 0)
+      if (receivedAmount > walletBalance) {
+        return NextResponse.json(
+          { error: `Insufficient wallet balance. Available: ¥${(Math.round(walletBalance * 100) / 100).toLocaleString()}` },
+          { status: 400 }
+        )
+      }
+    }
+
     const updatedInvoice = await prisma.$transaction(async (tx) => {
       const updated = await tx.invoice.update({
         where: { id: params.id },
@@ -96,8 +120,24 @@ export async function PATCH(
         },
       })
 
-      // Create INCOMING Transaction when marking paid with amount (sync payment records)
       if (receivedAmount != null && receivedAmount > 0) {
+        // When applying from wallet: create OUTGOING from customer (deduct wallet), then INCOMING to invoice
+        if (applyFromWallet && !webhookSecret) {
+          await tx.transaction.create({
+            data: {
+              direction: "OUTGOING",
+              type: TransactionType.BANK_TRANSFER,
+              amount: receivedAmount,
+              currency: "JPY",
+              date: paidAtDate || new Date(),
+              description: `Applied from wallet to Invoice ${invoice.invoiceNumber}`,
+              customerId: invoice.customerId,
+              vehicleId: invoice.vehicleId,
+              createdById: session?.user?.id ?? null,
+            },
+          })
+        }
+        // INCOMING transaction for the invoice (payment record)
         await tx.transaction.create({
           data: {
             direction: "INCOMING",
