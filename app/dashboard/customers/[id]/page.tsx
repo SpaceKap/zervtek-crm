@@ -25,6 +25,7 @@ import Link from "next/link";
 import { format } from "date-fns";
 import { ShippingStage, PaymentStatus, InvoiceStatus, TransactionDirection } from "@prisma/client";
 import { AddTransactionDialog } from "@/components/AddTransactionDialog";
+import { CustomerForm } from "@/components/CustomerForm";
 
 const HOW_FOUND_US_LABELS: Record<string, string> = {
   JCT: "Japanese Car Trade (JCT)",
@@ -207,6 +208,7 @@ export default function CustomerDetailPage() {
   const [selectedInvoiceId, setSelectedInvoiceId] = useState<string | undefined>(undefined);
   const [staff, setStaff] = useState<Array<{ id: string; name: string | null; email: string }>>([]);
   const [assignSaving, setAssignSaving] = useState(false);
+  const [editCustomerOpen, setEditCustomerOpen] = useState(false);
 
   const canAssignCustomer =
     session?.user?.role === "ADMIN" || session?.user?.role === "MANAGER";
@@ -453,82 +455,76 @@ export default function CustomerDetailPage() {
     }, 0);
 
   return (
-    <div className="space-y-6">
-      {/* Breadcrumb Navigation */}
-      <nav className="flex items-center gap-2 text-sm text-gray-600 dark:text-[#A1A1A1]">
+    <div className="space-y-6 pb-8">
+      {/* Breadcrumb */}
+      <nav className="flex items-center gap-2 text-sm text-muted-foreground">
         <button
           onClick={() => router.push("/dashboard")}
-          className="hover:text-gray-900 dark:hover:text-white transition-colors"
+          className="hover:text-foreground transition-colors"
         >
           Dashboard
         </button>
-        <span className="material-symbols-outlined text-sm">chevron_right</span>
-        <span className="text-gray-900 dark:text-white font-medium">
+        <span className="material-symbols-outlined text-sm opacity-70">chevron_right</span>
+        <Link
+          href="/dashboard/financial-operations?section=customers"
+          className="hover:text-foreground transition-colors"
+        >
+          Customers
+        </Link>
+        <span className="material-symbols-outlined text-sm opacity-70">chevron_right</span>
+        <span className="text-foreground font-medium truncate max-w-[200px] sm:max-w-none">
           {customer.name}
         </span>
       </nav>
 
-      {/* Header Card */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-start justify-between gap-4 flex-wrap">
-            <div className="flex items-start gap-4 flex-1">
-              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 dark:from-[#D4AF37] dark:to-[#FFD700] flex items-center justify-center flex-shrink-0">
-                <span className="material-symbols-outlined text-white text-2xl">
-                  person
-                </span>
+      {/* Profile header: avatar, name, contact, actions */}
+      <Card className="overflow-hidden">
+        <div className="p-6 sm:p-8">
+          <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
+            <div className="flex gap-4 min-w-0">
+              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 dark:from-[#D4AF37]/20 dark:to-[#D4AF37]/5 flex items-center justify-center flex-shrink-0 border border-border">
+                <span className="material-symbols-outlined text-primary text-2xl">person</span>
               </div>
-              <div className="flex-1 min-w-0">
-                <CardTitle className="text-2xl mb-2">{customer.name}</CardTitle>
-                <div className="space-y-1 text-sm">
+              <div className="min-w-0 flex-1">
+                <h1 className="text-xl sm:text-2xl font-semibold text-foreground truncate">
+                  {customer.name}
+                </h1>
+                <div className="mt-2 flex flex-col gap-1.5 text-sm text-muted-foreground">
                   {customer.email && (
-                    <div className="flex items-center gap-2 text-gray-600 dark:text-[#A1A1A1]">
-                      <span className="material-symbols-outlined text-base">
-                        email
-                      </span>
-                      <a
-                        href={`mailto:${customer.email}`}
-                        className="hover:text-primary dark:hover:text-[#D4AF37] transition-colors"
-                      >
-                        {customer.email}
-                      </a>
-                    </div>
+                    <a
+                      href={`mailto:${customer.email}`}
+                      className="flex items-center gap-2 hover:text-primary transition-colors truncate"
+                    >
+                      <span className="material-symbols-outlined text-base shrink-0">mail</span>
+                      <span className="truncate">{customer.email}</span>
+                    </a>
                   )}
                   {customer.phone && (
-                    <div className="flex items-center gap-2 text-gray-600 dark:text-[#A1A1A1]">
-                      <span className="material-symbols-outlined text-base">
-                        phone
-                      </span>
-                      <a
-                        href={`tel:${customer.phone}`}
-                        className="hover:text-primary dark:hover:text-[#D4AF37] transition-colors"
-                      >
-                        {customer.phone}
-                      </a>
-                    </div>
+                    <a
+                      href={`tel:${customer.phone}`}
+                      className="flex items-center gap-2 hover:text-primary transition-colors"
+                    >
+                      <span className="material-symbols-outlined text-base shrink-0">phone</span>
+                      {customer.phone}
+                    </a>
                   )}
                   {customer.country && (
-                    <div className="flex items-center gap-2 text-gray-600 dark:text-[#A1A1A1]">
-                      <span className="material-symbols-outlined text-base">
-                        public
-                      </span>
+                    <div className="flex items-center gap-2">
+                      <span className="material-symbols-outlined text-base shrink-0">public</span>
                       {customer.country}
                     </div>
                   )}
+                </div>
+                <div className="mt-3 flex flex-wrap items-center gap-2">
                   {canAssignCustomer ? (
-                    <div className="flex items-center gap-2 text-gray-600 dark:text-[#A1A1A1]">
-                      <span className="material-symbols-outlined text-base">
-                        person_outline
-                      </span>
-                      <span className="shrink-0">Assigned to:</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground">Assigned:</span>
                       <Select
                         value={customer.assignedTo?.id ?? "none"}
-                        onValueChange={(v) =>
-                          handleAssignChange(v === "none" ? null : v)
-                        }
+                        onValueChange={(v) => handleAssignChange(v === "none" ? null : v)}
                         disabled={assignSaving}
                       >
-                        <SelectTrigger className="w-[180px] h-9 border-border bg-background">
+                        <SelectTrigger className="h-8 w-[160px] sm:w-[180px] border-border bg-muted/30">
                           <SelectValue placeholder="Select…" />
                         </SelectTrigger>
                         <SelectContent>
@@ -543,31 +539,29 @@ export default function CustomerDetailPage() {
                     </div>
                   ) : (
                     customer.assignedTo && (
-                      <div className="flex items-center gap-2 text-gray-600 dark:text-[#A1A1A1]">
-                        <span className="material-symbols-outlined text-base">
-                          person_outline
-                        </span>
-                        Assigned to:{" "}
-                        {customer.assignedTo.name || customer.assignedTo.email}
-                      </div>
+                      <span className="text-sm text-muted-foreground">
+                        Assigned to {customer.assignedTo.name || customer.assignedTo.email}
+                      </span>
                     )
                   )}
                   {customer.howFoundUs && (
-                    <div className="flex items-center gap-2 mt-2">
-                      <Badge variant="secondary" className="font-normal">
-                        {HOW_FOUND_US_LABELS[customer.howFoundUs] ?? customer.howFoundUs}
-                      </Badge>
-                    </div>
+                    <Badge variant="secondary" className="font-normal text-xs">
+                      {HOW_FOUND_US_LABELS[customer.howFoundUs] ?? customer.howFoundUs}
+                    </Badge>
                   )}
                 </div>
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap shrink-0">
+              <Button variant="outline" size="sm" onClick={() => setEditCustomerOpen(true)}>
+                <span className="material-symbols-outlined text-lg mr-1.5">edit</span>
+                Edit Customer
+              </Button>
               {session?.user?.role === "ADMIN" && (
                 <Button
                   variant="outline"
                   size="sm"
-                  className="border-red-500/50 text-red-500 hover:bg-red-500/10 hover:text-red-400"
+                  className="border-destructive/50 text-destructive hover:bg-destructive/10"
                   onClick={async () => {
                     if (!confirm("Permanently delete this customer? All their vehicles, invoices, and transactions will be removed.")) return;
                     try {
@@ -581,62 +575,47 @@ export default function CustomerDetailPage() {
                   }}
                 >
                   <span className="material-symbols-outlined text-lg mr-1">delete</span>
-                  Delete Customer
+                  Delete
                 </Button>
               )}
               <Link href={`/dashboard/invoices/new?customerId=${customer.id}`}>
-                <Button>
-                  <span className="material-symbols-outlined text-lg mr-2">
-                    receipt
-                  </span>
+                <Button size="sm">
+                  <span className="material-symbols-outlined text-lg mr-1.5">receipt</span>
                   Create Invoice
                 </Button>
               </Link>
             </div>
           </div>
-        </CardHeader>
-        <CardContent>
-          {/* Stats Grid */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
-            <div className="p-4 bg-gray-50 dark:bg-[#2C2C2C] rounded-lg">
-              <div className="text-sm text-gray-600 dark:text-[#A1A1A1]">
-                Vehicles
-              </div>
-              <div className="text-2xl font-bold text-gray-900 dark:text-white">
-                {totalVehicles}
-              </div>
+
+          {/* Stats strip */}
+          <div className="mt-6 pt-6 border-t border-border grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div>
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Vehicles</p>
+              <p className="text-lg font-semibold text-foreground mt-0.5">{totalVehicles}</p>
             </div>
-            <div className="p-4 bg-gray-50 dark:bg-[#2C2C2C] rounded-lg">
-              <div className="text-sm text-gray-600 dark:text-[#A1A1A1]">
-                Invoices
-              </div>
-              <div className="text-2xl font-bold text-gray-900 dark:text-white">
-                {totalInvoices}
-              </div>
+            <div>
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Invoices</p>
+              <p className="text-lg font-semibold text-foreground mt-0.5">{totalInvoices}</p>
             </div>
-            <div className="p-4 bg-gray-50 dark:bg-[#2C2C2C] rounded-lg">
-              <div className="text-sm text-gray-600 dark:text-[#A1A1A1]">
-                Total Paid
-              </div>
-              <div className="text-2xl font-bold text-green-600 dark:text-green-400 font-mono-numbers">
+            <div>
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Total paid</p>
+              <p className="text-lg font-semibold text-green-600 dark:text-green-400 mt-0.5 tabular-nums">
                 {formatCurrency(totalPaid)}
-              </div>
+              </p>
             </div>
-            <div className="p-4 bg-gray-50 dark:bg-[#2C2C2C] rounded-lg">
-              <div className="text-sm text-gray-600 dark:text-[#A1A1A1]">
-                Outstanding
-              </div>
-              <div className="text-2xl font-bold text-yellow-600 dark:text-yellow-400 font-mono-numbers">
+            <div>
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Outstanding</p>
+              <p className="text-lg font-semibold text-amber-600 dark:text-amber-400 mt-0.5 tabular-nums">
                 {formatCurrency(totalOutstanding)}
-              </div>
+              </p>
             </div>
           </div>
-        </CardContent>
+        </div>
       </Card>
 
-      {/* Main Content Tabs */}
+      {/* Tabs */}
       <Tabs defaultValue="vehicles" className="space-y-4">
-        <TabsList>
+        <TabsList className="w-full sm:w-auto h-auto flex flex-wrap gap-1 p-1 bg-muted/50 rounded-lg">
           <TabsTrigger value="vehicles">
             <span className="material-symbols-outlined text-lg mr-2">
               directions_car
@@ -668,7 +647,7 @@ export default function CustomerDetailPage() {
         </TabsList>
 
         {/* Vehicles Tab */}
-        <TabsContent value="vehicles" className="space-y-4">
+        <TabsContent value="vehicles" className="space-y-4 mt-4">
           {customer.vehicles.length === 0 ? (
             <Card>
               <CardContent className="py-12 text-center">
@@ -757,7 +736,7 @@ export default function CustomerDetailPage() {
         </TabsContent>
 
         {/* Invoices Tab */}
-        <TabsContent value="invoices" className="space-y-4">
+        <TabsContent value="invoices" className="space-y-4 mt-4">
           {customer.invoices.length === 0 ? (
             <Card>
               <CardContent className="py-12 text-center">
@@ -891,7 +870,7 @@ export default function CustomerDetailPage() {
         </TabsContent>
 
         {/* Transactions Tab */}
-        <TabsContent value="transactions" className="space-y-4">
+        <TabsContent value="transactions" className="space-y-4 mt-4">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold">Transaction History</h3>
             <div className="flex gap-2">
@@ -1087,7 +1066,7 @@ export default function CustomerDetailPage() {
         </TabsContent>
 
         {/* Documents Tab */}
-        <TabsContent value="documents" className="space-y-4">
+        <TabsContent value="documents" className="space-y-4 mt-4">
           {customer.documents.length === 0 ? (
             <Card>
               <CardContent className="py-12 text-center">
@@ -1183,7 +1162,7 @@ export default function CustomerDetailPage() {
         </TabsContent>
 
         {/* Details Tab */}
-        <TabsContent value="details" className="space-y-4">
+        <TabsContent value="details" className="space-y-4 mt-4">
           <Card>
             <CardHeader>
               <CardTitle>Customer Information</CardTitle>
@@ -1369,6 +1348,19 @@ export default function CustomerDetailPage() {
         defaultCustomerId={customerId}
         defaultInvoiceId={selectedInvoiceId}
       />
+
+      {editCustomerOpen && customer && (
+        <CustomerForm
+          customer={{
+            ...customer,
+            assignedToId: (customer as any).assignedTo?.id ?? (customer as any).assignedToId,
+          } as any}
+          onClose={() => {
+            setEditCustomerOpen(false);
+            fetchCustomer();
+          }}
+        />
+      )}
     </div>
   );
 }

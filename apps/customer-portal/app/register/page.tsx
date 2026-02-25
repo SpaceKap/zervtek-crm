@@ -259,8 +259,8 @@ export default function RegisterPage() {
   const shippingRegions = getRegionsForCountry(form.shippingAddress.country);
 
   return (
-    <div className="flex min-h-screen min-h-[100dvh] flex-col items-center justify-center bg-muted/30 p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
-      <Card className="w-full max-w-lg max-w-[calc(100vw-2rem)]">
+    <div className="flex min-h-screen min-h-[100dvh] flex-col items-center justify-center bg-muted p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+      <Card className="w-full max-w-lg bg-white shadow-md dark:bg-zinc-900">
         <CardHeader className="text-center">
           <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-full bg-primary/10">
             <Car className="size-8 text-primary" />
@@ -291,7 +291,7 @@ export default function RegisterPage() {
               <>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="firstName">First name *</Label>
+                    <Label htmlFor="firstName">First name*</Label>
                     <Input
                       id="firstName"
                       value={form.firstName}
@@ -301,7 +301,7 @@ export default function RegisterPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="lastName">Last name *</Label>
+                    <Label htmlFor="lastName">Last name*</Label>
                     <Input
                       id="lastName"
                       value={form.lastName}
@@ -312,7 +312,7 @@ export default function RegisterPage() {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="email">Email *</Label>
+                  <Label htmlFor="email">Email*</Label>
                   <Input
                     id="email"
                     type="email"
@@ -323,7 +323,7 @@ export default function RegisterPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="password">Password *</Label>
+                  <Label htmlFor="password">Password*</Label>
                   <Input
                     id="password"
                     type="password"
@@ -336,7 +336,7 @@ export default function RegisterPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Country *</Label>
+                  <Label>Country*</Label>
                   <Select
                     value={form.country}
                     onValueChange={(v) => update("country", v)}
@@ -355,9 +355,9 @@ export default function RegisterPage() {
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label>Phone number *</Label>
+                  <Label>Phone number*</Label>
                   <div className="flex gap-2 min-w-0">
-                    <div className="w-[110px] shrink-0 sm:w-[160px]">
+                    <div className="w-[130px] shrink-0 sm:w-[200px]">
                       <CountryCodeSelect
                         value={form.phoneCountryCode}
                         onValueChange={(v) => update("phoneCountryCode", v)}
@@ -383,7 +383,7 @@ export default function RegisterPage() {
             {step === 2 && (
               <>
                 <div className="space-y-2">
-                  <Label>Country/Region *</Label>
+                  <Label>Country/Region*</Label>
                   <Select
                     value={form.address.country || form.country}
                     onValueChange={(v) => update("address.country", v)}
@@ -401,7 +401,7 @@ export default function RegisterPage() {
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label>Street address *</Label>
+                  <Label>Street address*</Label>
                   <Input
                     value={form.address.street}
                     onChange={(e) => update("address.street", e.target.value)}
@@ -418,7 +418,7 @@ export default function RegisterPage() {
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2 min-w-0">
-                    <Label>City *</Label>
+                    <Label>City*</Label>
                     <Input
                       value={form.address.city}
                       onChange={(e) => update("address.city", e.target.value)}
@@ -426,7 +426,7 @@ export default function RegisterPage() {
                     />
                   </div>
                   <div className="space-y-2 min-w-0">
-                    <Label>{regionLabel} *</Label>
+                    <Label>{regionLabel}*</Label>
                     {addressRegions.length > 0 ? (
                       <Select
                         value={form.address.state}
@@ -453,7 +453,7 @@ export default function RegisterPage() {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label>ZIP/Postal code *</Label>
+                  <Label>ZIP/Postal code*</Label>
                   <Input
                     value={form.address.zip}
                     onChange={(e) => update("address.zip", e.target.value)}
@@ -466,7 +466,7 @@ export default function RegisterPage() {
             {step === 3 && (
               <>
                 <div className="space-y-2 min-w-0">
-                  <Label>How did you find us? *</Label>
+                  <Label>How did you find us?*</Label>
                   <Select
                     value={form.howFoundUs}
                     onValueChange={(v) => update("howFoundUs", v)}

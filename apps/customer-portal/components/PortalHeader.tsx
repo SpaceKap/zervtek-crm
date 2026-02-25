@@ -4,7 +4,7 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
-import { LogoutButton } from "@/components/logout-button";
+import { ProfileMenu } from "@/components/ProfileMenu";
 
 type PortalHeaderProps = {
   title: string;
@@ -54,20 +54,7 @@ export function PortalHeader({
           </div>
           <div className="flex flex-shrink-0 items-center gap-2">
             {badge}
-            {showProfileAndLogout && (
-              <>
-                <Link
-                  href="/profile"
-                  className={cn(
-                    buttonVariants({ variant: "outline", size: "default" }),
-                    "min-h-[44px] px-4 sm:min-h-0"
-                  )}
-                >
-                  My profile
-                </Link>
-                <LogoutButton />
-              </>
-            )}
+            {showProfileAndLogout && <ProfileMenu />}
           </div>
         </div>
       </div>

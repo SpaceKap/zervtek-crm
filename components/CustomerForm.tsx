@@ -575,7 +575,7 @@ export function CustomerForm({
                           *
                         </span>
                       </Label>
-                      <div className="grid grid-cols-[minmax(0,180px)_minmax(0,1fr)] gap-3">
+                      <div className="grid grid-cols-[minmax(0,130px)_minmax(0,1fr)] sm:grid-cols-[minmax(0,200px)_minmax(0,1fr)] gap-3">
                         <div className="min-w-0">
                           <CountryCodeSelect
                             value={watch("phoneCountryCode") || ""}

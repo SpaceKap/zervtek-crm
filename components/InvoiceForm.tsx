@@ -309,6 +309,27 @@ export function InvoiceForm({ invoice }: InvoiceFormProps = {}) {
           };
         });
         setValue("charges", formattedCharges);
+
+        // Restore shipping calculator data (sizes, rate, exchange rate) from metadata
+        const meta = invoice.metadata as Record<string, unknown> | null | undefined;
+        const savedRates = meta?.shippingRates as Record<string, { length?: string; width?: string; height?: string; ratePerM3?: string; exchangeRate?: string }> | undefined;
+        if (savedRates && typeof savedRates === "object") {
+          const next: Record<number, { length: string; width: string; height: string; ratePerM3: string; exchangeRate?: string }> = {};
+          formattedCharges.forEach((_c: any, i: number) => {
+            const key = String(i);
+            const r = savedRates[key];
+            if (r && (r.length != null || r.width != null || r.height != null || r.ratePerM3 != null)) {
+              next[i] = {
+                length: r.length ?? "",
+                width: r.width ?? "",
+                height: r.height ?? "",
+                ratePerM3: r.ratePerM3 ?? "",
+                exchangeRate: r.exchangeRate ?? "",
+              };
+            }
+          });
+          setShippingRates(next);
+        }
       }
     }
   }, [invoice, customers.length, setValue]);
@@ -475,6 +496,25 @@ export function InvoiceForm({ invoice }: InvoiceFormProps = {}) {
       const url = invoice ? `/api/invoices/${invoice.id}` : "/api/invoices";
       const method = invoice ? "PATCH" : "POST";
 
+      // Persist shipping calculator data (dimensions, rate, exchange rate) in invoice metadata
+      const shippingRatesPayload: Record<string, { length: string; width: string; height: string; ratePerM3: string; exchangeRate?: string }> = {};
+      data.charges.forEach((charge: any, i: number) => {
+        if (charge.chargeType === "SHIPPING" && shippingRates[i]) {
+          const r = shippingRates[i];
+          if (r?.length != null || r?.width != null || r?.height != null || r?.ratePerM3 != null) {
+            shippingRatesPayload[String(i)] = {
+              length: r.length ?? "",
+              width: r.width ?? "",
+              height: r.height ?? "",
+              ratePerM3: r.ratePerM3 ?? "",
+              exchangeRate: r.exchangeRate ?? "",
+            };
+          }
+        }
+      });
+      const existingMeta = (invoice?.metadata as Record<string, unknown>) || {};
+      const metadata = { ...existingMeta, shippingRates: shippingRatesPayload };
+
       const response = await fetch(url, {
         method,
         headers: {
@@ -493,6 +533,7 @@ export function InvoiceForm({ invoice }: InvoiceFormProps = {}) {
           notes: data.notes || null,
           customerUsesInJapan: data.customerUsesInJapan,
           charges: chargesToSubmit,
+          metadata: Object.keys(metadata).length ? metadata : undefined,
         }),
       });
 

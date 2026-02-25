@@ -407,7 +407,7 @@ export function ProfileForm() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <Label htmlFor="firstName">
-                First name <span className="text-destructive">*</span>
+                First name<span className="text-destructive">*</span>
               </Label>
               <Input
                 id="firstName"
@@ -423,7 +423,7 @@ export function ProfileForm() {
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="lastName">
-                Last name <span className="text-destructive">*</span>
+                Last name<span className="text-destructive">*</span>
               </Label>
               <Input
                 id="lastName"
@@ -441,7 +441,7 @@ export function ProfileForm() {
 
           <div className="space-y-1.5">
             <Label htmlFor="email">
-              Email <span className="text-destructive">*</span>
+              Email<span className="text-destructive">*</span>
             </Label>
             <Input
               id="email"
@@ -459,10 +459,10 @@ export function ProfileForm() {
 
           <div className="space-y-1.5">
             <Label>
-              Phone Number <span className="text-destructive">*</span>
+              Phone Number<span className="text-destructive">*</span>
             </Label>
             <div className="flex min-w-0 gap-2">
-              <div className="w-[110px] shrink-0 sm:w-[160px]">
+              <div className="w-[130px] shrink-0 sm:w-[200px]">
                 <CountryCodeSelect
                   value={watch("phoneCountryCode") || ""}
                   onValueChange={(v) =>
@@ -495,7 +495,7 @@ export function ProfileForm() {
 
           <div className="space-y-1.5">
             <Label htmlFor="portOfDestination">
-              Port of Destination <span className="text-destructive">*</span>
+              Port of Destination<span className="text-destructive">*</span>
             </Label>
             <Input
               id="portOfDestination"
@@ -521,7 +521,7 @@ export function ProfileForm() {
         <h3 className="text-base font-semibold mb-5">Address</h3>
         <div className="space-y-5">
           <div className="space-y-1.5">
-            <Label>Country/Region *</Label>
+            <Label>Country/Region*</Label>
             <Select
               value={watch("address.country") || ""}
               onValueChange={(v) => {
@@ -548,7 +548,7 @@ export function ProfileForm() {
           </div>
 
           <div className="space-y-1.5">
-            <Label>Street address *</Label>
+            <Label>Street address*</Label>
             <Input
               {...register("address.street")}
               placeholder="Street address"
@@ -562,7 +562,7 @@ export function ProfileForm() {
           </div>
 
           <div className="space-y-1.5">
-            <Label>Apartment, suite, etc. *</Label>
+            <Label>Apartment, suite, etc.*</Label>
             <Input
               {...register("address.apartment")}
               placeholder="Apartment, suite, etc."
@@ -577,7 +577,7 @@ export function ProfileForm() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <Label>City *</Label>
+              <Label>City*</Label>
               <Input
                 {...register("address.city")}
                 placeholder="City"
@@ -590,7 +590,7 @@ export function ProfileForm() {
               )}
             </div>
             <div className="space-y-1.5">
-              <Label>State/Province/Region *</Label>
+              <Label>State/Province/Region*</Label>
               {availableRegions.length > 0 ? (
                 <Select
                   value={watch("address.state") || ""}
@@ -625,7 +625,7 @@ export function ProfileForm() {
           </div>
 
           <div className="space-y-1.5">
-            <Label>ZIP/Postal Code *</Label>
+            <Label>ZIP/Postal Code*</Label>
             <Input
               {...register("address.zip")}
               placeholder={getPostalPlaceholder(watch("address.country") || "")}
@@ -645,7 +645,7 @@ export function ProfileForm() {
           <h3 className="text-base font-semibold mb-5">Shipping Address</h3>
           <div className="space-y-5">
             <div className="space-y-1.5">
-              <Label>Country/Region *</Label>
+              <Label>Country/Region*</Label>
               <Select
                 value={watch("shippingAddress.country") || ""}
                 onValueChange={(v) => {
@@ -666,7 +666,7 @@ export function ProfileForm() {
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label>Street address *</Label>
+              <Label>Street address*</Label>
               <Input
                 {...register("shippingAddress.street")}
                 placeholder="Street address"
@@ -674,7 +674,7 @@ export function ProfileForm() {
               />
             </div>
             <div className="space-y-1.5">
-              <Label>Apartment, suite, etc. *</Label>
+              <Label>Apartment, suite, etc.*</Label>
               <Input
                 {...register("shippingAddress.apartment")}
                 placeholder="Apartment, suite, etc."
@@ -683,7 +683,7 @@ export function ProfileForm() {
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <Label>City *</Label>
+                <Label>City*</Label>
                 <Input
                   {...register("shippingAddress.city")}
                   placeholder="City"
@@ -691,7 +691,7 @@ export function ProfileForm() {
                 />
               </div>
               <div className="space-y-1.5">
-                <Label>State/Province/Region *</Label>
+                <Label>State/Province/Region*</Label>
                 {availableShippingRegions.length > 0 ? (
                   <Select
                     value={watch("shippingAddress.state") || ""}
@@ -722,7 +722,7 @@ export function ProfileForm() {
               </div>
             </div>
             <div className="space-y-1.5">
-              <Label>ZIP/Postal Code *</Label>
+              <Label>ZIP/Postal Code*</Label>
               <Input
                 {...register("shippingAddress.zip")}
                 placeholder={getPostalPlaceholder(

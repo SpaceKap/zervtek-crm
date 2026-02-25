@@ -55,7 +55,7 @@ function LoginForm() {
   }
 
   return (
-    <Card className="w-full max-w-md max-w-[calc(100vw-2rem)]">
+    <Card className="w-full max-w-md bg-white shadow-md dark:bg-zinc-900">
         <CardHeader className="text-center">
           <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-full bg-primary/10">
             <Car className="size-8 text-primary" />
@@ -135,7 +135,7 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <div className="flex min-h-screen min-h-[100dvh] flex-col items-center justify-center bg-muted/30 p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+    <div className="flex min-h-screen min-h-[100dvh] flex-col items-center justify-center bg-muted p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
       <Suspense fallback={<div className="w-full max-w-md rounded-xl border bg-card p-8 text-center text-muted-foreground">Loading…</div>}>
         <LoginForm />
       </Suspense>

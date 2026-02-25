@@ -148,6 +148,7 @@ export async function PATCH(
       customerUsesInJapan,
       charges,
       wisePaymentLink,
+      metadata: bodyMetadata,
     } = body
 
     const updateData: any = {}
@@ -173,6 +174,14 @@ export async function PATCH(
       updateData.customerUsesInJapan = customerUsesInJapan
     if (wisePaymentLink !== undefined)
       updateData.wisePaymentLink = wisePaymentLink || null
+    if (bodyMetadata !== undefined) {
+      const current = await prisma.invoice.findUnique({
+        where: { id: params.id },
+        select: { metadata: true },
+      })
+      const existing = (current?.metadata as Record<string, unknown>) || {}
+      updateData.metadata = { ...existing, ...bodyMetadata }
+    }
 
     // Sync customerId/vehicleId changes to vehicle
     if (customerId !== undefined || vehicleId !== undefined) {
