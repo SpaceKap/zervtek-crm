@@ -63,13 +63,19 @@ function formatDate(d: Date | null | undefined): string {
   return isNaN(date.getTime()) ? "—" : format(date, "MMM d, yyyy");
 }
 
+/** Same as CRM getInvoiceTotalWithTax: subtract deposit/discount, then add tax. */
 function invoiceTotal(inv: {
-  charges: Array<{ amount: unknown }>;
+  charges: Array<{ amount: unknown; chargeType?: { name?: string } | null }>;
   taxEnabled?: boolean | null;
   taxRate?: unknown;
 }): number {
+  const subtracting = ["discount", "deposit"];
   const sum =
-    inv.charges?.reduce((s, c) => s + Number(c.amount ?? 0), 0) ?? 0;
+    inv.charges?.reduce((s, c) => {
+      const amt = Number(c.amount ?? 0);
+      const name = (c.chargeType?.name ?? "").toLowerCase();
+      return subtracting.includes(name) ? s - amt : s + amt;
+    }, 0) ?? 0;
   if (inv.taxEnabled && inv.taxRate != null) {
     const rate = parseFloat(String(inv.taxRate));
     return sum + sum * (rate / 100);
@@ -203,7 +209,7 @@ export default async function VehiclePage({
         shareToken: true,
         taxEnabled: true,
         taxRate: true,
-        charges: { select: { description: true, amount: true } },
+        charges: { select: { description: true, amount: true, chargeType: { select: { name: true } } } },
       },
       orderBy: { issueDate: "desc" },
     }),

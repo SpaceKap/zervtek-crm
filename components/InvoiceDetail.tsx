@@ -745,6 +745,17 @@ export function InvoiceDetail({
                           </p>
                         </div>
                       )}
+                      {invoice.customer.portOfDestination && (
+                        <div>
+                          <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                            Port of destination
+                          </Label>
+                          <p className="mt-1 text-sm text-gray-700 dark:text-gray-300 flex items-center gap-1.5">
+                            <span className="material-symbols-outlined text-base">anchor</span>
+                            {invoice.customer.portOfDestination}
+                          </p>
+                        </div>
+                      )}
                     </div>
                     <div className="space-y-4">
                       {billingAddress && (

@@ -21,6 +21,62 @@ function formatDate(d: Date | null | undefined): string {
   return isNaN(date.getTime()) ? "—" : format(date, "MMM d, yyyy");
 }
 
+/**
+ * Wallet balance = Deposits − (Applied to invoice + Refunds).
+ * CRM: when adding a deposit use description containing "Deposit"; when applying wallet to an invoice
+ * create OUTGOING with description like "Applied from wallet to Invoice INV-001"; for refunds use "Refund".
+ */
+/** INCOMING with description containing "deposit" → increases wallet */
+function isDeposit(direction: string, description: string | null): boolean {
+  return direction === "INCOMING" && /deposit/i.test(description ?? "");
+}
+
+/** OUTGOING applied from wallet to an invoice → decreases wallet (e.g. "Applied from wallet to Invoice INV-001") */
+function isAppliedFromWallet(direction: string, description: string | null): boolean {
+  return direction === "OUTGOING" && /applied.*(wallet|to invoice)|from wallet/i.test(description ?? "");
+}
+
+/** OUTGOING refund → decreases wallet */
+function isRefund(direction: string, description: string | null): boolean {
+  return direction === "OUTGOING" && /refund/i.test(description ?? "");
+}
+
+/** INCOMING "Payment for Invoice" → does NOT change wallet (records invoice payment only) */
+function isPaymentForInvoice(direction: string, description: string | null): boolean {
+  return direction === "INCOMING" && /payment for invoice/i.test(description ?? "");
+}
+
+/** Wallet balance = Deposits − (Applied to invoice + Refunds). Payment for Invoice does not add to wallet. */
+function computeWalletBalance(
+  transactions: { direction: string; amount: unknown; description: string | null }[]
+): number {
+  let balance = 0;
+  for (const tx of transactions) {
+    const amount = Number(tx.amount) || 0;
+    const desc = tx.description ?? "";
+    if (isDeposit(tx.direction, desc)) balance += amount;
+    else if (isAppliedFromWallet(tx.direction, desc) || isRefund(tx.direction, desc)) balance -= amount;
+  }
+  return balance;
+}
+
+function getTransactionLabel(
+  direction: string,
+  description: string | null
+): { label: string; affectsWallet: boolean; isRefund: boolean; isDeduction: boolean } {
+  if (isDeposit(direction, description))
+    return { label: "Deposit", affectsWallet: true, isRefund: false, isDeduction: false };
+  if (isAppliedFromWallet(direction, description))
+    return { label: "Applied to invoice", affectsWallet: true, isRefund: false, isDeduction: true };
+  if (isRefund(direction, description))
+    return { label: "Refund", affectsWallet: true, isRefund: true, isDeduction: false };
+  if (isPaymentForInvoice(direction, description))
+    return { label: "Payment for invoice", affectsWallet: false, isRefund: false, isDeduction: false };
+  if (direction === "OUTGOING")
+    return { label: "Outgoing", affectsWallet: false, isRefund: false, isDeduction: true };
+  return { label: "Incoming", affectsWallet: false, isRefund: false, isDeduction: false };
+}
+
 export default async function WalletPage() {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) redirect("/login");
@@ -42,6 +98,9 @@ export default async function WalletPage() {
     orderBy: { date: "desc" },
   });
 
+  const walletBalance = computeWalletBalance(transactions);
+  const currency = transactions[0]?.currency ?? "JPY";
+
   return (
     <div className="min-h-screen bg-muted/30">
       <div className="container mx-auto max-w-3xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
@@ -62,8 +121,16 @@ export default async function WalletPage() {
               Wallet
             </CardTitle>
             <CardDescription>
-              All your payments and refunds in one place.
+              Funds available to apply to future invoices or request as a refund. Balance = Deposits − (Applied to invoice + Refunds). Payments for invoices do not add to your wallet.
             </CardDescription>
+            <div className="mt-4 rounded-lg border bg-muted/50 px-4 py-3">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Available balance
+              </p>
+              <p className="text-2xl font-semibold tabular-nums">
+                {currency} {walletBalance.toLocaleString()}
+              </p>
+            </div>
           </CardHeader>
           <CardContent>
             {transactions.length === 0 ? (
@@ -73,9 +140,15 @@ export default async function WalletPage() {
             ) : (
               <ul className="divide-y divide-border">
                 {transactions.map((tx) => {
-                  const isRefund = tx.direction === "OUTGOING";
-                  const label = isRefund ? "Refund" : "Payment";
                   const amount = Number(tx.amount);
+                  const { label, affectsWallet, isRefund, isDeduction } = getTransactionLabel(
+                    tx.direction,
+                    tx.description
+                  );
+                  const amountDisplay =
+                    isRefund ? `+ ${tx.currency} ${amount.toLocaleString()}`
+                    : isDeduction && affectsWallet ? `− ${tx.currency} ${amount.toLocaleString()}`
+                    : `${tx.currency} ${amount.toLocaleString()}`;
                   return (
                     <li
                       key={tx.id}
@@ -86,9 +159,7 @@ export default async function WalletPage() {
                           <span
                             className={cn(
                               "text-sm font-medium",
-                              isRefund
-                                ? "text-green-600 dark:text-green-400"
-                                : "text-foreground"
+                              isRefund ? "text-green-600 dark:text-green-400" : "text-foreground"
                             )}
                           >
                             {label}
@@ -97,6 +168,9 @@ export default async function WalletPage() {
                             <span className="text-xs text-muted-foreground">
                               Invoice {tx.invoice.invoiceNumber}
                             </span>
+                          )}
+                          {!affectsWallet && label === "Payment for invoice" && (
+                            <span className="text-xs text-muted-foreground">(does not change wallet)</span>
                           )}
                         </div>
                         {tx.description && (
@@ -112,13 +186,10 @@ export default async function WalletPage() {
                         <span
                           className={cn(
                             "text-sm font-medium tabular-nums",
-                            isRefund
-                              ? "text-green-600 dark:text-green-400"
-                              : "text-foreground"
+                            isRefund ? "text-green-600 dark:text-green-400" : "text-foreground"
                           )}
                         >
-                          {isRefund ? "+" : ""}
-                          {tx.currency} {amount.toLocaleString()}
+                          {amountDisplay}
                         </span>
                       </div>
                     </li>

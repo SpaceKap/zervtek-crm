@@ -216,7 +216,11 @@ export default async function PortalPage({
     <div className="min-h-screen bg-muted/30">
       <PortalHeader
         title={customer.name}
-        subtitle="Vehicle tracking portal"
+        subtitle={
+          customer.portOfDestination
+            ? `Port: ${customer.portOfDestination} · Vehicle tracking portal`
+            : "Vehicle tracking portal"
+        }
         badge={
           <div className="flex min-h-[44px] items-center gap-2 rounded-lg bg-primary/10 px-4 py-2 sm:min-h-0">
             <Car className="size-4 shrink-0 text-primary" />

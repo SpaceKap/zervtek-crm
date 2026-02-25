@@ -171,7 +171,7 @@ export async function GET(request: NextRequest) {
             amount: true,
             chargeType: { select: { name: true } },
           },
-          take: 10, // Limit charges per invoice for list view
+          // No limit: list total must include all charges (deposits/discounts subtract correctly)
         },
       },
       orderBy: { createdAt: "desc" },

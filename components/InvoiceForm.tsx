@@ -496,7 +496,9 @@ export function InvoiceForm({ invoice }: InvoiceFormProps = {}) {
       const url = invoice ? `/api/invoices/${invoice.id}` : "/api/invoices";
       const method = invoice ? "PATCH" : "POST";
 
-      // Persist shipping calculator data (dimensions, rate, exchange rate) in invoice metadata
+      // Persist shipping calculator data (dimensions, rate, exchange rate) in invoice metadata.
+      // Merge with existing shippingRates so saved values don't disappear when editing (e.g. if
+      // state wasn't restored yet or indices shifted).
       const shippingRatesPayload: Record<string, { length: string; width: string; height: string; ratePerM3: string; exchangeRate?: string }> = {};
       data.charges.forEach((charge: any, i: number) => {
         if (charge.chargeType === "SHIPPING" && shippingRates[i]) {
@@ -513,7 +515,9 @@ export function InvoiceForm({ invoice }: InvoiceFormProps = {}) {
         }
       });
       const existingMeta = (invoice?.metadata as Record<string, unknown>) || {};
-      const metadata = { ...existingMeta, shippingRates: shippingRatesPayload };
+      const existingRates = (existingMeta.shippingRates as Record<string, { length?: string; width?: string; height?: string; ratePerM3?: string; exchangeRate?: string }>) || {};
+      const mergedShippingRates = { ...existingRates, ...shippingRatesPayload };
+      const metadata = { ...existingMeta, shippingRates: mergedShippingRates };
 
       const response = await fetch(url, {
         method,

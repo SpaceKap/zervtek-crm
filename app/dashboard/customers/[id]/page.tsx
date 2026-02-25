@@ -470,6 +470,11 @@ export default function CustomerDetailPage() {
         <span className="material-symbols-outlined text-sm opacity-70">chevron_right</span>
         <span className="text-foreground font-medium truncate max-w-[200px] sm:max-w-none">
           {customer.name}
+          {customer.portOfDestination && (
+            <span className="text-muted-foreground font-normal ml-1.5">
+              · Port: {customer.portOfDestination}
+            </span>
+          )}
         </span>
       </nav>
 
@@ -675,6 +680,12 @@ export default function CustomerDetailPage() {
                       <CardDescription className="font-mono text-xs">
                         VIN: {vehicle.vin}
                       </CardDescription>
+                      {customer.portOfDestination && (
+                        <p className="mt-1 text-xs text-muted-foreground flex items-center gap-1">
+                          <span className="material-symbols-outlined text-xs">anchor</span>
+                          Port: {customer.portOfDestination}
+                        </p>
+                      )}
                     </div>
                     <div className="flex items-center gap-2">
                       {vehicle.currentShippingStage && (

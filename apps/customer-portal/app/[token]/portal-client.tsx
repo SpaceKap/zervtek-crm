@@ -61,6 +61,7 @@ type PortalStats = {
 };
 
 export function PortalClient({
+  customer,
   vehicles,
   transactions,
   allDocuments,
@@ -240,6 +241,12 @@ export function PortalClient({
                       <span className="font-mono">{v.vin}</span>
                       <span>·</span>
                       <span>{formatDate(v.purchaseDate)}</span>
+                      {customer.portOfDestination && (
+                        <>
+                          <span>·</span>
+                          <span>Port: {customer.portOfDestination}</span>
+                        </>
+                      )}
                       {v.currentShippingStage && (
                         <>
                           <span>·</span>
@@ -275,6 +282,9 @@ export function PortalClient({
                 <tr className="border-b bg-muted/50">
                   <th className="text-left p-4 font-medium">Vehicle</th>
                   <th className="text-left p-4 font-medium">VIN</th>
+                  {customer.portOfDestination && (
+                    <th className="text-left p-4 font-medium">Port</th>
+                  )}
                   <th className="text-left p-4 font-medium">Purchase date</th>
                   <th className="text-left p-4 font-medium">Stage</th>
                   <th className="text-left p-4 font-medium">Documents</th>
@@ -299,6 +309,9 @@ export function PortalClient({
                         </div>
                       </td>
                       <td className="p-4 font-mono text-sm text-muted-foreground">{v.vin}</td>
+                      {customer.portOfDestination && (
+                        <td className="p-4 text-sm text-muted-foreground">{customer.portOfDestination}</td>
+                      )}
                       <td className="p-4 text-sm text-muted-foreground">{formatDate(v.purchaseDate)}</td>
                       <td className="p-4">
                         {v.currentShippingStage ? (
