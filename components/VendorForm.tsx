@@ -22,7 +22,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { VendorCategory } from "@prisma/client";
+import { VendorCategory } from "@/lib/constants-client";
 
 const vendorSchema = z.object({
   name: z.string().min(1, "Name is required"),

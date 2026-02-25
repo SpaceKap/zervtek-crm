@@ -16,7 +16,9 @@ import {
   TransactionDirection,
   TransactionType,
   UserRole,
-} from "@prisma/client";
+  ShippingStage,
+  DocumentCategory,
+} from "@/lib/constants-client";
 import {
   Card,
   CardContent,
@@ -43,7 +45,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ShippingStage, DocumentCategory } from "@prisma/client";
 import { format } from "date-fns";
 
 interface FinancialOperationsViewProps {

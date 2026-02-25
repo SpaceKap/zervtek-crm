@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { getInvoiceTotalWithTax } from "@/lib/invoice-utils";
+import { getInvoiceTotalWithTax } from "@/lib/invoice-utils-client";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
