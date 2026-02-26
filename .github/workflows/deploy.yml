@@ -1,15 +1,13 @@
-name: deploy
-
 on:
   workflow_run:
-  workflows: ['CI']
-  types: [completed]
-  branches: [main]
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main]
 
 jobs:
   deploy:
-    if: ${{ workflow_run.conclusion == 'success' }}
-    runs-on: self-hosted 
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: self-hosted
     steps:
       - name: Deploy to VPS via SSH
         env:
