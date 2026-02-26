@@ -5,8 +5,11 @@ try {
   // dotenv not installed
 }
 
-import { prisma } from "../lib/prisma"
-import { UserRole } from "@prisma/client"
+// Use PrismaClient directly so this script can run outside Next (e.g. docker compose run).
+// Do not import from ../lib/prisma — it uses "server-only" and throws in Node scripts.
+import { PrismaClient, UserRole } from "@prisma/client";
+
+const prisma = new PrismaClient();
 
 /**
  * Script to change user roles for testing purposes
@@ -102,6 +105,7 @@ Available roles: ${Object.values(UserRole).join(", ")}
 
   if (args[0] === "--list" || args[0] === "-l") {
     await listUsers()
+    await prisma.$disconnect()
     process.exit(0)
   }
 
