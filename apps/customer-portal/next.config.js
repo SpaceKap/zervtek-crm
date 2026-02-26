@@ -2,9 +2,9 @@
 const nextConfig = {
   reactStrictMode: true,
   transpilePackages: ["@inquiry-pooler/db"],
-  serverExternalPackages: ["@inquiry-pooler/db", "@prisma/client"],
   experimental: {
     instrumentationHook: true,
+    serverComponentsExternalPackages: ["@inquiry-pooler/db", "@prisma/client"],
   },
 };
 

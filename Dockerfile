@@ -11,13 +11,15 @@ RUN npm ci
 
 # Stage 2: Builder
 FROM node:20-alpine AS builder
+# OpenSSL required so Prisma detects 3.x and uses linux-musl-openssl-3.0.x engine (avoids libssl.so.1.1 not found)
+RUN apk add --no-cache openssl
 WORKDIR /app
 
 # Copy dependencies from deps stage
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Generate Prisma Client
+# Generate Prisma Client (with OpenSSL present, Prisma will pick openssl-3.0.x on Alpine)
 RUN npx prisma generate
 
 # Build Next.js application
