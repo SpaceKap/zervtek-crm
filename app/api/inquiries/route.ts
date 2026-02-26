@@ -199,8 +199,12 @@ export async function POST(request: NextRequest) {
       status,
     } = body
 
-    // Validate source
-    if (!Object.values(InquirySource).includes(source)) {
+    // Validate source (allow REFERRAL explicitly in case generated client is from before it was added)
+    const validSources = new Set([
+      ...Object.values(InquirySource),
+      "REFERRAL",
+    ] as string[])
+    if (!validSources.has(source)) {
       return NextResponse.json(
         { error: "Invalid source" },
         { status: 400 }
@@ -227,33 +231,48 @@ export async function POST(request: NextRequest) {
       assignedToId = session.user.id
     }
 
-    const inquiry = await prisma.inquiry.create({
-      data: {
-        source: source as InquirySource,
-        sourceId: sourceId || null,
-        customerName: customerName || null,
-        email: email || null,
-        phone: phone || null,
-        message: message || null,
-        metadata: {
-          ...(metadata || {}),
-          ...(lookingFor ? { lookingFor } : {}),
+    let inquiry
+    try {
+      inquiry = await prisma.inquiry.create({
+        data: {
+          source: source as InquirySource,
+          sourceId: sourceId || null,
+          customerName: customerName || null,
+          email: email || null,
+          phone: phone || null,
+          message: message || null,
+          metadata: {
+            ...(metadata || {}),
+            ...(lookingFor ? { lookingFor } : {}),
+          },
+          status: (status as InquiryStatus) || InquiryStatus.NEW,
+          assignedToId: assignedToId,
+          assignedAt: assignedToId ? new Date() : null,
         },
-        status: (status as InquiryStatus) || InquiryStatus.NEW,
-        assignedToId: assignedToId,
-        assignedAt: assignedToId ? new Date() : null,
-      },
-      include: {
-        assignedTo: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            image: true,
+        include: {
+          assignedTo: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              image: true,
+            },
           },
         },
-      },
-    })
+      })
+    } catch (createError: unknown) {
+      const msg = createError instanceof Error ? createError.message : String(createError)
+      if (msg.includes("REFERRAL") || msg.includes("InquirySource") || msg.includes("enum")) {
+        return NextResponse.json(
+          {
+            error:
+              "Database schema is out of date: REFERRAL source is not in the database. Please run migrations (e.g. ./deploy or prisma migrate deploy).",
+          },
+          { status: 503 }
+        )
+      }
+      throw createError
+    }
 
     // Create history entry
     await prisma.inquiryHistory.create({

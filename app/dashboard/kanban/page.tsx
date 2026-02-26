@@ -17,6 +17,10 @@ export default async function KanbanPage({
     redirect("/login");
   }
 
+  if (session.user.role === UserRole.ACCOUNTANT) {
+    redirect("/dashboard");
+  }
+
   const isManager =
     session.user.role === UserRole.MANAGER ||
     session.user.role === UserRole.ADMIN;

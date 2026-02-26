@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
-import { UserRole } from "@prisma/client"
 import { canViewAllInquiries } from "@/lib/permissions"
+import { invalidateCachePattern } from "@/lib/cache"
 
 export async function POST(
   request: NextRequest,
@@ -68,6 +68,9 @@ export async function POST(
         notes: "Inquiry released back to pool",
       },
     })
+
+    await invalidateCachePattern("inquiries:list:")
+    await invalidateCachePattern("kanban:")
 
     return NextResponse.json(updatedInquiry)
   } catch (error) {

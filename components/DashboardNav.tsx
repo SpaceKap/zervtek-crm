@@ -13,7 +13,12 @@ interface DashboardNavProps {
 
 const navItems = [
   { href: "/dashboard", icon: "inbox", label: "Dashboard" },
-  { href: "/dashboard/kanban", icon: "view_kanban", label: "Sales Pipeline" },
+  {
+    href: "/dashboard/kanban",
+    icon: "view_kanban",
+    label: "Sales Pipeline",
+    roles: ["MANAGER", "ADMIN", "SALES", "BACK_OFFICE_STAFF"],
+  },
   {
     href: "/dashboard/shipping-kanban",
     icon: "local_shipping",

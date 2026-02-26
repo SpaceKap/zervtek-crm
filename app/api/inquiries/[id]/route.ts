@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { InquiryStatus, UserRole } from "@prisma/client"
 import { canViewAllInquiries } from "@/lib/permissions"
+import { invalidateCachePattern } from "@/lib/cache"
 
 export async function GET(
   request: NextRequest,
@@ -196,7 +197,7 @@ export async function DELETE(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    // Only allow avi@zervtek.com to delete inquiries
+    // Only avi@zervtek.com can delete inquiries
     if (session.user.email !== "avi@zervtek.com") {
       return NextResponse.json(
         { error: "Forbidden: Only avi@zervtek.com can delete inquiries" },
@@ -219,6 +220,9 @@ export async function DELETE(
     await prisma.inquiry.delete({
       where: { id: params.id },
     })
+
+    await invalidateCachePattern("inquiries:list:")
+    await invalidateCachePattern("kanban:")
 
     return NextResponse.json({ success: true })
   } catch (error) {
