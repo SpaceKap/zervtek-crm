@@ -79,6 +79,7 @@ export async function GET(request: NextRequest) {
       CONTACT_US_INQUIRY_FORM: 0,
       HERO_INQUIRY: 0,
       INQUIRY_FORM: 0,
+      REFERRAL: 0,
     };
     sourceCounts.forEach((item) => {
       bySource[item.source] = item._count.id;

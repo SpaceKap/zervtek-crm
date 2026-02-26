@@ -34,6 +34,7 @@ enum InquirySource {
   CONTACT_US_INQUIRY_FORM
   HERO_INQUIRY
   INQUIRY_FORM
+  REFERRAL
 
   @@schema("inquiry_pooler")
 }

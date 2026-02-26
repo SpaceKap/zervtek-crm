@@ -1,0 +1,24 @@
+name: deploy
+
+on:
+  workflow_run:
+  workflows: ['CI']
+  types: [completed]
+  branches: [main]
+
+jobs:
+  deploy:
+    if: ${{ workflow_run.conclusion == 'success' }}
+    runs-on: self-hosted 
+    steps:
+      - name: Deploy to VPS via SSH
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh -o StrictHostKeyChecking=accept-new -i ~/.ssh/deploy_key "$VPS_USER@$VPS_HOST" "cd ~/inquiry-pooler && git fetch origin main && git reset --hard origin/main && ./update.sh"
+          rm -f ~/.ssh/deploy_key

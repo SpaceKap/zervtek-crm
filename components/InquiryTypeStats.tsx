@@ -64,6 +64,7 @@ const sourceLabels: Record<InquirySource, string> = {
   ONBOARDING_FORM: "Onboarding Form",
   HERO_INQUIRY: "Hero Section Inquiry",
   INQUIRY_FORM: "Contact Form Inquiry",
+  REFERRAL: "Referral",
   WEB: "Web", // Legacy support
   CONTACT_US_INQUIRY_FORM: "Contact Us Inquiry Form", // Legacy support
 };
@@ -77,6 +78,7 @@ const sourceColors: Record<InquirySource, string> = {
   ONBOARDING_FORM: "bg-teal-500",
   HERO_INQUIRY: "bg-pink-500",
   INQUIRY_FORM: "bg-cyan-500",
+  REFERRAL: "bg-violet-500",
   WEB: "bg-purple-500", // Legacy support
   CONTACT_US_INQUIRY_FORM: "bg-indigo-500", // Legacy support
 };

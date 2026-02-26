@@ -79,6 +79,7 @@ function normalizeSource(source: string): InquirySource {
   if (normalized === "onboarding form" || normalized === "onboarding_form" || normalized === "onboardingform") return InquirySource.ONBOARDING_FORM
   if (normalized === "hero_inquiry" || normalized === "hero inquiry" || normalized === "heroinquiry") return InquirySource.HERO_INQUIRY
   if (normalized === "inquiry_form" || normalized === "inquiry form" || normalized === "inquiryform") return InquirySource.INQUIRY_FORM
+  if (normalized === "referral") return InquirySource.REFERRAL
   // Default to INQUIRY_FORM if unknown (most common form type)
   return InquirySource.INQUIRY_FORM
 }

@@ -39,6 +39,7 @@ const inquirySchema = z.object({
     "ONBOARDING_FORM",
     "HERO_INQUIRY",
     "INQUIRY_FORM",
+    "REFERRAL",
   ]),
   customerName: z.string().min(1, "Customer name is required"),
   email: z.string().email().optional().or(z.literal("")),
@@ -152,6 +153,7 @@ export function AddInquiryDialog({
               <option value="ONBOARDING_FORM">Onboarding Form</option>
               <option value="HERO_INQUIRY">Hero Section Inquiry</option>
               <option value="INQUIRY_FORM">Contact Form Inquiry</option>
+              <option value="REFERRAL">Referral</option>
             </select>
             {errors.source && (
               <p className="text-sm text-red-500 mt-1">
