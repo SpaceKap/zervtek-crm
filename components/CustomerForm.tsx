@@ -337,10 +337,17 @@ export function CustomerForm({
         if (suggested) setValue("phoneCountryCode", suggested);
       }
     } else {
-      setSelectedCountry("");
-      setAvailableRegions([]);
+      // When clearing country, don't wipe region state if we're loading from customer
+      // (avoids race where this effect runs with stale "" before reset() has applied)
+      const fromCustomer =
+        customer &&
+        ((customer.billingAddress as any)?.country || customer.country);
+      if (!fromCustomer) {
+        setSelectedCountry("");
+        setAvailableRegions([]);
+      }
     }
-  }, [watch("address.country"), setValue]);
+  }, [watch("address.country"), setValue, customer]);
 
   // Update regions when shipping country changes
   useEffect(() => {
@@ -354,10 +361,17 @@ export function CustomerForm({
         setValue("shippingAddress.state", "");
       }
     } else {
-      setSelectedShippingCountry("");
-      setAvailableShippingRegions([]);
+      const fromCustomer =
+        customer &&
+        ((customer.shippingAddress as any)?.country ||
+          (customer.billingAddress as any)?.country ||
+          customer.country);
+      if (!fromCustomer) {
+        setSelectedShippingCountry("");
+        setAvailableShippingRegions([]);
+      }
     }
-  }, [watch("shippingAddress.country"), setValue]);
+  }, [watch("shippingAddress.country"), setValue, customer]);
 
   // Handle "same as billing" checkbox
   const sameAsBilling = watch("sameAsBilling");

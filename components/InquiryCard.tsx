@@ -474,13 +474,7 @@ export function InquiryCard({
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
-                  if (
-                    confirm(
-                      "Are you sure you want to permanently delete this inquiry? This action cannot be undone.",
-                    )
-                  ) {
-                    onDelete(inquiry.id);
-                  }
+                  onDelete(inquiry.id);
                 }}
                 onMouseDown={(e) => e.stopPropagation()}
                 className="flex items-center justify-center p-1.5 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 transition-colors"

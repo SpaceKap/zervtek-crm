@@ -249,6 +249,13 @@ export function InquiryPool({
   };
 
   const handleDelete = async (inquiryId: string) => {
+    if (
+      !confirm(
+        "Are you sure you want to permanently delete this inquiry? This action cannot be undone.",
+      )
+    ) {
+      return;
+    }
     try {
       const response = await fetch(`/api/inquiries/${inquiryId}`, {
         method: "DELETE",
