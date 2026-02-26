@@ -109,6 +109,17 @@ export function FailedLeadsTab({ users = [] }: FailedLeadsTabProps) {
 
   const getSourceLabel = (source: string) => {
     const sourceLabels: Record<string, string> = {
+      WHATSAPP: "WhatsApp",
+      EMAIL: "Email",
+      WEB: "Web",
+      CHATBOT: "Chatbot",
+      JCT_STOCK_INQUIRY: "JCT Stock Inquiry",
+      STOCK_INQUIRY: "Stock Inquiry",
+      ONBOARDING_FORM: "Onboarding Form",
+      CONTACT_US_INQUIRY_FORM: "Contact Us Inquiry Form",
+      HERO_INQUIRY: "Hero Section Inquiry",
+      INQUIRY_FORM: "Contact Form Inquiry",
+      REFERRAL: "Referral",
       hero_inquiry: "Hero Section Inquiry",
       inquiry_form: "Contact Form Inquiry",
     };
@@ -139,8 +150,126 @@ export function FailedLeadsTab({ users = [] }: FailedLeadsTabProps) {
     );
   }
 
+  // Stats derived from current results (respect filters)
+  const totalFailed = failedLeads.length;
+  const avgAttempts =
+    totalFailed > 0
+      ? (
+          failedLeads.reduce((sum, l) => sum + (l.attemptCount || 0), 0) /
+          totalFailed
+        ).toFixed(1)
+      : "0";
+  const secondAttemptCount = failedLeads.filter(
+    (l) => (l.attemptCount || 0) >= 2
+  ).length;
+  const bySource = failedLeads.reduce<Record<string, number>>((acc, l) => {
+    const s = l.source || "Unknown";
+    acc[s] = (acc[s] || 0) + 1;
+    return acc;
+  }, {});
+  const sourceEntries = Object.entries(bySource).sort((a, b) => b[1] - a[1]);
+
   return (
     <div className="space-y-6">
+      {/* Stats cards */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <Card className="dark:bg-[#1E1E1E] dark:border-[#2C2C2C] border-l-4 border-l-red-500">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+              Total failed leads
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-3xl font-bold text-gray-900 dark:text-white">
+              {totalFailed.toLocaleString()}
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              In current filter
+            </p>
+          </CardContent>
+        </Card>
+        <Card className="dark:bg-[#1E1E1E] dark:border-[#2C2C2C] border-l-4 border-l-amber-500">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+              Avg attempts
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-3xl font-bold text-gray-900 dark:text-white">
+              {avgAttempts}
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Before marked failed
+            </p>
+          </CardContent>
+        </Card>
+        <Card className="dark:bg-[#1E1E1E] dark:border-[#2C2C2C] border-l-4 border-l-orange-500">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+              2nd+ attempt failures
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-3xl font-bold text-gray-900 dark:text-white">
+              {secondAttemptCount.toLocaleString()}
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Tried more than once
+            </p>
+          </CardContent>
+        </Card>
+        <Card className="dark:bg-[#1E1E1E] dark:border-[#2C2C2C] border-l-4 border-l-slate-500">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+              Top source
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {sourceEntries.length > 0 ? (
+              <>
+                <p className="text-lg font-bold text-gray-900 dark:text-white">
+                  {getSourceLabel(sourceEntries[0][0])}
+                </p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  {sourceEntries[0][1]} lead{sourceEntries[0][1] !== 1 ? "s" : ""}
+                </p>
+              </>
+            ) : (
+              <p className="text-lg text-muted-foreground">—</p>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* By source breakdown */}
+      {sourceEntries.length > 0 && (
+        <Card className="dark:bg-[#1E1E1E] dark:border-[#2C2C2C]">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base text-gray-900 dark:text-white">
+              Failed leads by source
+            </CardTitle>
+            <CardDescription>Count per source in current filter</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap gap-3">
+              {sourceEntries.map(([source, count]) => (
+                <div
+                  key={source}
+                  className="flex items-center gap-2 rounded-lg border border-gray-200 dark:border-[#2C2C2C] px-4 py-2"
+                >
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    {getSourceLabel(source)}
+                  </span>
+                  <span className="text-sm font-bold text-gray-900 dark:text-white">
+                    {count}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <Card className="dark:bg-[#1E1E1E] dark:border-[#2C2C2C]">
         <CardHeader>
           <CardTitle className="text-xl text-gray-900 dark:text-white">
