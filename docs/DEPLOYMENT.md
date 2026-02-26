@@ -40,6 +40,38 @@ Public invoice links will work automatically once `NEXTAUTH_URL` is set correctl
    - The system will automatically append `?amount=X&currency=JPY&description=Invoice+XXX`
    - Amount is dynamically calculated from invoice total
 
+### 4. Redis URL and pipeline performance
+
+The **sales pipeline (Kanban)** and inquiry list use Redis for caching. If `REDIS_URL` is not set, every pipeline load hits the database with no cache, so the page can feel slow.
+
+**How to find or set the Redis URL**
+
+- **Docker Compose (recommended):**  
+  In `docker-compose.yml`, the `inquiry-pooler` service already passes:
+  ```yaml
+  REDIS_URL=${REDIS_URL:-redis://redis:6379}
+  ```
+  So if you **do not** set `REDIS_URL` in your `.env`, the app still gets `redis://redis:6379` (the `redis` service name and default port). You only need to set it explicitly if you use a different Redis host/port.
+
+- **To set it explicitly in `.env`:**
+  ```env
+  REDIS_URL=redis://redis:6379
+  ```
+  For Docker Compose, the hostname is the **service name** (`redis`), not `localhost`. Port is `6379` unless you changed the Redis service.
+
+- **Check that the app sees Redis:**  
+  On the VPS, after deploy:
+  ```bash
+  docker compose exec inquiry-pooler sh -c 'echo "REDIS_URL=$REDIS_URL"'
+  ```
+  You should see `REDIS_URL=redis://redis:6379` (or your custom value). If it is empty, add `REDIS_URL=redis://redis:6379` to your `.env` and restart:
+  ```bash
+  docker compose up -d inquiry-pooler
+  ```
+
+- **If Redis is down or wrong URL:**  
+  The app still runs but does not cache (pipeline and list APIs run the full query on every request). Ensure the `redis` container is healthy: `docker compose ps` and check that `inquiry-pooler-redis` is `Up (healthy)`.
+
 ## Security Considerations
 
 ### ✅ Current Security Measures
@@ -152,6 +184,7 @@ For extra security, consider:
 - [ ] Set up SSL certificate (HTTPS)
 - [ ] Configure database with proper credentials
 - [ ] Run Prisma migrations: `npx prisma migrate deploy`
+- [ ] Ensure Redis is used: with Docker Compose, `REDIS_URL` defaults to `redis://redis:6379`; verify with `docker compose exec inquiry-pooler sh -c 'echo $REDIS_URL'` (see §4 above)
 - [ ] Set up rate limiting (recommended)
 - [ ] Configure monitoring/logging
 - [ ] Test public invoice links

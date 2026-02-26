@@ -2,11 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { getCached, cacheKeyFromSearchParams } from "@/lib/cache";
 import { UserRole, InquirySource, InquiryStatus } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
 
 const MIN_LEADS_FOR_BEST_WORST_SOURCE = 5;
+const STATS_CACHE_TTL_SECONDS = 90;
 
 export async function GET(request: NextRequest) {
   try {
@@ -24,23 +26,28 @@ export async function GET(request: NextRequest) {
     }
 
     const searchParams = request.nextUrl.searchParams;
-    const startDate = searchParams.get("startDate");
-    const endDate = searchParams.get("endDate");
+    const cacheKey = `stats:inquiries:${cacheKeyFromSearchParams(searchParams)}`;
 
-    const dateFilter: { gte?: Date; lte?: Date } = {};
-    if (startDate) dateFilter.gte = new Date(startDate);
-    if (endDate) {
-      const end = new Date(endDate);
-      end.setHours(23, 59, 59, 999);
-      dateFilter.lte = end;
-    }
+    const data = await getCached(
+      cacheKey,
+      async () => {
+        const startDate = searchParams.get("startDate");
+        const endDate = searchParams.get("endDate");
 
-    const whereClause: any = {};
-    if (Object.keys(dateFilter).length > 0) {
-      whereClause.createdAt = dateFilter;
-    }
+        const dateFilter: { gte?: Date; lte?: Date } = {};
+        if (startDate) dateFilter.gte = new Date(startDate);
+        if (endDate) {
+          const end = new Date(endDate);
+          end.setHours(23, 59, 59, 999);
+          dateFilter.lte = end;
+        }
 
-    const now = new Date();
+        const whereClause: any = {};
+        if (Object.keys(dateFilter).length > 0) {
+          whereClause.createdAt = dateFilter;
+        }
+
+        const now = new Date();
     const sevenDaysAgo = new Date(now);
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
     const thirtyDaysAgo = new Date(now);
@@ -276,7 +283,7 @@ export async function GET(request: NextRequest) {
       console.error("Country stats error:", e);
     }
 
-    return NextResponse.json({
+    return {
       bySource,
       byStatus,
       total,
@@ -298,7 +305,12 @@ export async function GET(request: NextRequest) {
       avgTimeToCloseWonDays,
       funnel,
       byCountry,
-    });
+    };
+      },
+      STATS_CACHE_TTL_SECONDS
+    );
+
+    return NextResponse.json(data);
   } catch (error) {
     console.error("Error fetching inquiry stats:", error);
     return NextResponse.json(

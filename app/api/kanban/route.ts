@@ -43,8 +43,7 @@ export async function GET(request: NextRequest) {
           targetUserId = null
         }
 
-        // Get all kanban stages - use raw query to avoid enum validation issues
-    // We'll filter invalid stages manually
+        // Get kanban stages (no DELETE or sync on every request - keeps pipeline fast)
     let stages: Array<{
       id: string;
       name: string;
@@ -54,44 +53,20 @@ export async function GET(request: NextRequest) {
       createdAt: Date;
       updatedAt: Date;
     }> = [];
-    
-    // First, delete any invalid stages using raw SQL (before querying)
-    try {
-      const validStatuses = Object.values(InquiryStatus);
-      const statusList = validStatuses.map(s => `'${s}'`).join(',');
-      await prisma.$executeRawUnsafe(`
-        DELETE FROM inquiry_pooler."KanbanStage"
-        WHERE status NOT IN (${statusList})
-      `);
-      if (process.env.NODE_ENV === "development") {
-        console.log(`[Kanban API] Cleaned up invalid stages`);
-      }
-    } catch (cleanupError) {
-      console.error("[Kanban API] Error cleaning up invalid stages:", cleanupError);
-      // Continue anyway
-    }
-    
-    // Now query using raw SQL to bypass Prisma enum validation
+
     try {
       stages = await prisma.$queryRaw`
         SELECT id, name, "order", color, status, "createdAt", "updatedAt"
         FROM inquiry_pooler."KanbanStage"
         ORDER BY "order" ASC
       ` as any;
-      if (process.env.NODE_ENV === "development") {
-        console.log(`[Kanban API] Raw query succeeded, found ${stages.length} stages`);
-      }
     } catch (error) {
-      console.error("[Kanban API] Raw query failed:", error);
-      // Return empty array - sync logic will create stages
+      if (process.env.NODE_ENV === "development") {
+        console.error("[Kanban API] Raw query failed:", error);
+      }
       stages = [];
     }
 
-    if (process.env.NODE_ENV === "development") {
-      console.log(`[Kanban API] Found ${stages.length} existing stages`)
-    }
-
-    // Define default stages
     const defaultStages = [
       { name: "New", order: 0, status: InquiryStatus.NEW, color: "#3b82f6" },
       { name: "Contacted", order: 1, status: InquiryStatus.CONTACTED, color: "#8b5cf6" },
@@ -100,50 +75,19 @@ export async function GET(request: NextRequest) {
       { name: "Closed Won", order: 4, status: InquiryStatus.CLOSED_WON, color: "#22c55e" },
       { name: "Closed Lost", order: 5, status: InquiryStatus.CLOSED_LOST, color: "#6b7280" },
       { name: "Recurring", order: 6, status: InquiryStatus.RECURRING, color: "#06b6d4" },
-    ]
+    ];
 
-    // If no stages exist, create default ones
+    // Only create stages when none exist (avoids 7 upserts on every request)
     if (stages.length === 0) {
       if (process.env.NODE_ENV === "development") {
-        console.log("[Kanban API] No stages found, creating default stages")
+        console.log("[Kanban API] No stages found, creating default stages");
       }
-      await prisma.kanbanStage.createMany({
-        data: defaultStages,
-      })
-      // Re-fetch using raw query to avoid enum validation issues
+      await prisma.kanbanStage.createMany({ data: defaultStages });
       stages = await prisma.$queryRaw`
         SELECT id, name, "order", color, status, "createdAt", "updatedAt"
         FROM inquiry_pooler."KanbanStage"
         ORDER BY "order" ASC
       ` as any;
-      if (process.env.NODE_ENV === "development") {
-        console.log(`[Kanban API] Created ${stages.length} stages`)
-      }
-    } else {
-      // Sync existing stages with default values (upsert)
-      console.log("[Kanban API] Syncing stages with default values")
-      for (const defaultStage of defaultStages) {
-        try {
-          await prisma.kanbanStage.upsert({
-            where: { status: defaultStage.status },
-            update: {
-              name: defaultStage.name,
-              order: defaultStage.order,
-              color: defaultStage.color,
-            },
-            create: defaultStage,
-          })
-        } catch (error) {
-          console.error(`[Kanban API] Error upserting stage ${defaultStage.status}:`, error)
-        }
-      }
-      // Re-fetch stages after sync using raw query
-      stages = await prisma.$queryRaw`
-        SELECT id, name, "order", color, status, "createdAt", "updatedAt"
-        FROM inquiry_pooler."KanbanStage"
-        ORDER BY "order" ASC
-      ` as any;
-      console.log(`[Kanban API] After sync, found ${stages.length} stages`)
     }
 
     // Build where clause for inquiries
@@ -201,13 +145,12 @@ export async function GET(request: NextRequest) {
     const validStatuses = Object.values(InquiryStatus) as string[];
     const validStages = stages.filter((stage) => {
       const isValid = validStatuses.includes(stage.status);
-      if (!isValid) {
+      if (process.env.NODE_ENV === "development" && !isValid) {
         console.log(`[Kanban API] Filtering out invalid stage: ${stage.name} (${stage.status})`);
       }
       return isValid;
     });
-    
-    // Map stages with their inquiries, ensuring status is cast correctly
+
     const boardData = validStages.map((stage) => ({
       id: stage.id,
       name: stage.name,
@@ -215,11 +158,11 @@ export async function GET(request: NextRequest) {
       color: stage.color,
       status: stage.status as InquiryStatus,
       inquiries: inquiriesByStatus[stage.status as InquiryStatus] || [],
-    }))
-    
-    console.log(`[Kanban API] Filtered to ${validStages.length} valid stages (removed ${stages.length - validStages.length} invalid)`);
+    }));
 
-        console.log(`[Kanban API] Returning ${boardData.length} stages with ${inquiries.length} total inquiries`)
+    if (process.env.NODE_ENV === "development") {
+      console.log(`[Kanban API] Returning ${boardData.length} stages with ${inquiries.length} total inquiries`);
+    }
 
         return {
           stages: boardData,
