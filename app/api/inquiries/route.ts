@@ -136,7 +136,6 @@ export async function GET(request: NextRequest) {
     }
 
         const inquiries = await prisma.inquiry.findMany({
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           where: where as any,
           include: {
             assignedTo: {
