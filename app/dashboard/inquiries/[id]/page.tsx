@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { formatDistanceToNow } from "date-fns";
 import Link from "next/link";
 import { ReleaseInquiryButton } from "@/components/ReleaseInquiryButton";
+import { ResourceNotFound } from "@/components/ResourceNotFound";
 
 export default async function InquiryDetailPage({
   params,
@@ -69,7 +70,7 @@ export default async function InquiryDetailPage({
   });
 
   if (!inquiry) {
-    return <div>Inquiry not found</div>;
+    return <ResourceNotFound variant="lead" id={params.id} />;
   }
 
   // Check permissions

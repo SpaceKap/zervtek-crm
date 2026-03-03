@@ -177,6 +177,9 @@ export async function PATCH(
       })
     }
 
+    await invalidateCachePattern("inquiries:list:")
+    await invalidateCachePattern("kanban:")
+
     return NextResponse.json(updatedInquiry)
   } catch (error) {
     console.error("Error updating inquiry:", error)

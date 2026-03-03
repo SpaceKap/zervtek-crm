@@ -13,6 +13,15 @@ import {
   DialogTitle,
   DialogClose,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { getCountriesSorted } from "@/lib/countries-data";
+import { Label } from "@/components/ui/label";
 
 interface InquiryCardProps {
   inquiry: {
@@ -39,6 +48,7 @@ interface InquiryCardProps {
   onView?: (id: string) => void;
   onNotes?: (id: string) => void;
   onDelete?: (id: string) => void;
+  onCountryUpdated?: (inquiryId: string) => void;
   showAssignButton?: boolean;
   showAssignToButton?: boolean;
   showReleaseButton?: boolean;
@@ -54,6 +64,8 @@ interface InquiryCardProps {
   dragHandleProps?: any;
   isInFunnel?: boolean; // Indicates if card is in the kanban board (funnel)
 }
+
+const COUNTRIES = getCountriesSorted();
 
 const statusColors: Record<InquiryStatus, string> = {
   NEW: "bg-blue-100 text-blue-700 border-blue-200",
@@ -116,6 +128,7 @@ export function InquiryCard({
   onView,
   onNotes,
   onDelete,
+  onCountryUpdated,
   showAssignButton = false,
   showAssignToButton = false,
   showReleaseButton = false,
@@ -187,6 +200,42 @@ export function InquiryCard({
   // 2. AND it's in the funnel (kanban board)
   const isAssignedToCurrentUser = inquiry.assignedToId === currentUserId;
   const showContactInfo = isInFunnel && isAssignedToCurrentUser;
+  const canEditCountry = isInFunnel && (isAssignedToCurrentUser || isManager || isAdmin);
+
+  // Country edit modal state
+  const [showCountryEditDialog, setShowCountryEditDialog] = useState(false);
+  const [savingCountry, setSavingCountry] = useState(false);
+  const [editCountryValue, setEditCountryValue] = useState<string>("");
+
+  const openCountryEdit = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditCountryValue(country || "");
+    setShowCountryEditDialog(true);
+  };
+
+  const saveCountry = async () => {
+    setSavingCountry(true);
+    try {
+      const res = await fetch(`/api/inquiries/${inquiry.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          metadata: { country: editCountryValue.trim() || null },
+        }),
+      });
+      if (res.ok) {
+        setShowCountryEditDialog(false);
+        onCountryUpdated?.(inquiry.id);
+      } else {
+        const err = await res.json().catch(() => ({}));
+        alert(err.error || "Failed to update country");
+      }
+    } catch {
+      alert("Failed to update country");
+    } finally {
+      setSavingCountry(false);
+    }
+  };
 
   // Check if inquiry is CLOSED_WON - show minimal info
   const isClosedWon = inquiry.status === InquiryStatus.CLOSED_WON;
@@ -289,13 +338,29 @@ export function InquiryCard({
         {!isClosedWon ? (
           <div className="flex flex-col space-y-2.5 flex-1 min-h-[60px] mt-1">
             {/* Country */}
-            {country && (
+            {(country || canEditCountry) && (
               <div className="text-xs text-gray-600 dark:text-[#A1A1A1] flex items-center gap-1">
                 <span className="font-medium text-gray-700 dark:text-[#D0D0D0]">
                   Country:
                 </span>{" "}
-                <span>{country}</span>
-                <CopyIcon text={country} fieldId="country" />
+                <span>{country || "Not set"}</span>
+                {country && <CopyIcon text={country} fieldId="country" />}
+                {canEditCountry && onCountryUpdated && (
+                  <button
+                    type="button"
+                    onClick={openCountryEdit}
+                    className="ml-0.5 inline-flex shrink-0 p-0.5 rounded hover:bg-gray-200 dark:hover:bg-[#2C2C2C] text-gray-400 dark:text-[#A1A1A1] hover:text-primary dark:hover:text-[#D4AF37] transition-colors"
+                    title="Edit country"
+                    aria-label="Edit country"
+                  >
+                    <span
+                      className="material-symbols-outlined select-none block leading-none"
+                      style={{ fontSize: 12 }}
+                    >
+                      edit
+                    </span>
+                  </button>
+                )}
               </div>
             )}
 
@@ -488,6 +553,51 @@ export function InquiryCard({
           </div>
         </div>
       </CardContent>
+
+      {/* Edit country Dialog */}
+      <Dialog open={showCountryEditDialog} onOpenChange={setShowCountryEditDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit country</DialogTitle>
+            <DialogDescription>
+              Set or change the customer country for this lead. This is used for reporting and filtering.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-2">
+            <div className="grid gap-2">
+              <Label htmlFor="edit-country">Country / Region</Label>
+              <Select
+                value={editCountryValue || "__none__"}
+                onValueChange={(v) => setEditCountryValue(v === "__none__" ? "" : v)}
+              >
+                <SelectTrigger id="edit-country" className="w-full">
+                  <SelectValue placeholder="Select country" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">Not set</SelectItem>
+                  {COUNTRIES.map((c) => (
+                    <SelectItem key={c} value={c}>
+                      {c}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button
+              variant="outline"
+              onClick={() => setShowCountryEditDialog(false)}
+              disabled={savingCountry}
+            >
+              Cancel
+            </Button>
+            <Button onClick={saveCountry} disabled={savingCountry}>
+              {savingCountry ? "Saving…" : "Save"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
       
       {/* Message Dialog */}
       <Dialog open={showMessageDialog} onOpenChange={setShowMessageDialog}>

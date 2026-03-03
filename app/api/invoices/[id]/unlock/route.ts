@@ -40,8 +40,10 @@ export async function POST(
       where: { id: params.id },
       data: {
         isLocked: false,
-        // Change status back to APPROVED when unlocked
+        // Change status back to APPROVED when unlocked; clear finalization so workflow history matches current state
         status: InvoiceStatus.APPROVED,
+        finalizedById: null,
+        finalizedAt: null,
       },
       include: {
         customer: true,

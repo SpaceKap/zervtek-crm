@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useRouter, usePathname } from "next/navigation";
 import {
   Card,
   CardContent,
@@ -103,11 +104,32 @@ const funnelLabels: Record<string, string> = {
   RECURRING: "Recurring",
 };
 
-export function InquiryTypeStats() {
-  const [startDate, setStartDate] = useState<string>("");
-  const [endDate, setEndDate] = useState<string>("");
+interface InquiryTypeStatsProps {
+  /** When true, date changes update the URL so Team Performance (server) uses the same filter */
+  syncDateToUrl?: boolean;
+  urlStartDate?: string;
+  urlEndDate?: string;
+}
+
+export function InquiryTypeStats({
+  syncDateToUrl = false,
+  urlStartDate,
+  urlEndDate,
+}: InquiryTypeStatsProps = {}) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const [startDate, setStartDate] = useState<string>(urlStartDate ?? "");
+  const [endDate, setEndDate] = useState<string>(urlEndDate ?? "");
   const [loading, setLoading] = useState(false);
   const [stats, setStats] = useState<InquiryTypeStatsData | null>(null);
+
+  // Sync from URL when props change (e.g. after navigation)
+  useEffect(() => {
+    if (syncDateToUrl && (urlStartDate !== undefined || urlEndDate !== undefined)) {
+      setStartDate(urlStartDate ?? "");
+      setEndDate(urlEndDate ?? "");
+    }
+  }, [syncDateToUrl, urlStartDate, urlEndDate]);
 
   const fetchStats = useCallback(async () => {
     setLoading(true);
@@ -133,12 +155,21 @@ export function InquiryTypeStats() {
   }, [fetchStats]);
 
   const handleFilter = () => {
+    if (syncDateToUrl && pathname) {
+      const params = new URLSearchParams();
+      if (startDate) params.set("startDate", startDate);
+      if (endDate) params.set("endDate", endDate);
+      router.push(`${pathname}?${params.toString()}`);
+    }
     fetchStats();
   };
 
   const handleReset = () => {
     setStartDate("");
     setEndDate("");
+    if (syncDateToUrl && pathname) {
+      router.push(pathname);
+    }
     setTimeout(() => fetchStats(), 100);
   };
 

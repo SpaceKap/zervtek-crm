@@ -27,6 +27,7 @@ import { format } from "date-fns";
 import { ShippingStage, PaymentStatus, InvoiceStatus, TransactionDirection } from "@prisma/client";
 import { AddTransactionDialog } from "@/components/AddTransactionDialog";
 import { CustomerForm } from "@/components/CustomerForm";
+import { ResourceNotFound } from "@/components/ResourceNotFound";
 
 const HOW_FOUND_US_LABELS: Record<string, string> = {
   JCT: "Japanese Car Trade (JCT)",
@@ -301,51 +302,7 @@ export default function CustomerDetailPage() {
   }
 
   if (!customer) {
-    return (
-      <div className="flex flex-col items-center justify-center py-16">
-        <div className="text-center space-y-4">
-          <div className="w-16 h-16 rounded-full bg-gray-100 dark:bg-[#2C2C2C] flex items-center justify-center mx-auto">
-            <span className="material-symbols-outlined text-3xl text-gray-400">
-              error_outline
-            </span>
-          </div>
-          <div>
-            <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-2">
-              Customer Not Found
-            </h2>
-            <p className="text-gray-500 dark:text-[#A1A1A1] mb-2">
-              The customer with ID &quot;{customerId}&quot; doesn&apos;t exist
-              or has been removed.
-            </p>
-            <p className="text-sm text-gray-400 dark:text-[#666] mb-6">
-              Check the browser console for more details. You can also search
-              for customers in{" "}
-              <Link
-                href="/dashboard/financial-operations?section=customers"
-                className="text-primary dark:text-[#D4AF37] hover:underline"
-              >
-                Financial Operations
-              </Link>
-              .
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button onClick={() => router.push("/dashboard/financial-operations?section=customers")}>
-              <span className="material-symbols-outlined text-lg mr-2">
-                person
-              </span>
-              Back to Customers
-            </Button>
-            <Button variant="outline" onClick={() => router.push("/dashboard")}>
-              <span className="material-symbols-outlined text-lg mr-2">
-                arrow_back
-              </span>
-              Back to Dashboard
-            </Button>
-          </div>
-        </div>
-      </div>
-    );
+    return <ResourceNotFound variant="customer" id={customerId} />;
   }
 
   const formatCurrency = (amount: any, currency: string = "JPY") => {

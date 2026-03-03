@@ -1180,7 +1180,7 @@ export function InvoiceDetail({
               )}
 
               {/* Workflow Status */}
-              {(invoice.approvedBy || invoice.finalizedBy) && (
+              {(invoice.approvedBy || (invoice.finalizedBy && invoice.status === "FINALIZED")) && (
                 <Card>
                   <CardHeader>
                     <div className="flex items-center gap-2">
@@ -1210,7 +1210,7 @@ export function InvoiceDetail({
                         </div>
                       </div>
                     )}
-                    {invoice.finalizedBy && (
+                    {invoice.finalizedBy && invoice.status === "FINALIZED" && (
                       <div className="flex items-start gap-3">
                         <div className="h-8 w-8 rounded-full bg-blue-100 dark:bg-blue-900/20 flex items-center justify-center shrink-0 mt-0.5">
                           <span className="material-symbols-outlined text-sm text-blue-600 dark:text-blue-400">

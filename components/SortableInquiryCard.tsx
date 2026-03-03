@@ -31,6 +31,7 @@ interface SortableInquiryCardProps {
   onNotes?: (id: string) => void;
   onAssignTo?: (id: string) => void;
   onDelete?: (id: string) => void;
+  onCountryUpdated?: (inquiryId: string) => void;
   currentUserId?: string;
   currentUserEmail?: string;
   isManager?: boolean;
@@ -44,6 +45,7 @@ function SortableInquiryCardComponent({
   onNotes,
   onAssignTo,
   onDelete,
+  onCountryUpdated,
   currentUserId,
   currentUserEmail,
   isManager = false,
@@ -77,6 +79,7 @@ function SortableInquiryCardComponent({
         onNotes={onNotes}
         onAssignTo={onAssignTo}
         onDelete={onDelete}
+        onCountryUpdated={onCountryUpdated}
         showReleaseButton={true}
         showNotesButton={true}
         showCopyFieldIcons={true}

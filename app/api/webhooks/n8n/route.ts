@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { InquirySource, InquiryStatus } from "@prisma/client"
+import { invalidateCachePattern } from "@/lib/cache"
 
 /**
  * n8n Webhook Endpoint
@@ -198,6 +199,71 @@ export async function POST(request: NextRequest) {
     const country = body.country || body.metadata?.country || body.destination || null
     const customerName = body.customerName || body.name || null
     const message = body.message || body.metadata?.message || null
+
+    // WhatsApp deduplication: if same number sends multiple messages within a month, update existing card instead of creating new
+    const normalizePhone = (p: string | null) =>
+      p ? p.replace(/\D/g, "").slice(-15) : ""
+    const phoneNorm = normalizePhone(phone)
+
+    if (
+      normalizedSource === InquirySource.WHATSAPP &&
+      phoneNorm.length >= 8
+    ) {
+      const thirtyDaysAgo = new Date()
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+
+      const recentWhatsApp = await prisma.inquiry.findMany({
+        where: {
+          source: InquirySource.WHATSAPP,
+          phone: { not: null },
+          createdAt: { gte: thirtyDaysAgo },
+        },
+        orderBy: { createdAt: "desc" },
+        take: 100,
+      })
+
+      const existing = recentWhatsApp.find(
+        (inq) => inq.phone && normalizePhone(inq.phone) === phoneNorm
+      )
+
+      if (existing) {
+        const updatedMetadata = {
+          ...((existing.metadata as any) || {}),
+          ...metadata,
+        }
+        const inquiry = await prisma.inquiry.update({
+          where: { id: existing.id },
+          data: {
+            message: message ?? existing.message,
+            customerName: customerName ?? existing.customerName,
+            email: email ?? existing.email,
+            metadata: updatedMetadata,
+            updatedAt: new Date(),
+          },
+          include: {
+            assignedTo: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                image: true,
+              },
+            },
+          },
+        })
+        await invalidateCachePattern("inquiries:list:")
+        await invalidateCachePattern("kanban:")
+        return NextResponse.json(
+          {
+            success: true,
+            inquiry,
+            updated: true,
+            message: "Updated existing WhatsApp inquiry",
+          },
+          { status: 200 }
+        )
+      }
+    }
     
     // Generate sourceId if not provided (for duplicate detection)
     let sourceId = body.sourceId

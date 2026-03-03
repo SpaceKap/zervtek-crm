@@ -11,6 +11,7 @@ import {
 import { prisma } from "@/lib/prisma";
 import { InvoiceDetail } from "@/components/InvoiceDetail";
 import { InvoiceForm } from "@/components/InvoiceForm";
+import { ResourceNotFound } from "@/components/ResourceNotFound";
 
 export default async function InvoiceDetailPage({
   params,
@@ -114,7 +115,7 @@ export default async function InvoiceDetailPage({
   }
 
   if (!invoice) {
-    return <div>Invoice not found</div>;
+    return <ResourceNotFound variant="invoice" id={params.id} />;
   }
 
   // Check permissions

@@ -2,7 +2,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { UserRole, InquiryStatus } from "@prisma/client";
+import { UserRole, InquiryStatus, InquirySource } from "@prisma/client";
 import {
   Card,
   CardContent,
@@ -23,6 +23,7 @@ interface StaffStats {
   convertedInquiries: number;
   conversionRate: number;
   inquiriesByStatus: Record<InquiryStatus, number>;
+  inquiriesBySource: Record<string, number>;
 }
 
 const statusLabels: Record<InquiryStatus, string> = {
@@ -45,7 +46,25 @@ const statusColors: Record<InquiryStatus, string> = {
   RECURRING: "bg-cyan-500",
 };
 
-export default async function StatsPage() {
+const sourceLabelsShort: Record<string, string> = {
+  WHATSAPP: "WhatsApp",
+  EMAIL: "Email",
+  WEB: "Web",
+  CHATBOT: "Chatbot",
+  JCT_STOCK_INQUIRY: "JCT Stock",
+  STOCK_INQUIRY: "Stock",
+  ONBOARDING_FORM: "Onboarding",
+  CONTACT_US_INQUIRY_FORM: "Contact",
+  HERO_INQUIRY: "Hero",
+  INQUIRY_FORM: "Form",
+  REFERRAL: "Referral",
+};
+
+export default async function StatsPage({
+  searchParams,
+}: {
+  searchParams: { startDate?: string; endDate?: string };
+}) {
   const session = await getServerSession(authOptions);
   if (!session) {
     redirect("/login");
@@ -59,6 +78,17 @@ export default async function StatsPage() {
   ) {
     redirect("/dashboard");
   }
+
+  const startDate = searchParams?.startDate || null;
+  const endDate = searchParams?.endDate || null;
+  const dateFilter: { createdAt?: { gte?: Date; lte?: Date } } = {};
+  if (startDate) dateFilter.createdAt = { gte: new Date(startDate) };
+  if (endDate) {
+    const end = new Date(endDate);
+    end.setHours(23, 59, 59, 999);
+    dateFilter.createdAt = { ...dateFilter.createdAt, lte: end };
+  }
+  const hasDateFilter = Object.keys(dateFilter).length > 0;
 
   // Get all sales staff
   const salesStaff = await prisma.user.findMany({
@@ -75,16 +105,20 @@ export default async function StatsPage() {
     },
   });
 
-  // Calculate stats for each staff member
+  // Calculate stats for each staff member (filtered by date when provided)
   const staffStats: StaffStats[] = await Promise.all(
     salesStaff.map(async (staff) => {
+      const baseWhere = hasDateFilter
+        ? { assignedToId: staff.id, ...dateFilter }
+        : { assignedToId: staff.id };
+
       const totalInquiries = await prisma.inquiry.count({
-        where: { assignedToId: staff.id },
+        where: baseWhere,
       });
 
       const activeInquiries = await prisma.inquiry.count({
         where: {
-          assignedToId: staff.id,
+          ...baseWhere,
           status: {
             not: InquiryStatus.CLOSED_WON,
           },
@@ -93,7 +127,7 @@ export default async function StatsPage() {
 
       const convertedInquiries = await prisma.inquiry.count({
         where: {
-          assignedToId: staff.id,
+          ...baseWhere,
           status: InquiryStatus.CLOSED_WON,
         },
       });
@@ -103,10 +137,10 @@ export default async function StatsPage() {
           ? Math.round((convertedInquiries / totalInquiries) * 100)
           : 0;
 
-      // Get inquiries by status
+      // Get inquiries by status (and by source for types)
       const inquiriesByStatus = await prisma.inquiry.groupBy({
         by: ["status"],
-        where: { assignedToId: staff.id },
+        where: baseWhere,
         _count: { id: true },
       });
 
@@ -124,6 +158,17 @@ export default async function StatsPage() {
         statusCounts[item.status] = item._count.id;
       });
 
+      // Get inquiries by source (type) for this staff member
+      const inquiriesBySourceResult = await prisma.inquiry.groupBy({
+        by: ["source"],
+        where: baseWhere,
+        _count: { id: true },
+      });
+      const sourceCounts: Record<string, number> = {};
+      inquiriesBySourceResult.forEach((item) => {
+        sourceCounts[item.source] = item._count.id;
+      });
+
       return {
         userId: staff.id,
         userName: staff.name,
@@ -133,25 +178,27 @@ export default async function StatsPage() {
         convertedInquiries,
         conversionRate,
         inquiriesByStatus: statusCounts,
+        inquiriesBySource: sourceCounts,
       };
     }),
   );
 
-  // Calculate aggregate stats for all sales staff
+  // Calculate aggregate stats for all sales staff (date-filtered when provided)
+  const aggregateWhere = hasDateFilter
+    ? {
+        assignedToId: { in: salesStaff.map((s) => s.id) },
+        ...dateFilter,
+      }
+    : { assignedToId: { in: salesStaff.map((s) => s.id) } };
+
   const aggregateStats = {
     totalStaff: salesStaff.length,
     totalInquiries: await prisma.inquiry.count({
-      where: {
-        assignedToId: {
-          in: salesStaff.map((s) => s.id),
-        },
-      },
+      where: aggregateWhere,
     }),
     totalActiveInquiries: await prisma.inquiry.count({
       where: {
-        assignedToId: {
-          in: salesStaff.map((s) => s.id),
-        },
+        ...aggregateWhere,
         status: {
           not: InquiryStatus.CLOSED_WON,
         },
@@ -159,9 +206,7 @@ export default async function StatsPage() {
     }),
     totalConverted: await prisma.inquiry.count({
       where: {
-        assignedToId: {
-          in: salesStaff.map((s) => s.id),
-        },
+        ...aggregateWhere,
         status: InquiryStatus.CLOSED_WON,
       },
     }),
@@ -208,6 +253,11 @@ export default async function StatsPage() {
         </TabsList>
 
         <TabsContent value="sales" className="mt-6 space-y-8">
+          {hasDateFilter && (
+            <p className="text-sm text-muted-foreground">
+              All metrics below (aggregate, inquiry types, and team performance) are filtered by date range. Set dates in the Date Range Filter card and click Apply.
+            </p>
+          )}
           {/* Enhanced Aggregate Stats */}
           <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-4">
             <Card className="dark:bg-[#1E1E1E] dark:border-[#2C2C2C] shadow-sm hover:shadow-md transition-shadow border-l-4 border-l-blue-500">
@@ -325,8 +375,12 @@ export default async function StatsPage() {
             </Card>
           </div>
 
-          {/* Inquiry Type Stats */}
-          <InquiryTypeStats />
+          {/* Inquiry Type Stats - shares date filter with Team Performance via URL */}
+          <InquiryTypeStats
+            urlStartDate={startDate || undefined}
+            urlEndDate={endDate || undefined}
+            syncDateToUrl={true}
+          />
 
           {/* Enhanced Individual Staff Stats */}
           <div className="space-y-5">
@@ -361,6 +415,9 @@ export default async function StatsPage() {
               <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
                 {staffStats.map((stats) => {
                   const statusEntries = Object.entries(stats.inquiriesByStatus)
+                    .filter(([_, count]) => count > 0)
+                    .sort((a, b) => b[1] - a[1]);
+                  const sourceEntries = Object.entries(stats.inquiriesBySource || {})
                     .filter(([_, count]) => count > 0)
                     .sort((a, b) => b[1] - a[1]);
 
@@ -442,6 +499,30 @@ export default async function StatsPage() {
                             />
                           </div>
                         </div>
+
+                        {/* Source / Type breakdown */}
+                        {sourceEntries.length > 0 && (
+                          <div className="pt-4 border-t border-gray-200 dark:border-[#2C2C2C]">
+                            <p className="text-xs font-semibold text-gray-700 dark:text-[#A1A1A1] mb-3 uppercase tracking-wide">
+                              By source / type
+                            </p>
+                            <div className="flex flex-wrap gap-2">
+                              {sourceEntries.map(([source, count]) => (
+                                <span
+                                  key={source}
+                                  className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-gray-100 dark:bg-[#2C2C2C] text-xs"
+                                >
+                                  <span className="font-medium text-gray-700 dark:text-[#D0D0D0]">
+                                    {sourceLabelsShort[source] || source}
+                                  </span>
+                                  <span className="font-semibold text-gray-900 dark:text-white font-mono-numbers">
+                                    {count}
+                                  </span>
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
 
                         {/* Status Breakdown */}
                         {statusEntries.length > 0 && (

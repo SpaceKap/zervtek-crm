@@ -38,6 +38,7 @@ import { StageNavigation } from "@/components/StageNavigation";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import Link from "next/link";
+import { ResourceNotFound } from "@/components/ResourceNotFound";
 
 interface Vendor {
   id: string;
@@ -309,34 +310,10 @@ export default function VehicleDetailPage() {
 
   if (!vehicle) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[400px]">
-        <div className="text-center space-y-6 max-w-md">
-          <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center mx-auto">
-            <span className="material-symbols-outlined text-4xl text-muted-foreground">
-              error_outline
-            </span>
-          </div>
-          <div>
-            <h2 className="text-2xl font-semibold text-foreground mb-2">
-              Vehicle Not Found
-            </h2>
-            <p className="text-muted-foreground">
-              The vehicle you&apos;re looking for doesn&apos;t exist or has been
-              removed.
-            </p>
-          </div>
-          <Button
-            onClick={() =>
-              router.push("/dashboard/financial-operations?section=vehicles")
-            }
-            size="lg"
-            className="gap-2"
-          >
-            <span className="material-symbols-outlined">arrow_back</span>
-            Back to Vehicles
-          </Button>
-        </div>
-      </div>
+      <ResourceNotFound
+        variant="vehicle"
+        id={typeof params?.id === "string" ? params.id : undefined}
+      />
     );
   }
 

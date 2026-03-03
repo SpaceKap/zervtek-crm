@@ -35,6 +35,7 @@ interface KanbanColumnProps {
   onNotes?: (id: string) => void;
   onAssignTo?: (id: string) => void;
   onDelete?: (id: string) => void;
+  onCountryUpdated?: (inquiryId: string) => void;
   users?: Array<{ id: string; name: string | null; email: string }>;
   currentUserId?: string;
   currentUserEmail?: string;
@@ -54,6 +55,7 @@ export const KanbanColumn = memo(function KanbanColumn({
   onNotes,
   onAssignTo,
   onDelete,
+  onCountryUpdated,
   currentUserId,
   currentUserEmail,
   isManager = false,
@@ -132,6 +134,7 @@ export const KanbanColumn = memo(function KanbanColumn({
             onNotes={onNotes}
             onAssignTo={onAssignTo}
             onDelete={onDelete}
+            onCountryUpdated={onCountryUpdated}
             currentUserId={currentUserId}
             currentUserEmail={currentUserEmail}
             isManager={isManager}

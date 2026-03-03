@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { requireAuth, canViewAllInquiries } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import { CostInvoiceEditor } from "@/components/CostInvoiceEditor";
+import { ResourceNotFound } from "@/components/ResourceNotFound";
 
 export default async function CostInvoicePage({
   params,
@@ -41,7 +42,7 @@ export default async function CostInvoicePage({
   });
 
   if (!invoice) {
-    return <div>Invoice not found</div>;
+    return <ResourceNotFound variant="cost-invoice" id={params.id} />;
   }
 
   // Check permissions

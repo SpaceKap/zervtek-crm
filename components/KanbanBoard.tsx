@@ -477,6 +477,7 @@ export function KanbanBoard({
               onNotes={handleNotes}
               onAssignTo={handleAssignTo}
               onDelete={handleDelete}
+              onCountryUpdated={fetchBoard}
               users={users}
               currentUserId={currentUserId}
               currentUserEmail={currentUserEmail}
