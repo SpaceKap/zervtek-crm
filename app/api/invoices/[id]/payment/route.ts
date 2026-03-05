@@ -5,10 +5,8 @@ import { prisma } from "@/lib/prisma"
 import { PaymentStatus, UserRole, TransactionType } from "@prisma/client"
 import { getInvoiceTotalWithTax, isAmountPaidInFull, hasPartialPayment } from "@/lib/invoice-utils"
 
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function PATCH(request: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   try {
     const session = await getServerSession(authOptions)
     if (!session?.user) {

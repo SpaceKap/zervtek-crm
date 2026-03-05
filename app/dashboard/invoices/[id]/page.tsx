@@ -13,13 +13,18 @@ import { InvoiceDetail } from "@/components/InvoiceDetail";
 import { InvoiceForm } from "@/components/InvoiceForm";
 import { ResourceNotFound } from "@/components/ResourceNotFound";
 
-export default async function InvoiceDetailPage({
-  params,
-  searchParams,
-}: {
-  params: { id: string };
-  searchParams: { edit?: string };
-}) {
+export default async function InvoiceDetailPage(
+  props: {
+    params: Promise<{ id: string }>;
+    searchParams: Promise<{ edit?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
+  const params = await props.params;
+  const [resolvedParams, resolvedSearchParams] = await Promise.all([
+    params,
+    searchParams,
+  ]);
   const session = await getServerSession(authOptions);
   if (!session) {
     redirect("/login");
@@ -28,7 +33,7 @@ export default async function InvoiceDetailPage({
   const user = await requireAuth();
 
   const invoice = await prisma.invoice.findUnique({
-    where: { id: params.id },
+    where: { id: resolvedParams.id },
     include: {
       customer: true,
       vehicle: {
@@ -115,7 +120,7 @@ export default async function InvoiceDetailPage({
   }
 
   if (!invoice) {
-    return <ResourceNotFound variant="invoice" id={params.id} />;
+    return <ResourceNotFound variant="invoice" id={resolvedParams.id} />;
   }
 
   // Check permissions
@@ -127,7 +132,7 @@ export default async function InvoiceDetailPage({
   const canApprove = canApproveInvoice(user.role);
   const canFinalize = canFinalizeInvoice(user.role);
   const canDelete = canDeleteInvoice(user.role);
-  const isEditMode = searchParams?.edit === "true";
+  const isEditMode = resolvedSearchParams?.edit === "true";
 
   // If in edit mode, show InvoiceForm
   if (isEditMode) {

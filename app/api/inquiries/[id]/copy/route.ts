@@ -5,10 +5,8 @@ import { prisma } from "@/lib/prisma";
 import { InquiryStatus } from "@prisma/client";
 import { canViewAllInquiries } from "@/lib/permissions";
 
-export async function POST(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function POST(request: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user) {

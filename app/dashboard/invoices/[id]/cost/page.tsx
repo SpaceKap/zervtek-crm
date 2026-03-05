@@ -9,8 +9,9 @@ import { ResourceNotFound } from "@/components/ResourceNotFound";
 export default async function CostInvoicePage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
+  const { id } = await params;
   const session = await getServerSession(authOptions);
   if (!session) {
     redirect("/login");
@@ -19,7 +20,7 @@ export default async function CostInvoicePage({
   const user = await requireAuth();
 
   const invoice = await prisma.invoice.findUnique({
-    where: { id: params.id },
+    where: { id },
     include: {
       vehicle: true,
       charges: {
@@ -42,7 +43,7 @@ export default async function CostInvoicePage({
   });
 
   if (!invoice) {
-    return <ResourceNotFound variant="cost-invoice" id={params.id} />;
+    return <ResourceNotFound variant="cost-invoice" id={id} />;
   }
 
   // Check permissions

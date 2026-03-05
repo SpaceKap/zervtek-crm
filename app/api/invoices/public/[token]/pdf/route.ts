@@ -8,10 +8,8 @@ import { InvoiceStatus } from "@prisma/client"
  * Public PDF by share token. No auth required.
  * Used by customer portal and public invoice links.
  */
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { token: string } }
-) {
+export async function GET(request: NextRequest, props: { params: Promise<{ token: string }> }) {
+  const params = await props.params;
   const { searchParams } = new URL(request.url)
   const download = searchParams.get("download") === "true"
   try {

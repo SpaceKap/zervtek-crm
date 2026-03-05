@@ -6,10 +6,8 @@ import { requireAuth, canViewAllInquiries } from "@/lib/permissions"
 import { renderToBuffer } from "@react-pdf/renderer"
 import { CostInvoicePDF } from "@/lib/pdf/cost-invoice"
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function GET(request: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   try {
     const user = await requireAuth()
 

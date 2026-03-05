@@ -9,8 +9,9 @@ import { ResourceNotFound } from "@/components/ResourceNotFound";
 export default async function ContainerInvoiceDetailPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
+  const { id } = await params;
   const session = await getServerSession(authOptions);
   if (!session) {
     redirect("/login");
@@ -19,7 +20,7 @@ export default async function ContainerInvoiceDetailPage({
   const user = await requireAuth();
 
   const containerInvoice = await prisma.containerInvoice.findUnique({
-    where: { id: params.id },
+    where: { id },
     include: {
       customer: true,
       sharedInvoice: {
@@ -40,7 +41,7 @@ export default async function ContainerInvoiceDetailPage({
   });
 
   if (!containerInvoice) {
-    return <ResourceNotFound variant="container-invoice" id={params.id} />;
+    return <ResourceNotFound variant="container-invoice" id={id} />;
   }
 
   // Check permissions

@@ -7,10 +7,8 @@ import { renderToBuffer } from "@react-pdf/renderer"
 import { CustomerInvoicePDF } from "@/lib/pdf/customer-invoice"
 import { InvoiceStatus } from "@prisma/client"
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function GET(request: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const { searchParams } = new URL(request.url);
   const download = searchParams.get("download") === "true";
   try {

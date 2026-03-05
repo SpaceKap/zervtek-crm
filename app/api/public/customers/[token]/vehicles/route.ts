@@ -2,10 +2,8 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getInvoiceTotalWithTax } from "@/lib/invoice-utils"
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { token: string } }
-) {
+export async function GET(request: NextRequest, props: { params: Promise<{ token: string }> }) {
+  const params = await props.params;
   try {
     const customer = await prisma.customer.findUnique({
       where: { shareToken: params.token },

@@ -19,15 +19,16 @@ import { ResourceNotFound } from "@/components/ResourceNotFound";
 export default async function InquiryDetailPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
+  const { id } = await params;
   const session = await getServerSession(authOptions);
   if (!session) {
     redirect("/login");
   }
 
   const inquiry = await prisma.inquiry.findUnique({
-    where: { id: params.id },
+    where: { id },
     include: {
       assignedTo: {
         select: {
@@ -70,7 +71,7 @@ export default async function InquiryDetailPage({
   });
 
   if (!inquiry) {
-    return <ResourceNotFound variant="lead" id={params.id} />;
+    return <ResourceNotFound variant="lead" id={id} />;
   }
 
   // Check permissions

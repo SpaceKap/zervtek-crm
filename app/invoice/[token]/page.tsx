@@ -6,10 +6,11 @@ import { getInvoiceTotalWithTax } from "@/lib/invoice-utils";
 export default async function PublicInvoicePage({
   params,
 }: {
-  params: { token: string };
+  params: Promise<{ token: string }>;
 }) {
+  const { token } = await params;
   const invoice = await prisma.invoice.findUnique({
-    where: { shareToken: params.token },
+    where: { shareToken: token },
     include: {
       customer: true,
       vehicle: true,

@@ -5,10 +5,8 @@ import { prisma } from "@/lib/prisma"
 import { UserRole } from "@prisma/client"
 import { canManageUsers } from "@/lib/permissions"
 
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function PATCH(request: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   try {
     const session = await getServerSession(authOptions)
     if (!session?.user) {

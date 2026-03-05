@@ -104,11 +104,12 @@ function sortInvoicesForDisplay<T extends { paymentStatus: string; dueDate?: Dat
   });
 }
 
-export default async function VehiclePage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
+export default async function VehiclePage(
+  props: {
+    params: Promise<{ id: string }>;
+  }
+) {
+  const params = await props.params;
   const { id: vehicleId } = await params;
   const session = await getServerSession(authOptions);
   const customerId = session?.user?.id;
@@ -302,7 +303,6 @@ export default async function VehiclePage({
         subtitle={vehicle.vin}
         backLink={{ href: "/", label: "Back to vehicles" }}
       />
-
       <main className="container mx-auto space-y-6 px-4 py-6 sm:space-y-8 sm:px-6 sm:py-8 lg:px-8">
         {/* Shipping progress */}
         {vehicle.currentShippingStage && (

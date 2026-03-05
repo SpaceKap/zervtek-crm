@@ -7,10 +7,9 @@ import { recalcInvoicePaymentStatus } from "@/lib/invoice-utils"
 
 export async function PATCH(
   request: NextRequest,
-  {
-    params,
-  }: { params: { id: string; chargeId: string } }
+  props: { params: Promise<{ id: string; chargeId: string }> }
 ) {
+  const params = await props.params;
   try {
     const user = await requireAuth()
 
@@ -60,10 +59,9 @@ export async function PATCH(
 
 export async function DELETE(
   request: NextRequest,
-  {
-    params,
-  }: { params: { id: string; chargeId: string } }
+  props: { params: Promise<{ id: string; chargeId: string }> }
 ) {
+  const params = await props.params;
   try {
     const user = await requireAuth()
 

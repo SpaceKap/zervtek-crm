@@ -7,11 +7,12 @@ import { UserRole } from "@prisma/client";
 import { KanbanBoardFilter } from "@/components/KanbanBoardFilter";
 import { Suspense } from "react";
 
-export default async function KanbanPage({
-  searchParams,
-}: {
-  searchParams: { userId?: string };
-}) {
+export default async function KanbanPage(
+  props: {
+    searchParams: Promise<{ userId?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
   const session = await getServerSession(authOptions);
   if (!session) {
     redirect("/login");

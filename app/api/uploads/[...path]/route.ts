@@ -5,10 +5,8 @@ import { readFile } from "fs/promises"
 import { join } from "path"
 import { existsSync } from "fs"
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { path: string[] } }
-) {
+export async function GET(request: NextRequest, props: { params: Promise<{ path: string[] }> }) {
+  const params = await props.params;
   try {
     // Require authentication
     const session = await getServerSession(authOptions)

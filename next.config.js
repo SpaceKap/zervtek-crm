@@ -5,8 +5,8 @@ const nextConfig = {
   ...(process.env.NODE_ENV === 'production' && { output: 'standalone' }),
   compress: true, // Enable gzip compression for API responses
   reactStrictMode: true,
+  serverExternalPackages: ["@prisma/client"],
   experimental: {
-    serverComponentsExternalPackages: ["@prisma/client"],
     serverActions: {
       bodySizeLimit: '2mb',
     },

@@ -7,10 +7,11 @@ import { VendorCategory } from "@prisma/client"
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     await requireAuth()
+    const { id } = await params
 
     const body = await request.json()
     const { name, email, category } = body
@@ -31,7 +32,7 @@ export async function PATCH(
     if (category !== undefined) updateData.category = category as VendorCategory
 
     const vendor = await prisma.vendor.update({
-      where: { id: params.id },
+      where: { id },
       data: updateData,
     })
 
@@ -57,13 +58,14 @@ export async function PATCH(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     await requireAuth()
+    const { id } = await params
 
     await prisma.vendor.delete({
-      where: { id: params.id },
+      where: { id },
     })
 
     return NextResponse.json({ success: true })

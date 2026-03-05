@@ -7,8 +7,9 @@ import { TransactionType } from "@prisma/client"
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string; costId: string } }
+  props: { params: Promise<{ id: string; costId: string }> }
 ) {
+  const params = await props.params;
   try {
     const session = await getServerSession(authOptions)
     if (!session?.user) {
@@ -90,8 +91,9 @@ export async function PATCH(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string; costId: string } }
+  props: { params: Promise<{ id: string; costId: string }> }
 ) {
+  const params = await props.params;
   try {
     const session = await getServerSession(authOptions)
     if (!session?.user) {

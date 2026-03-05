@@ -5,10 +5,8 @@ import { prisma } from "@/lib/prisma"
 import { InvoiceStatus } from "@prisma/client"
 import { randomBytes } from "crypto"
 
-export async function POST(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function POST(request: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   try {
     const session = await getServerSession(authOptions)
     if (!session?.user) {

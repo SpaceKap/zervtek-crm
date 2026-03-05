@@ -5,10 +5,8 @@ import { getCached, checkRateLimit } from "@/lib/cache"
 
 const INVOICE_CACHE_TTL = 300 // 5 minutes
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { token: string } }
-) {
+export async function GET(request: NextRequest, props: { params: Promise<{ token: string }> }) {
+  const params = await props.params;
   try {
     const ip =
       request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||

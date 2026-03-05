@@ -63,7 +63,7 @@ const sourceLabelsShort: Record<string, string> = {
 export default async function StatsPage({
   searchParams,
 }: {
-  searchParams: { startDate?: string; endDate?: string };
+  searchParams: Promise<{ startDate?: string; endDate?: string }>;
 }) {
   const session = await getServerSession(authOptions);
   if (!session) {
@@ -79,8 +79,9 @@ export default async function StatsPage({
     redirect("/dashboard");
   }
 
-  const startDate = searchParams?.startDate || null;
-  const endDate = searchParams?.endDate || null;
+  const resolved = await searchParams;
+  const startDate = resolved?.startDate || null;
+  const endDate = resolved?.endDate || null;
   const dateFilter: { createdAt?: { gte?: Date; lte?: Date } } = {};
   if (startDate) dateFilter.createdAt = { gte: new Date(startDate) };
   if (endDate) {
