@@ -434,19 +434,22 @@ model Invoice {
 }
 
 model InvoiceCharge {
-  id           String   @id @default(cuid())
-  invoiceId    String
-  chargeTypeId String?
-  description  String
-  amount       Decimal  @db.Decimal(12, 2)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id                         String   @id @default(cuid())
+  invoiceId                  String
+  chargeTypeId               String?
+  description                String
+  amount                     Decimal  @db.Decimal(12, 2)
+  appliedDepositTransactionId String?  // When charge type is DEPOSIT, links to the Transaction (deposit) being applied
+  createdAt                  DateTime @default(now())
+  updatedAt                  DateTime @updatedAt
 
   invoice    Invoice     @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
   chargeType ChargeType? @relation(fields: [chargeTypeId], references: [id], onDelete: SetNull)
+  appliedDepositTransaction Transaction? @relation("AppliedDeposit", fields: [appliedDepositTransactionId], references: [id], onDelete: SetNull)
 
   @@index([invoiceId])
   @@index([chargeTypeId])
+  @@index([appliedDepositTransactionId])
   @@index([invoiceId, createdAt]) // Composite index for ordered charge queries
   @@schema("inquiry_pooler")
 }
@@ -847,6 +850,7 @@ model Transaction {
   vehicleStageCost VehicleStageCost? @relation(fields: [vehicleStageCostId], references: [id], onDelete: SetNull)
   costItem         CostItem?        @relation(fields: [costItemId], references: [id], onDelete: SetNull)
   generalCost      GeneralCost?     @relation(fields: [generalCostId], references: [id], onDelete: SetNull)
+  appliedAsDepositCharge InvoiceCharge[] @relation("AppliedDeposit")
 
   @@index([direction])
   @@index([type])
