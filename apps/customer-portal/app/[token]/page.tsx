@@ -11,6 +11,7 @@ import {
   CreditCard,
   ExternalLink,
 } from "lucide-react";
+import { TransactionDirection } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import {
   Card,
@@ -148,7 +149,7 @@ export default async function PortalPage({
       orderBy: { issueDate: "desc" },
     }),
     prisma.transaction.findMany({
-      where: { customerId: customer.id, direction: { in: ["INCOMING", "DEPOSIT"] } },
+      where: { customerId: customer.id, direction: { in: [TransactionDirection.INCOMING, TransactionDirection.DEPOSIT] } },
       select: {
         id: true,
         date: true,

@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { InvoiceStatus } from "@prisma/client";
+import { InvoiceStatus, TransactionDirection } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { PortalClient } from "@/app/[token]/portal-client";
 import { PortalHeader } from "@/components/PortalHeader";
@@ -145,7 +145,7 @@ export async function PortalDashboard({
       orderBy: { issueDate: "desc" as const },
     }),
     prisma.transaction.findMany({
-      where: { customerId, direction: { in: ["INCOMING", "DEPOSIT"] as const } },
+      where: { customerId, direction: { in: [TransactionDirection.INCOMING, TransactionDirection.DEPOSIT] } },
       select: {
         id: true,
         date: true,
