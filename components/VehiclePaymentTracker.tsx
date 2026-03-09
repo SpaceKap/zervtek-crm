@@ -364,7 +364,7 @@ export function VehiclePaymentTracker({
             </ul>
           ) : (
             <div className="rounded-lg border border-dashed py-8 text-center text-muted-foreground text-sm">
-              No payments yet. Add a payment to record deposits, partial, or full payments. Same data appears in Transactions and on the Customer page.
+              No payments yet.
             </div>
           )}
         </CardContent>

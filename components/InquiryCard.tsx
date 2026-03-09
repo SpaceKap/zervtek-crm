@@ -65,6 +65,12 @@ interface InquiryCardProps {
   isInFunnel?: boolean; // Indicates if card is in the kanban board (funnel)
   isMergeTarget?: boolean;
   mergeHoldProgress?: number;
+  /** Pool/dashboard merge: show Merge and Merge into this (managers/admins) */
+  canMerge?: boolean;
+  mergeSourceId?: string | null;
+  onStartMerge?: (inquiryId: string) => void;
+  onMergeInto?: (targetId: string) => void;
+  onCancelMerge?: () => void;
 }
 
 const COUNTRIES = getCountriesSorted();
@@ -147,6 +153,11 @@ export function InquiryCard({
   isInFunnel = false,
   isMergeTarget = false,
   mergeHoldProgress = 0,
+  canMerge = false,
+  mergeSourceId: externalMergeSourceId = null,
+  onStartMerge,
+  onMergeInto,
+  onCancelMerge,
 }: InquiryCardProps) {
   const canDelete = currentUserEmail === "avi@zervtek.com";
   const metadata = (inquiry.metadata as any) || {};
@@ -544,6 +555,51 @@ export function InquiryCard({
                   group_add
                 </span>
               </button>
+            )}
+            {canMerge && onStartMerge && !externalMergeSourceId && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onStartMerge(inquiry.id);
+                }}
+                className="flex items-center justify-center p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-[#2C2C2C] transition-colors text-gray-500 dark:text-[#A1A1A1]"
+                title="Merge into another lead"
+              >
+                <span className="material-symbols-outlined text-base">
+                  merge
+                </span>
+              </button>
+            )}
+            {canMerge && externalMergeSourceId === inquiry.id && onCancelMerge && (
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onCancelMerge();
+                }}
+                className="h-7 px-2 text-xs shrink-0"
+                title="Cancel merge"
+              >
+                Cancel
+              </Button>
+            )}
+            {canMerge && externalMergeSourceId && externalMergeSourceId !== inquiry.id && onMergeInto && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onMergeInto(inquiry.id);
+                }}
+                className="h-7 px-2 text-xs shrink-0 gap-1"
+                title="Merge selected lead into this one"
+              >
+                <span className="material-symbols-outlined text-sm">
+                  merge
+                </span>
+                Merge into this
+              </Button>
             )}
             {showReleaseButton && onRelease && inquiry.assignedToId ? (
               <Button

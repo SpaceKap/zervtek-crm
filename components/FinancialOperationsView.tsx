@@ -213,6 +213,13 @@ export function FinancialOperationsView({
   const markAsPaidFileInputRef = useRef<HTMLInputElement>(null);
   const markAsPaidCameraInputRef = useRef<HTMLInputElement>(null);
 
+  // Upload invoice document (expenses actions)
+  const [uploadInvoiceTransaction, setUploadInvoiceTransaction] =
+    useState<Transaction | null>(null);
+  const [uploadInvoiceFile, setUploadInvoiceFile] = useState<File | null>(null);
+  const [uploadInvoiceUploading, setUploadInvoiceUploading] = useState(false);
+  const uploadInvoiceFileInputRef = useRef<HTMLInputElement>(null);
+
   // Fetch customers and vendors for filters
   const [customers, setCustomers] = useState<
     Array<{ id: string; name: string; email: string | null }>
@@ -2392,6 +2399,22 @@ export function FinancialOperationsView({
                                                 <Button
                                                   variant="ghost"
                                                   size="sm"
+                                                  onClick={() => {
+                                                    setUploadInvoiceTransaction(transaction);
+                                                    setUploadInvoiceFile(null);
+                                                    if (uploadInvoiceFileInputRef.current)
+                                                      uploadInvoiceFileInputRef.current.value = "";
+                                                  }}
+                                                  className="h-8 px-2 text-xs hover:bg-slate-100 dark:hover:bg-slate-800"
+                                                  title="Upload invoice document"
+                                                >
+                                                  <span className="material-symbols-outlined text-sm">
+                                                    upload_file
+                                                  </span>
+                                                </Button>
+                                                <Button
+                                                  variant="ghost"
+                                                  size="sm"
                                                   onClick={handleDelete}
                                                   className="h-8 px-2 text-xs hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400"
                                                   title="Delete transaction"
@@ -3123,6 +3146,165 @@ export function FinancialOperationsView({
                     disabled={!markAsPaidType}
                   >
                     Mark as paid
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+
+            {/* Upload invoice document (expenses actions) */}
+            <Dialog
+              open={!!uploadInvoiceTransaction}
+              onOpenChange={(open) => {
+                if (!open) {
+                  setUploadInvoiceTransaction(null);
+                  setUploadInvoiceFile(null);
+                  if (uploadInvoiceFileInputRef.current)
+                    uploadInvoiceFileInputRef.current.value = "";
+                }
+              }}
+            >
+              <DialogContent className="sm:max-w-md p-0 gap-0">
+                <DialogHeader className="px-6 pt-6 pb-4">
+                  <DialogTitle>Upload Invoice Document</DialogTitle>
+                  <DialogDescription className="mt-1.5">
+                    Attach an invoice or receipt for this expense. The file will
+                    be linked to the transaction.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="px-6 pb-6 pt-1 space-y-5">
+                  <div className="space-y-2">
+                    <Label
+                      htmlFor="upload-invoice-file"
+                      className="text-sm font-medium"
+                    >
+                      File
+                    </Label>
+                    <input
+                      ref={uploadInvoiceFileInputRef}
+                      id="upload-invoice-file"
+                      type="file"
+                      accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                      className="sr-only"
+                      aria-hidden
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        setUploadInvoiceFile(file || null);
+                      }}
+                    />
+                    <div className="flex flex-col gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full justify-start gap-2 h-10"
+                        onClick={() =>
+                          uploadInvoiceFileInputRef.current?.click()
+                        }
+                        disabled={uploadInvoiceUploading}
+                      >
+                        <span className="material-symbols-outlined text-lg">
+                          upload_file
+                        </span>
+                        {uploadInvoiceFile
+                          ? uploadInvoiceFile.name
+                          : "Choose file"}
+                      </Button>
+                      {uploadInvoiceFile && (
+                        <p className="text-xs text-muted-foreground">
+                          PDF, JPG, PNG, or DOC. You can replace by choosing
+                          again.
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  {uploadInvoiceUploading && (
+                    <p className="text-sm text-muted-foreground flex items-center gap-2">
+                      <span
+                        className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"
+                        aria-hidden
+                      />
+                      Uploading…
+                    </p>
+                  )}
+                </div>
+                <DialogFooter className="mt-6 pt-4 border-t border-border px-6 pb-6">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setUploadInvoiceTransaction(null);
+                      setUploadInvoiceFile(null);
+                      if (uploadInvoiceFileInputRef.current)
+                        uploadInvoiceFileInputRef.current.value = "";
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    disabled={!uploadInvoiceFile || uploadInvoiceUploading}
+                    onClick={async () => {
+                      if (!uploadInvoiceTransaction || !uploadInvoiceFile)
+                        return;
+                      const transactionId =
+                        uploadInvoiceTransaction.isRecurringExpense &&
+                        uploadInvoiceTransaction.recurringInstanceId
+                          ? null
+                          : uploadInvoiceTransaction.id;
+                      if (!transactionId) {
+                        alert(
+                          "Recurring expense instances use a different flow. Use Mark as paid to attach an invoice.",
+                        );
+                        return;
+                      }
+                      setUploadInvoiceUploading(true);
+                      try {
+                        const form = new FormData();
+                        form.append("file", uploadInvoiceFile);
+                        form.append("context", "transaction");
+                        form.append(
+                          "expenseDate",
+                          new Date().toISOString().split("T")[0],
+                        );
+                        const res = await fetch("/api/upload", {
+                          method: "POST",
+                          body: form,
+                          credentials: "include",
+                        });
+                        if (!res.ok) {
+                          const err = await res.json().catch(() => ({}));
+                          alert(err.error || "Upload failed");
+                          return;
+                        }
+                        const data = await res.json();
+                        const patchRes = await fetch(
+                          `/api/transactions/${transactionId}`,
+                          {
+                            method: "PATCH",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                              invoiceUrl: data.url,
+                            }),
+                          },
+                        );
+                        if (patchRes.ok) {
+                          fetchTransactions();
+                          setUploadInvoiceTransaction(null);
+                          setUploadInvoiceFile(null);
+                          if (uploadInvoiceFileInputRef.current)
+                            uploadInvoiceFileInputRef.current.value = "";
+                        } else {
+                          const err = await patchRes
+                            .json()
+                            .catch(() => ({}));
+                          alert(err.error || "Failed to link document");
+                        }
+                      } catch (err) {
+                        console.error(err);
+                        alert("Upload failed");
+                      } finally {
+                        setUploadInvoiceUploading(false);
+                      }
+                    }}
+                  >
+                    Upload
                   </Button>
                 </DialogFooter>
               </DialogContent>

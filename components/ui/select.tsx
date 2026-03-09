@@ -82,12 +82,18 @@ function SelectContent({
         <SelectScrollUpButton />
         <SelectPrimitive.Viewport
           className={cn(
-            "p-1 max-h-[min(300px,calc(100vh-8rem))] overflow-y-auto",
+            "p-1 max-h-[min(300px,calc(100vh-8rem))] overflow-y-auto min-h-[2.5rem]",
             position === "popper" &&
               "w-full min-w-[var(--radix-select-trigger-width)]",
           )}
         >
-          {children}
+          {React.Children.count(children) === 0 ? (
+            <div className="py-6 px-3 text-center text-sm text-muted-foreground">
+              No options
+            </div>
+          ) : (
+            children
+          )}
         </SelectPrimitive.Viewport>
         <SelectScrollDownButton />
       </SelectPrimitive.Content>

@@ -93,6 +93,10 @@ export function InquiryPool({
   const [assignToDialogOpen, setAssignToDialogOpen] = useState(false);
   const [assignToInquiryId, setAssignToInquiryId] = useState<string | null>(null);
 
+  // Merge (managers/admins): source selected, then click target to merge into
+  const [mergeSourceId, setMergeSourceId] = useState<string | null>(null);
+  const [mergeInProgress, setMergeInProgress] = useState(false);
+
   // Use external filters if provided, otherwise use internal state
   const currentFilterSource =
     externalFilterSource !== undefined ? externalFilterSource : filterSource;
@@ -307,6 +311,39 @@ export function InquiryPool({
     setAssignToDialogOpen(true);
   };
 
+  const handleStartMerge = (inquiryId: string) => {
+    setMergeSourceId(inquiryId);
+  };
+
+  const handleCancelMerge = () => {
+    setMergeSourceId(null);
+  };
+
+  const handleMergeInto = async (targetId: string) => {
+    if (!mergeSourceId || mergeSourceId === targetId) return;
+    setMergeInProgress(true);
+    try {
+      const response = await fetch(`/api/inquiries/${targetId}/merge`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sourceInquiryId: mergeSourceId }),
+      });
+      if (response.ok) {
+        setMergeSourceId(null);
+        fetchInquiries(true);
+        router.refresh();
+      } else {
+        const err = await response.json().catch(() => ({}));
+        alert(err.error || "Failed to merge inquiries");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Failed to merge inquiries");
+    } finally {
+      setMergeInProgress(false);
+    }
+  };
+
   if (loading) {
     return <div className="text-center py-8">Loading inquiries...</div>;
   }
@@ -426,6 +463,25 @@ export function InquiryPool({
         </>
       )}
 
+      {mergeSourceId && (
+        <div className="flex items-center justify-between gap-4 rounded-lg border border-primary/30 bg-primary/5 dark:bg-primary/10 px-4 py-3">
+          <span className="flex items-center gap-2 text-sm font-medium text-foreground">
+            <span className="material-symbols-outlined text-lg text-primary">
+              merge
+            </span>
+            Merge mode — click another lead to merge into it (the selected lead will be combined into the one you click).
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleCancelMerge}
+            disabled={mergeInProgress}
+          >
+            Cancel
+          </Button>
+        </div>
+      )}
+
       {inquiries.length === 0 ? (
         <div className="text-center py-12">
           <span className="material-symbols-outlined text-6xl text-gray-300 dark:text-[#2C2C2C] mb-4 block">
@@ -456,6 +512,11 @@ export function InquiryPool({
               currentUserId={currentUserId}
               isManager={isManager}
               isAdmin={isAdmin}
+              canMerge={isManager}
+              mergeSourceId={mergeSourceId}
+              onStartMerge={handleStartMerge}
+              onMergeInto={handleMergeInto}
+              onCancelMerge={handleCancelMerge}
             />
           ))}
         </div>

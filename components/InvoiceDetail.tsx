@@ -816,6 +816,24 @@ export function InvoiceDetail({
                       </p>
                     </div>
                   )}
+                  <div>
+                    <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                      Payment
+                    </Label>
+                    <p className="mt-1 text-sm font-medium text-gray-900 dark:text-white">
+                      {(invoice.transactions?.length ?? 0) === 0
+                        ? "No payments yet."
+                        : invoice.paymentStatus === PaymentStatus.PAID
+                          ? "Paid"
+                          : invoice.paymentStatus === PaymentStatus.PARTIALLY_PAID
+                            ? "Partially paid"
+                            : invoice.paymentStatus === PaymentStatus.OVERDUE
+                              ? "Overdue"
+                              : invoice.paymentStatus === PaymentStatus.CANCELLED
+                                ? "Cancelled"
+                                : "Pending"}
+                    </p>
+                  </div>
                   {invoice.taxEnabled && (
                     <div>
                       <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
