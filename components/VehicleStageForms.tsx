@@ -165,6 +165,8 @@ interface VehicleStageFormsProps {
   onRefetchVendors?: () => void | Promise<void>;
   /** Call after creating a yard (or vendor with category YARD) so the parent can refetch the yards list. */
   onRefetchYards?: () => void | Promise<void>;
+  /** Customer's port of destination; used as default for POD when booking stage has none saved. */
+  customerPortOfDestination?: string | null;
 }
 
 type AddVendorForField =
@@ -187,6 +189,7 @@ export function VehicleStageForms({
   onDocumentUploaded,
   onRefetchVendors,
   onRefetchYards,
+  customerPortOfDestination,
 }: VehicleStageFormsProps) {
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState<Partial<VehicleStageFormData>>({});
@@ -358,7 +361,7 @@ export function VehicleStageForms({
       bookingRequested: stageData.bookingRequested,
       bookingStatus: stageData.bookingStatus || "",
       bookingNumber: stageData.bookingNumber || "",
-      pod: stageData.pod || "",
+      pod: stageData.pod || customerPortOfDestination || "",
       pol: stageData.pol || "",
       vesselName: stageData.vesselName || "",
       voyageNo: stageData.voyageNo || "",
@@ -384,7 +387,7 @@ export function VehicleStageForms({
     setFormData(initialData);
     previousFormDataRef.current = initialData;
     isInitialMount.current = true;
-  }, [vehicleId, currentStage, stageData]);
+  }, [vehicleId, currentStage, stageData, customerPortOfDestination]);
 
   const handleSave = useCallback(async () => {
     if (saveFeedbackTimeoutRef.current) {
@@ -405,6 +408,7 @@ export function VehicleStageForms({
       if (response.ok) {
         setSaveStatus("saved");
         saveFeedbackTimeoutRef.current = setTimeout(() => setSaveStatus("idle"), 2000);
+        onUpdate();
       } else {
         const err = await response.json().catch(() => ({ error: "Save failed" }));
         const message = err?.error ?? "Save failed";

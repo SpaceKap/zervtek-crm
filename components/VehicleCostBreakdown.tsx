@@ -238,7 +238,9 @@ export function VehicleCostBreakdown({
       </div>
 
       {items.length === 0 ? (
-        <p className="text-sm text-muted-foreground py-4">No cost items.</p>
+        <div className="py-10 text-center">
+          <p className="text-sm text-muted-foreground">No cost items.</p>
+        </div>
       ) : (
         <div className="overflow-x-auto rounded-lg border">
           <table className="w-full text-sm">

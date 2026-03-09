@@ -308,14 +308,17 @@ export function InvoiceForm({ invoice }: InvoiceFormProps = {}) {
       setCustomerDeposits([]);
       return;
     }
-    fetch(`/api/customers/${customerIdForDeposits}/deposits`, {
-        credentials: "include",
-        cache: "no-store",
-      })
+    const url = invoice?.id
+      ? `/api/customers/${customerIdForDeposits}/deposits?invoiceId=${encodeURIComponent(invoice.id)}`
+      : `/api/customers/${customerIdForDeposits}/deposits`;
+    fetch(url, {
+      credentials: "include",
+      cache: "no-store",
+    })
       .then((r) => (r.ok ? r.json() : []))
       .then(setCustomerDeposits)
       .catch(() => setCustomerDeposits([]));
-  }, [customerIdForDeposits]);
+  }, [customerIdForDeposits, invoice?.id]);
 
   // Load invoice data for editing - ensure customers are loaded first
   useEffect(() => {

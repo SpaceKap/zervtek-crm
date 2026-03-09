@@ -46,6 +46,7 @@ export async function GET(request: NextRequest, props: { params: Promise<{ id: s
             description: true,
             amount: true,
             chargeTypeId: true,
+            appliedDepositTransactionId: true,
             createdAt: true,
             chargeType: { select: { name: true } },
           },

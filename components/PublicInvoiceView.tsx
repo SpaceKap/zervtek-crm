@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { getChargesSubtotal, isChargeSubtracting } from "@/lib/charge-utils";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
@@ -12,6 +13,14 @@ import { PaymentStatus } from "@prisma/client";
 interface PublicInvoiceViewProps {
   invoice: any;
   companyInfo: any;
+  /** When set (e.g. dashboard), customer name is a link to this href */
+  customerLinkHref?: string;
+  /** When true (e.g. dashboard only), show port of destination under Ship To */
+  showPortOfDestinationUnderShipping?: boolean;
+  /** When true (e.g. dashboard), hide the payment section so sidebar shows it */
+  hidePaymentSection?: boolean;
+  /** Override for port of destination (e.g. vehicle booking POD); falls back to customer.portOfDestination */
+  effectivePortOfDestination?: string | null;
 }
 
 const paymentStatusColors: Record<PaymentStatus, string> = {
@@ -33,6 +42,10 @@ const paymentStatusLabels: Record<PaymentStatus, string> = {
 export function PublicInvoiceView({
   invoice,
   companyInfo,
+  customerLinkHref,
+  showPortOfDestinationUnderShipping = false,
+  hidePaymentSection = false,
+  effectivePortOfDestination,
 }: PublicInvoiceViewProps) {
   const [copiedField, setCopiedField] = useState<string | null>(null);
 
@@ -133,20 +146,21 @@ export function PublicInvoiceView({
   const companyAddressLines = companyInfo?.address
     ? formatCompanyAddress(companyInfo.address)
     : [];
-  const billingAddress = invoice.customer.billingAddress
-    ? typeof invoice.customer.billingAddress === "string"
-      ? JSON.parse(invoice.customer.billingAddress)
-      : invoice.customer.billingAddress
+  const customer = invoice?.customer;
+  const billingAddress = customer?.billingAddress
+    ? typeof customer.billingAddress === "string"
+      ? JSON.parse(customer.billingAddress)
+      : customer.billingAddress
     : null;
-  const shippingAddress = invoice.customer.shippingAddress
-    ? typeof invoice.customer.shippingAddress === "string"
-      ? JSON.parse(invoice.customer.shippingAddress)
-      : invoice.customer.shippingAddress
+  const shippingAddress = customer?.shippingAddress
+    ? typeof customer.shippingAddress === "string"
+      ? JSON.parse(customer.shippingAddress)
+      : customer.shippingAddress
     : null;
   const billingAddressLines = formatCustomerAddress(billingAddress);
   const shippingAddressLines = formatCustomerAddress(shippingAddress);
 
-  const totalCharges = getChargesSubtotal(invoice.charges);
+  const totalCharges = getChargesSubtotal(invoice?.charges ?? []);
 
   let subtotal = totalCharges;
   let taxAmount = 0;
@@ -218,9 +232,20 @@ export function PublicInvoiceView({
                 Bill To
               </h3>
               <div className="text-sm text-gray-700 dark:text-gray-300 space-y-1 break-words">
-                <p className="font-semibold">
-                  {invoice.customer.name || "N/A"}
-                </p>
+                {customerLinkHref ? (
+                  <p className="font-semibold">
+                    <Link
+                      href={customerLinkHref}
+                      className="text-primary hover:underline"
+                    >
+                      {customer?.name ?? "N/A"}
+                    </Link>
+                  </p>
+                ) : (
+                  <p className="font-semibold">
+                    {customer?.name ?? "N/A"}
+                  </p>
+                )}
                 {billingAddressLines.length > 0 && (
                   <>
                     {billingAddressLines.map((line: string, idx: number) => (
@@ -228,8 +253,8 @@ export function PublicInvoiceView({
                     ))}
                   </>
                 )}
-                {invoice.customer.email && <p>{invoice.customer.email}</p>}
-                {invoice.customer.phone && <p>{invoice.customer.phone}</p>}
+                {customer?.email && <p>{customer.email}</p>}
+                {customer?.phone && <p>{customer.phone}</p>}
               </div>
             </div>
 
@@ -239,9 +264,20 @@ export function PublicInvoiceView({
                 Ship To
               </h3>
               <div className="text-sm text-gray-700 dark:text-gray-300 space-y-1 break-words">
-                <p className="font-semibold">
-                  {invoice.customer.name || "N/A"}
-                </p>
+                {customerLinkHref ? (
+                  <p className="font-semibold">
+                    <Link
+                      href={customerLinkHref}
+                      className="text-primary hover:underline"
+                    >
+                      {customer?.name ?? "N/A"}
+                    </Link>
+                  </p>
+                ) : (
+                  <p className="font-semibold">
+                    {customer?.name ?? "N/A"}
+                  </p>
+                )}
                 {shippingAddressLines.length > 0 ? (
                   <>
                     {shippingAddressLines.map((line: string, idx: number) => (
@@ -255,8 +291,15 @@ export function PublicInvoiceView({
                     ))}
                   </>
                 ) : null}
-                {invoice.customer.email && <p>{invoice.customer.email}</p>}
-                {invoice.customer.phone && <p>{invoice.customer.phone}</p>}
+                {customer?.email && <p>{customer.email}</p>}
+                {customer?.phone && <p>{customer.phone}</p>}
+                {showPortOfDestinationUnderShipping &&
+                  (effectivePortOfDestination ?? customer?.portOfDestination) && (
+                    <p className="pt-1 font-medium">
+                      Port of destination:{" "}
+                      {effectivePortOfDestination ?? customer?.portOfDestination}
+                    </p>
+                  )}
               </div>
             </div>
 
@@ -335,7 +378,7 @@ export function PublicInvoiceView({
                   </tr>
                 </thead>
                 <tbody>
-                  {invoice.charges.map((charge: any) => {
+                  {(invoice?.charges ?? []).map((charge: any) => {
                     const amount = parseFloat(charge.amount.toString());
                     const displayAmount = isChargeSubtracting(charge) ? -amount : amount;
                     const currencySymbol = "¥"; // TODO: from invoice.currency or company if multi-currency
@@ -408,8 +451,9 @@ export function PublicInvoiceView({
           </CardContent>
         </Card>
 
-        {/* Payment Section */}
-        {invoice.paymentStatus !== PaymentStatus.PAID && (
+        {/* Payment Section (hidden on dashboard; sidebar shows payment info) */}
+        {!hidePaymentSection &&
+          invoice.paymentStatus !== PaymentStatus.PAID && (
           <Card className="mb-6 dark:bg-[#1E1E1E] dark:border-[#2C2C2C]">
             <CardHeader>
               <CardTitle className="text-lg text-gray-900 dark:text-white">

@@ -37,6 +37,7 @@ export async function GET(request: NextRequest, props: { params: Promise<{ id: s
             name: true,
             email: true,
             phone: true,
+            portOfDestination: true,
           },
         },
         invoices: {

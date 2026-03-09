@@ -99,6 +99,8 @@ export default async function InvoiceDetailPage(
     },
   });
 
+  const companyInfo = await prisma.companyInfo.findFirst();
+
   // Fetch additional vehicles if this is a container invoice
   let additionalVehicles: any[] = [];
   if (
@@ -156,6 +158,7 @@ export default async function InvoiceDetailPage(
         canFinalize={canFinalize}
         canDelete={canDelete}
         additionalVehicles={serializedAdditionalVehicles}
+        companyInfo={companyInfo ?? undefined}
       />
     </div>
   );

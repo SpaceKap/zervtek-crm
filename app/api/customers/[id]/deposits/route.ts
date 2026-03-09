@@ -6,6 +6,8 @@ import { prisma } from "@/lib/prisma"
 /**
  * GET: List deposit transactions for this customer that are not yet applied to any invoice charge.
  * Used when adding a DEPOSIT charge to an invoice so staff can select which deposit to apply.
+ * Optional ?invoiceId=... : when editing an invoice, deposits applied on that invoice are still
+ * included so the selected deposit can be shown and changed.
  */
 export async function GET(
   request: NextRequest,
@@ -19,14 +21,24 @@ export async function GET(
     }
 
     const customerId = params.id
-    const appliedIds = await prisma.invoiceCharge.findMany({
+    const { searchParams } = new URL(request.url)
+    const currentInvoiceId = searchParams.get("invoiceId") ?? null
+
+    const appliedCharges = await prisma.invoiceCharge.findMany({
       where: { appliedDepositTransactionId: { not: null } },
-      select: { appliedDepositTransactionId: true },
+      select: {
+        appliedDepositTransactionId: true,
+        invoiceId: true,
+      },
     })
     const appliedSet = new Set(
-      appliedIds
-        .map((c) => c.appliedDepositTransactionId)
-        .filter((id): id is string => id != null)
+      appliedCharges
+        .filter(
+          (c) =>
+            c.appliedDepositTransactionId != null &&
+            (currentInvoiceId == null || c.invoiceId !== currentInvoiceId)
+        )
+        .map((c) => c.appliedDepositTransactionId as string)
     )
 
     const deposits = await prisma.transaction.findMany({

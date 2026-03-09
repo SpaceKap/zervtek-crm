@@ -429,10 +429,10 @@ export default function VehicleDetailPage() {
                       </span>
                       {vehicle.customer.name}
                     </Link>
-                    {vehicle.customer.portOfDestination && (
+                    {(vehicle.shippingStage?.pod || vehicle.customer?.portOfDestination) && (
                       <span className="inline-flex items-center gap-1.5 text-sm text-slate-400">
                         <span className="material-symbols-outlined text-base">anchor</span>
-                        Port: <span className="text-slate-200 font-medium">{vehicle.customer.portOfDestination}</span>
+                        Port: <span className="text-slate-200 font-medium">{vehicle.shippingStage?.pod || vehicle.customer?.portOfDestination}</span>
                       </span>
                     )}
                   </div>
@@ -629,6 +629,7 @@ export default function VehicleDetailPage() {
                   vendors={vendors}
                   yards={yards}
                   isRegistered={vehicle.isRegistered}
+                  customerPortOfDestination={vehicle.customer?.portOfDestination}
                   vehicle={{
                     vin: vehicle.vin,
                     stockNo: vehicle.stockNo,
@@ -773,10 +774,10 @@ export default function VehicleDetailPage() {
                                 {vehicle.customer.phone}
                               </p>
                             )}
-                            {vehicle.customer.portOfDestination && (
+                            {(vehicle.shippingStage?.pod || vehicle.customer?.portOfDestination) && (
                               <p className="text-sm text-muted-foreground mt-1 flex items-center gap-1.5">
                                 <span className="material-symbols-outlined text-base">anchor</span>
-                                Port of destination: <span className="font-medium text-foreground">{vehicle.customer.portOfDestination}</span>
+                                Port of destination: <span className="font-medium text-foreground">{vehicle.shippingStage?.pod || vehicle.customer?.portOfDestination}</span>
                               </p>
                             )}
                             <span className="inline-flex items-center gap-1 mt-2 text-sm font-medium text-primary">
