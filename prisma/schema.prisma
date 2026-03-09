@@ -118,6 +118,7 @@ enum TransactionType {
 enum TransactionDirection {
   INCOMING
   OUTGOING
+  DEPOSIT
 
   @@schema("inquiry_pooler")
 }
