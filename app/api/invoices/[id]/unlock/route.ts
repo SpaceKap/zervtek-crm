@@ -7,12 +7,17 @@ import { InvoiceStatus } from "@prisma/client"
 
 export async function POST(request: NextRequest, props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
+  const session = await getServerSession(authOptions)
   try {
     await requireAdmin()
   } catch (authError) {
     const message = authError instanceof Error ? authError.message : "Unauthorized"
     const status = message === "Unauthorized" ? 401 : 403
     return NextResponse.json({ error: message }, { status })
+  }
+
+  if (!session?.user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
   try {
@@ -38,10 +43,9 @@ export async function POST(request: NextRequest, props: { params: Promise<{ id: 
       where: { id: params.id },
       data: {
         isLocked: false,
-        // Change status back to APPROVED when unlocked; clear finalization so workflow history matches current state
         status: InvoiceStatus.APPROVED,
-        finalizedById: null,
-        finalizedAt: null,
+        unlockedById: session.user.id,
+        unlockedAt: new Date(),
       },
       include: {
         customer: true,

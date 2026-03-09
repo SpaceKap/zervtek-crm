@@ -219,6 +219,7 @@ export function FinancialOperationsView({
   const [uploadInvoiceFile, setUploadInvoiceFile] = useState<File | null>(null);
   const [uploadInvoiceUploading, setUploadInvoiceUploading] = useState(false);
   const uploadInvoiceFileInputRef = useRef<HTMLInputElement>(null);
+  const uploadInvoicePhotoInputRef = useRef<HTMLInputElement>(null);
 
   // Fetch customers and vendors for filters
   const [customers, setCustomers] = useState<
@@ -3160,6 +3161,8 @@ export function FinancialOperationsView({
                   setUploadInvoiceFile(null);
                   if (uploadInvoiceFileInputRef.current)
                     uploadInvoiceFileInputRef.current.value = "";
+                  if (uploadInvoicePhotoInputRef.current)
+                    uploadInvoicePhotoInputRef.current.value = "";
                 }
               }}
             >
@@ -3191,27 +3194,54 @@ export function FinancialOperationsView({
                         setUploadInvoiceFile(file || null);
                       }}
                     />
+                    <input
+                      ref={uploadInvoicePhotoInputRef}
+                      id="upload-invoice-photo"
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      className="sr-only"
+                      aria-hidden
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        setUploadInvoiceFile(file || null);
+                      }}
+                    />
                     <div className="flex flex-col gap-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="w-full justify-start gap-2 h-10"
-                        onClick={() =>
-                          uploadInvoiceFileInputRef.current?.click()
-                        }
-                        disabled={uploadInvoiceUploading}
-                      >
-                        <span className="material-symbols-outlined text-lg">
-                          upload_file
-                        </span>
-                        {uploadInvoiceFile
-                          ? uploadInvoiceFile.name
-                          : "Choose file"}
-                      </Button>
+                      <div className="grid grid-cols-2 gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="w-full justify-center gap-2 h-10"
+                          onClick={() =>
+                            uploadInvoiceFileInputRef.current?.click()
+                          }
+                          disabled={uploadInvoiceUploading}
+                        >
+                          <span className="material-symbols-outlined text-lg">
+                            upload_file
+                          </span>
+                          Choose file
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="w-full justify-center gap-2 h-10"
+                          onClick={() =>
+                            uploadInvoicePhotoInputRef.current?.click()
+                          }
+                          disabled={uploadInvoiceUploading}
+                          title="Take a photo or pick an image"
+                        >
+                          <span className="material-symbols-outlined text-lg">
+                            photo_camera
+                          </span>
+                          Photo
+                        </Button>
+                      </div>
                       {uploadInvoiceFile && (
-                        <p className="text-xs text-muted-foreground">
-                          PDF, JPG, PNG, or DOC. You can replace by choosing
-                          again.
+                        <p className="text-xs text-muted-foreground truncate" title={uploadInvoiceFile.name}>
+                          {uploadInvoiceFile.name} — replace by choosing again.
                         </p>
                       )}
                     </div>
@@ -3227,17 +3257,19 @@ export function FinancialOperationsView({
                   )}
                 </div>
                 <DialogFooter className="mt-6 pt-4 border-t border-border px-6 pb-6">
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      setUploadInvoiceTransaction(null);
-                      setUploadInvoiceFile(null);
-                      if (uploadInvoiceFileInputRef.current)
-                        uploadInvoiceFileInputRef.current.value = "";
-                    }}
-                  >
-                    Cancel
-                  </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setUploadInvoiceTransaction(null);
+                        setUploadInvoiceFile(null);
+                        if (uploadInvoiceFileInputRef.current)
+                          uploadInvoiceFileInputRef.current.value = "";
+                        if (uploadInvoicePhotoInputRef.current)
+                          uploadInvoicePhotoInputRef.current.value = "";
+                      }}
+                    >
+                      Cancel
+                    </Button>
                   <Button
                     disabled={!uploadInvoiceFile || uploadInvoiceUploading}
                     onClick={async () => {

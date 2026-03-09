@@ -74,6 +74,27 @@ export default async function InvoiceDetailPage(
           email: true,
         },
       },
+      unlockedBy: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+        },
+      },
+      revertedToDraftBy: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+        },
+      },
+      editedBy: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+        },
+      },
       charges: {
         include: {
           chargeType: true,

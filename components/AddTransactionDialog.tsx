@@ -533,7 +533,7 @@ export function AddTransactionDialog({
                       : "Record an outgoing cost or payment"}
             </DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleSubmit} className="px-6 pb-6 space-y-6">
+          <form onSubmit={handleSubmit} className="px-6 pb-6 space-y-6 min-h-[420px]">
             <Tabs
               value={transactionTab}
               defaultValue={transactionTab}

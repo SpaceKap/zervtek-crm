@@ -185,6 +185,13 @@ export async function PATCH(request: NextRequest, props: { params: Promise<{ id:
       updateData.metadata = { ...existing, ...bodyMetadata }
     }
 
+    // Record who last edited the invoice (for workflow history); set when we have any update or when charges will be updated below
+    const willUpdateCharges = charges && Array.isArray(charges)
+    if (Object.keys(updateData).length > 0 || willUpdateCharges) {
+      updateData.editedById = user.id
+      updateData.editedAt = new Date()
+    }
+
     // Sync customerId/vehicleId changes to vehicle
     if (customerId !== undefined || vehicleId !== undefined) {
       const currentInvoice = await prisma.invoice.findUnique({

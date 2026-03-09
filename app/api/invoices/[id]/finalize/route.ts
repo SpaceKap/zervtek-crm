@@ -43,6 +43,8 @@ export async function POST(request: NextRequest, props: { params: Promise<{ id: 
         finalizedById: session.user.id,
         finalizedAt: new Date(),
         isLocked: true,
+        unlockedById: null,
+        unlockedAt: null,
       },
       include: {
         customer: true,

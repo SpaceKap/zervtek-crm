@@ -925,7 +925,7 @@ export function InvoiceDetail({
                 </div>
               </CardHeader>
               <CardContent className="space-y-3">
-                {invoice.approvedBy ? (
+                {invoice.approvedBy && (
                   <div className="flex items-start gap-3">
                     <div className="h-8 w-8 rounded-full bg-green-100 dark:bg-green-900/20 flex items-center justify-center shrink-0 mt-0.5">
                       <span className="material-symbols-outlined text-sm text-green-600 dark:text-green-400">
@@ -943,8 +943,8 @@ export function InvoiceDetail({
                       </p>
                     </div>
                   </div>
-                ) : null}
-                {invoice.finalizedBy && invoice.status === "FINALIZED" ? (
+                )}
+                {invoice.finalizedBy && (
                   <div className="flex items-start gap-3">
                     <div className="h-8 w-8 rounded-full bg-blue-100 dark:bg-blue-900/20 flex items-center justify-center shrink-0 mt-0.5">
                       <span className="material-symbols-outlined text-sm text-blue-600 dark:text-blue-400">
@@ -972,9 +972,99 @@ export function InvoiceDetail({
                       </p>
                     </div>
                   </div>
-                ) : null}
+                )}
+                {invoice.unlockedBy && (
+                  <div className="flex items-start gap-3">
+                    <div className="h-8 w-8 rounded-full bg-amber-100 dark:bg-amber-900/20 flex items-center justify-center shrink-0 mt-0.5">
+                      <span className="material-symbols-outlined text-sm text-amber-600 dark:text-amber-400">
+                        lock_open
+                      </span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-900 dark:text-white">
+                        Unlocked
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        by{" "}
+                        {invoice.unlockedBy.name ||
+                          invoice.unlockedBy.email}
+                        {invoice.unlockedAt && (
+                          <>
+                            {" "}
+                            on{" "}
+                            {format(
+                              new Date(invoice.unlockedAt),
+                              "MMM dd, yyyy",
+                            )}
+                          </>
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                )}
+                {invoice.revertedToDraftBy && (
+                  <div className="flex items-start gap-3">
+                    <div className="h-8 w-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0 mt-0.5">
+                      <span className="material-symbols-outlined text-sm text-slate-600 dark:text-slate-400">
+                        undo
+                      </span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-900 dark:text-white">
+                        Reverted to draft
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        by{" "}
+                        {invoice.revertedToDraftBy.name ||
+                          invoice.revertedToDraftBy.email}
+                        {invoice.revertedToDraftAt && (
+                          <>
+                            {" "}
+                            on{" "}
+                            {format(
+                              new Date(invoice.revertedToDraftAt),
+                              "MMM dd, yyyy",
+                            )}
+                          </>
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                )}
+                {invoice.editedBy && (
+                  <div className="flex items-start gap-3">
+                    <div className="h-8 w-8 rounded-full bg-violet-100 dark:bg-violet-900/20 flex items-center justify-center shrink-0 mt-0.5">
+                      <span className="material-symbols-outlined text-sm text-violet-600 dark:text-violet-400">
+                        edit
+                      </span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-900 dark:text-white">
+                        Edited
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        by{" "}
+                        {invoice.editedBy.name ||
+                          invoice.editedBy.email}
+                        {invoice.editedAt && (
+                          <>
+                            {" "}
+                            on{" "}
+                            {format(
+                              new Date(invoice.editedAt),
+                              "MMM dd, yyyy",
+                            )}
+                          </>
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                )}
                 {!invoice.approvedBy &&
-                  !(invoice.finalizedBy && invoice.status === "FINALIZED") && (
+                  !invoice.finalizedBy &&
+                  !invoice.unlockedBy &&
+                  !invoice.revertedToDraftBy &&
+                  !invoice.editedBy && (
                   <p className="text-sm text-muted-foreground">
                     No workflow events yet.
                   </p>

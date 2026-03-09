@@ -42,6 +42,8 @@ export async function POST(request: NextRequest, props: { params: Promise<{ id: 
     const updateData: any = {
       status: InvoiceStatus.APPROVED,
       approvedById: session.user.id,
+      revertedToDraftById: null,
+      revertedToDraftAt: null,
     };
     
     // Only set default Wise link if not already set
@@ -113,6 +115,12 @@ export async function PATCH(request: NextRequest, props: { params: Promise<{ id:
           action === "reject"
             ? InvoiceStatus.DRAFT
             : InvoiceStatus.PENDING_APPROVAL,
+        ...(action === "reject"
+          ? {
+              revertedToDraftById: session.user.id,
+              revertedToDraftAt: new Date(),
+            }
+          : {}),
       },
       include: {
         customer: true,
