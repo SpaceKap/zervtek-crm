@@ -142,7 +142,13 @@ export async function GET(request: NextRequest, props: { params: Promise<{ id: s
         })
         const syncedCustomer = await prisma.customer.findUnique({
           where: { id: invoiceWithCustomer.customerId },
-          select: { id: true, name: true, email: true, phone: true },
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            phone: true,
+            portOfDestination: true,
+          },
         })
         vehicle = {
           ...vehicle,
