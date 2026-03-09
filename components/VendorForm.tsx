@@ -238,6 +238,9 @@ export function VendorForm({ vendor, initialCategory, onClose }: VendorFormProps
                   Shipping Agent
                 </SelectItem>
                 <SelectItem value={VendorCategory.YARD}>Yard</SelectItem>
+                <SelectItem value={VendorCategory.OFFICE_EXPENSES}>
+                  Office Expenses
+                </SelectItem>
               </SelectContent>
             </Select>
             {errors.category && (

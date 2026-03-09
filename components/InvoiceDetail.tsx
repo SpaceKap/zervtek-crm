@@ -600,98 +600,6 @@ export function InvoiceDetail({
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="space-y-6">
-          {/* Key Metrics Bar */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <Card className="border-l-4 border-l-blue-500">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                      Total Revenue
-                    </p>
-                    <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1 font-mono-numbers">
-                      ¥{revenue.toLocaleString()}
-                    </p>
-                  </div>
-                  <div className="h-12 w-12 rounded-lg bg-blue-100 dark:bg-blue-900/20 flex items-center justify-center">
-                    <span className="material-symbols-outlined text-blue-600 dark:text-blue-400">
-                      attach_money
-                    </span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="border-l-4 border-l-purple-500">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                      Total Cost
-                    </p>
-                    <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1 font-mono-numbers">
-                      ¥{totalCost.toLocaleString()}
-                    </p>
-                  </div>
-                  <div className="h-12 w-12 rounded-lg bg-purple-100 dark:bg-purple-900/20 flex items-center justify-center">
-                    <span className="material-symbols-outlined text-purple-600 dark:text-purple-400">
-                      receipt
-                    </span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card
-              className={`border-l-4 ${profit >= 0 ? "border-l-green-500" : "border-l-red-500"}`}
-            >
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                      {profit >= 0 ? "Profit" : "Loss"}
-                    </p>
-                    <p
-                      className={`text-2xl font-bold mt-1 font-mono-numbers ${profit >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}
-                    >
-                      {profit >= 0 ? "+" : ""}¥
-                      {Math.abs(profit).toLocaleString()}
-                    </p>
-                  </div>
-                  <div
-                    className={`h-12 w-12 rounded-lg flex items-center justify-center ${profit >= 0 ? "bg-green-100 dark:bg-green-900/20" : "bg-red-100 dark:bg-red-900/20"}`}
-                  >
-                    <span
-                      className={`material-symbols-outlined ${profit >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}
-                    >
-                      {profit >= 0 ? "trending_up" : "trending_down"}
-                    </span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="border-l-4 border-l-indigo-500">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                      Margin
-                    </p>
-                    <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1 font-mono-numbers">
-                      {margin.toFixed(1)}%
-                    </p>
-                  </div>
-                  <div className="h-12 w-12 rounded-lg bg-indigo-100 dark:bg-indigo-900/20 flex items-center justify-center">
-                    <span className="material-symbols-outlined text-indigo-600 dark:text-indigo-400">
-                      percent
-                    </span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
           {/* Invoice Details Grid */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Left Column - Customer & Vehicle */}
@@ -799,113 +707,6 @@ export function InvoiceDetail({
                 </CardContent>
               </Card>
 
-              {/* Vehicle Information */}
-              <Card>
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="material-symbols-outlined text-xl text-muted-foreground">
-                        directions_car
-                      </span>
-                      <CardTitle>
-                        {invoice.metadata?.isContainerInvoice
-                          ? "Vehicles"
-                          : "Vehicle Information"}
-                      </CardTitle>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-6">
-                    {/* Primary Vehicle */}
-                    {invoice.vehicle && (
-                      <div className="p-4 bg-gray-50 dark:bg-gray-900/50 rounded-lg border border-gray-200 dark:border-gray-800">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                          <div>
-                            <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                              VIN
-                            </Label>
-                            <p className="mt-1 text-base font-mono font-semibold text-gray-900 dark:text-white">
-                              {invoice.vehicle.vin}
-                            </p>
-                          </div>
-                          {(invoice.vehicle.make || invoice.vehicle.model) && (
-                            <div>
-                              <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                                Make / Model
-                              </Label>
-                              <p className="mt-1 text-base font-semibold text-gray-900 dark:text-white">
-                                {[
-                                  invoice.vehicle.year,
-                                  invoice.vehicle.make,
-                                  invoice.vehicle.model,
-                                ]
-                                  .filter(Boolean)
-                                  .join(" ")}
-                              </p>
-                            </div>
-                          )}
-                        </div>
-                        <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-800">
-                          <Link
-                            href={`/dashboard/vehicles/${invoice.vehicle.id}`}
-                          >
-                            <Button variant="outline" size="sm">
-                              <span className="material-symbols-outlined text-base mr-2">
-                                directions_car
-                              </span>
-                              View Vehicle Details
-                            </Button>
-                          </Link>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Additional Vehicles for Container Invoice */}
-                    {invoice.metadata?.isContainerInvoice &&
-                      additionalVehicles.length > 0 && (
-                        <div className="space-y-3">
-                          <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                            Additional Vehicles
-                          </Label>
-                          {additionalVehicles.map((vehicle, index) => (
-                            <div
-                              key={vehicle.id}
-                              className="p-4 bg-gray-50 dark:bg-gray-900/50 rounded-lg border border-gray-200 dark:border-gray-800 border-l-4 border-l-indigo-500"
-                            >
-                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <div>
-                                  <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                                    VIN
-                                  </Label>
-                                  <p className="mt-1 text-sm font-mono font-semibold text-gray-900 dark:text-white">
-                                    {vehicle.vin}
-                                  </p>
-                                </div>
-                                {(vehicle.make || vehicle.model) && (
-                                  <div>
-                                    <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                                      Make / Model
-                                    </Label>
-                                    <p className="mt-1 text-sm font-semibold text-gray-900 dark:text-white">
-                                      {[
-                                        vehicle.year,
-                                        vehicle.make,
-                                        vehicle.model,
-                                      ]
-                                        .filter(Boolean)
-                                        .join(" ")}
-                                    </p>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                  </div>
-                </CardContent>
-              </Card>
             </div>
 
             {/* Right Column - Invoice Metadata */}
@@ -920,6 +721,83 @@ export function InvoiceDetail({
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
+                  {invoice.vehicle && (
+                    <div className="p-4 bg-muted/50 rounded-lg border space-y-4">
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <span className="material-symbols-outlined text-lg">
+                          directions_car
+                        </span>
+                        <span className="text-xs font-semibold uppercase tracking-wide">
+                          Vehicle
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                          <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                            VIN
+                          </Label>
+                          <p className="mt-1 text-sm font-mono font-medium text-gray-900 dark:text-white">
+                            {invoice.vehicle.vin}
+                          </p>
+                        </div>
+                        {(invoice.vehicle.make || invoice.vehicle.model) && (
+                          <div>
+                            <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                              Make / Model
+                            </Label>
+                            <p className="mt-1 text-sm font-medium text-gray-900 dark:text-white">
+                              {[
+                                invoice.vehicle.year,
+                                invoice.vehicle.make,
+                                invoice.vehicle.model,
+                              ]
+                                .filter(Boolean)
+                                .join(" ")}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                      <Link href={`/dashboard/vehicles/${invoice.vehicle.id}`}>
+                        <Button variant="outline" size="sm" className="gap-2">
+                          <span className="material-symbols-outlined text-base">
+                            directions_car
+                          </span>
+                          View Vehicle Details
+                        </Button>
+                      </Link>
+                    </div>
+                  )}
+                  {invoice.metadata?.isContainerInvoice &&
+                    additionalVehicles.length > 0 && (
+                      <div className="space-y-2">
+                        <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                          Additional Vehicles
+                        </Label>
+                        {additionalVehicles.map((vehicle) => (
+                          <div
+                            key={vehicle.id}
+                            className="p-3 rounded-lg border border-l-4 border-l-indigo-500 bg-muted/30"
+                          >
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+                              <div>
+                                <span className="text-muted-foreground">VIN: </span>
+                                <span className="font-mono font-medium">{vehicle.vin}</span>
+                              </div>
+                              {(vehicle.make || vehicle.model) && (
+                                <div>
+                                  <span className="text-muted-foreground">Make / Model: </span>
+                                  <span className="font-medium">
+                                    {[vehicle.year, vehicle.make, vehicle.model]
+                                      .filter(Boolean)
+                                      .join(" ")}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   <div>
                     <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                       Issue Date
@@ -1017,58 +895,98 @@ export function InvoiceDetail({
                         </p>
                       )}
                     </div>
-                    {invoice.transactions &&
-                      invoice.transactions.length > 0 && (
-                        <div>
-                          <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                            Payment History
-                          </Label>
-                          <div className="mt-2 space-y-2">
-                            {invoice.transactions.map((t: any) => (
-                              <div
-                                key={t.id}
-                                className="flex items-center justify-between p-3 rounded-lg border bg-muted/30"
-                              >
-                                <div>
-                                  <span className="font-medium">
-                                    {new Intl.NumberFormat("ja-JP", {
-                                      style: "currency",
-                                      currency: t.currency || "JPY",
-                                      minimumFractionDigits: 0,
-                                      maximumFractionDigits: 0,
-                                    }).format(parseFloat(t.amount))}
-                                  </span>
-                                  <span className="text-muted-foreground text-sm ml-2">
-                                    {format(new Date(t.date), "MMM dd, yyyy")}
-                                  </span>
-                                  {t.type && (
-                                    <span className="text-muted-foreground text-xs ml-2">
-                                      • {t.type.replace(/_/g, " ")}
+                    {(() => {
+                        const paymentEntries = [
+                          ...(invoice.transactions || []).map((t: any) => ({
+                            id: t.id,
+                            date: new Date(t.date).getTime(),
+                            amount: parseFloat(t.amount),
+                            currency: t.currency || "JPY",
+                            kind: "payment" as const,
+                            type: t.type,
+                            referenceNumber: t.referenceNumber,
+                            invoiceUrl: t.invoiceUrl,
+                          })),
+                          ...(invoice.charges || [])
+                            .filter(
+                              (c: any) =>
+                                c.appliedDepositTransactionId &&
+                                (c.chargeType?.name?.toLowerCase() === "deposit" ||
+                                  c.chargeType?.name === "DEPOSIT")
+                            )
+                            .map((c: any) => ({
+                              id: `deposit-${c.id}`,
+                              date: c.appliedDepositTransaction?.date
+                                ? new Date(c.appliedDepositTransaction.date).getTime()
+                                : new Date(c.createdAt).getTime(),
+                              amount: Math.abs(parseFloat(c.amount)),
+                              currency: "JPY",
+                              kind: "deposit_applied" as const,
+                              type: null,
+                              depositNumber: c.appliedDepositTransaction?.depositNumber ?? null,
+                              depositDate: c.appliedDepositTransaction?.date ?? null,
+                              referenceNumber: null,
+                              invoiceUrl: null,
+                            })),
+                        ].sort((a, b) => b.date - a.date);
+
+                        return paymentEntries.length > 0 ? (
+                          <div>
+                            <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                              Payment History
+                            </Label>
+                            <div className="mt-2 space-y-2">
+                              {paymentEntries.map((entry: any) => (
+                                <div
+                                  key={entry.id}
+                                  className="flex items-center justify-between p-3 rounded-lg border bg-muted/30"
+                                >
+                                  <div>
+                                    <span className="font-medium">
+                                      {new Intl.NumberFormat("ja-JP", {
+                                        style: "currency",
+                                        currency: entry.currency,
+                                        minimumFractionDigits: 0,
+                                        maximumFractionDigits: 0,
+                                      }).format(entry.amount)}
                                     </span>
-                                  )}
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  {t.referenceNumber && (
-                                    <span className="text-xs text-muted-foreground">
-                                      Ref: {t.referenceNumber}
+                                    <span className="text-muted-foreground text-sm ml-2">
+                                      {format(new Date(entry.date), "MMM dd, yyyy")}
                                     </span>
-                                  )}
-                                  {t.invoiceUrl && (
-                                    <a
-                                      href={t.invoiceUrl}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="text-primary hover:underline text-xs"
-                                    >
-                                      View receipt
-                                    </a>
-                                  )}
+                                    {entry.kind === "deposit_applied" ? (
+                                      <span className="text-muted-foreground text-xs ml-2">
+                                        • {entry.depositNumber ? `${entry.depositNumber} applied` : "Deposit applied"}
+                                        {entry.depositDate && ` (${format(new Date(entry.depositDate), "MMM dd, yyyy")})`}
+                                      </span>
+                                    ) : entry.type ? (
+                                      <span className="text-muted-foreground text-xs ml-2">
+                                        • {String(entry.type).replace(/_/g, " ")}
+                                      </span>
+                                    ) : null}
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    {entry.referenceNumber && (
+                                      <span className="text-xs text-muted-foreground">
+                                        Ref: {entry.referenceNumber}
+                                      </span>
+                                    )}
+                                    {entry.invoiceUrl && (
+                                      <a
+                                        href={entry.invoiceUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-primary hover:underline text-xs"
+                                      >
+                                        View receipt
+                                      </a>
+                                    )}
+                                  </div>
                                 </div>
-                              </div>
-                            ))}
+                              ))}
+                            </div>
                           </div>
-                        </div>
-                      )}
+                        ) : null;
+                      })()}
                     {currentUser.role === "ADMIN" && (
                       <div className="space-y-2">
                         <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
@@ -1311,6 +1229,15 @@ export function InvoiceDetail({
                                 {charge.chargeType.name}
                               </p>
                             )}
+                            {charge.appliedDepositTransactionId && charge.appliedDepositTransaction && (
+                              <p className="text-xs text-muted-foreground mt-1">
+                                Applied: {charge.appliedDepositTransaction.depositNumber ?? "Deposit"}, ¥
+                                {parseFloat(charge.appliedDepositTransaction.amount?.toString() ?? "0").toLocaleString()}
+                                {charge.appliedDepositTransaction.date
+                                  ? `, ${format(new Date(charge.appliedDepositTransaction.date), "MMM dd, yyyy")}`
+                                  : ""}
+                              </p>
+                            )}
                           </td>
                           <td className="py-3 px-4 text-right align-top w-32">
                             <p className="font-semibold text-gray-900 dark:text-white whitespace-nowrap font-mono-numbers">
@@ -1396,376 +1323,6 @@ export function InvoiceDetail({
             </CardContent>
           </Card>
 
-          {/* Cost Breakdown Section */}
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="material-symbols-outlined text-xl text-muted-foreground">
-                    account_balance_wallet
-                  </span>
-                  <CardTitle>Cost Breakdown</CardTitle>
-                </div>
-                {canEdit && (
-                  <Button
-                    size="sm"
-                    onClick={() => {
-                      setEditingItem(null);
-                      setShowItemForm(true);
-                    }}
-                  >
-                    <span className="material-symbols-outlined text-sm mr-1">
-                      add
-                    </span>
-                    Add Cost
-                  </Button>
-                )}
-              </div>
-            </CardHeader>
-            <CardContent>
-              {costItems.length === 0 ? (
-                <div className="py-12 text-center">
-                  <span className="material-symbols-outlined text-4xl text-muted-foreground mb-3 block">
-                    receipt_long
-                  </span>
-                  <p className="text-sm text-muted-foreground">
-                    No cost items yet. Click &quot;Add Cost&quot; to add one.
-                  </p>
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b border-gray-200 dark:border-gray-800">
-                        <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                          Description
-                        </th>
-                        <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                          Vendor
-                        </th>
-                        <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                          Payment Deadline & Date
-                        </th>
-                        <th className="text-right py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wide w-32">
-                          Amount
-                        </th>
-                        {canEdit && <th className="w-20"></th>}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {costItems.map((item) => {
-                        const isSharedInvoice = item.id.startsWith("shared-");
-                        const isVehicleStageCost =
-                          item.id.startsWith("vehicle-stage-");
-                        const isReadOnly =
-                          isSharedInvoice || isVehicleStageCost;
-                        return (
-                          <tr
-                            key={item.id}
-                            className="border-b border-gray-100 dark:border-gray-800/50 hover:bg-gray-50/50 dark:hover:bg-gray-900/50 transition-colors"
-                          >
-                            <td className="py-3 px-4">
-                              <div className="flex items-center gap-2">
-                                <p className="font-medium text-gray-900 dark:text-white">
-                                  {item.description}
-                                </p>
-                                {item.category && (
-                                  <Badge variant="outline" className="text-xs">
-                                    {item.category}
-                                  </Badge>
-                                )}
-                                {isSharedInvoice && (
-                                  <Badge
-                                    variant="outline"
-                                    className="text-xs bg-blue-50 text-blue-700 border-blue-300 dark:bg-blue-900/20 dark:text-blue-300 dark:border-blue-700"
-                                  >
-                                    Shared
-                                  </Badge>
-                                )}
-                                {isVehicleStageCost && (
-                                  <Badge
-                                    variant="outline"
-                                    className="text-xs bg-green-50 text-green-700 border-green-300 dark:bg-green-900/20 dark:text-green-300 dark:border-green-700"
-                                  >
-                                    Vehicle Cost
-                                  </Badge>
-                                )}
-                              </div>
-                            </td>
-                            <td className="py-3 px-4">
-                              <p className="text-sm text-gray-700 dark:text-gray-300">
-                                {item.vendor?.name || (
-                                  <span className="text-muted-foreground italic">
-                                    N/A
-                                  </span>
-                                )}
-                              </p>
-                            </td>
-                            <td className="py-3 px-4">
-                              <div className="flex items-center gap-2">
-                                <div className="flex flex-col gap-1">
-                                  {item.paymentDeadline &&
-                                    !isNaN(
-                                      new Date(item.paymentDeadline).getTime(),
-                                    ) && (
-                                      <div className="text-sm text-gray-700 dark:text-gray-300">
-                                        <span className="font-medium">
-                                          Deadline:
-                                        </span>{" "}
-                                        {format(
-                                          new Date(item.paymentDeadline),
-                                          "MMM dd, yyyy",
-                                        )}
-                                      </div>
-                                    )}
-                                  {item.paymentDate &&
-                                  !isNaN(
-                                    new Date(item.paymentDate).getTime(),
-                                  ) ? (
-                                    <div className="text-sm text-gray-700 dark:text-gray-300">
-                                      <span className="font-medium">Paid:</span>{" "}
-                                      {format(
-                                        new Date(item.paymentDate),
-                                        "MMM dd, yyyy",
-                                      )}
-                                    </div>
-                                  ) : (
-                                    <div className="text-xs text-muted-foreground italic">
-                                      Not paid
-                                    </div>
-                                  )}
-                                </div>
-                                {canEdit && !isReadOnly && (
-                                  <Checkbox
-                                    checked={!!item.paymentDate}
-                                    onCheckedChange={async (checked) => {
-                                      try {
-                                        const response = await fetch(
-                                          `/api/invoices/${invoice.id}/cost/items/${item.id}`,
-                                          {
-                                            method: "PATCH",
-                                            headers: {
-                                              "Content-Type":
-                                                "application/json",
-                                            },
-                                            body: JSON.stringify({
-                                              paymentDate: checked
-                                                ? new Date()
-                                                    .toISOString()
-                                                    .split("T")[0]
-                                                : null,
-                                            }),
-                                          },
-                                        );
-                                        if (response.ok) {
-                                          router.refresh();
-                                        } else {
-                                          alert(
-                                            "Failed to update payment status",
-                                          );
-                                        }
-                                      } catch (error) {
-                                        alert(
-                                          "Failed to update payment status",
-                                        );
-                                      }
-                                    }}
-                                  />
-                                )}
-                              </div>
-                            </td>
-                            <td className="py-3 px-4 text-right align-top w-32">
-                              <p className="font-semibold text-gray-900 dark:text-white whitespace-nowrap">
-                                ¥
-                                <span className="font-mono-numbers">
-                                  {parseFloat(
-                                    item.amount.toString(),
-                                  ).toLocaleString()}
-                                </span>
-                              </p>
-                            </td>
-                            {canEdit && (
-                              <td className="py-3 px-4">
-                                <div className="flex items-center justify-end gap-1">
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    onClick={() => {
-                                      if (isReadOnly) {
-                                        if (isSharedInvoice) {
-                                          alert(
-                                            "To edit shared invoice costs, please edit the shared invoice directly.",
-                                          );
-                                        } else if (isVehicleStageCost) {
-                                          alert(
-                                            "To edit vehicle stage costs, please go to the vehicle page and edit them there.",
-                                          );
-                                        }
-                                      } else {
-                                        setEditingItem(item);
-                                        setShowItemForm(true);
-                                      }
-                                    }}
-                                    className="h-8 w-8 p-0"
-                                  >
-                                    <span className="material-symbols-outlined text-sm">
-                                      edit
-                                    </span>
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    onClick={async () => {
-                                      if (isReadOnly) {
-                                        if (isSharedInvoice) {
-                                          if (
-                                            !confirm(
-                                              "Remove this vehicle from the shared invoice? This will remove the cost allocation.",
-                                            )
-                                          )
-                                            return;
-                                          try {
-                                            const sharedInvoiceId = (
-                                              item as any
-                                            ).sharedInvoiceId;
-                                            const vehicleId = (item as any)
-                                              .vehicleId;
-                                            const response = await fetch(
-                                              `/api/shared-invoices/${sharedInvoiceId}/vehicles?vehicleId=${vehicleId}`,
-                                              { method: "DELETE" },
-                                            );
-                                            if (response.ok) {
-                                              router.refresh();
-                                            } else {
-                                              const error =
-                                                await response.json();
-                                              alert(
-                                                error.error ||
-                                                  "Failed to remove vehicle from shared invoice",
-                                              );
-                                            }
-                                          } catch (error) {
-                                            alert(
-                                              "Failed to remove vehicle from shared invoice",
-                                            );
-                                          }
-                                        } else if (isVehicleStageCost) {
-                                          alert(
-                                            "To delete vehicle stage costs, please go to the vehicle page and delete them there.",
-                                          );
-                                        }
-                                        return;
-                                      }
-                                      if (!confirm("Delete this cost item?"))
-                                        return;
-                                      try {
-                                        const response = await fetch(
-                                          `/api/invoices/${invoice.id}/cost/items/${item.id}`,
-                                          { method: "DELETE" },
-                                        );
-                                        if (response.ok) {
-                                          setCostItems(
-                                            costItems.filter(
-                                              (i) => i.id !== item.id,
-                                            ),
-                                          );
-                                          router.refresh();
-                                        } else {
-                                          alert("Failed to delete cost item");
-                                        }
-                                      } catch (error) {
-                                        alert(
-                                          isSharedInvoice
-                                            ? "Failed to remove vehicle from shared invoice"
-                                            : "Failed to delete cost item",
-                                        );
-                                      }
-                                    }}
-                                    className="h-8 w-8 p-0 text-destructive hover:text-destructive"
-                                  >
-                                    <span className="material-symbols-outlined text-sm">
-                                      delete
-                                    </span>
-                                  </Button>
-                                </div>
-                              </td>
-                            )}
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                    <tfoot>
-                      <tr className="border-t-2 border-gray-300 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-900/50">
-                        <td colSpan={canEdit ? 4 : 3} className="py-4 px-4">
-                          <p className="text-base font-bold text-gray-900 dark:text-white">
-                            Total Cost
-                          </p>
-                        </td>
-                        <td className="py-4 px-4 text-right w-32">
-                          <p className="text-base font-bold text-gray-900 dark:text-white whitespace-nowrap">
-                            ¥{totalCost.toLocaleString()}
-                          </p>
-                        </td>
-                        {canEdit && <td className="py-4 px-4"></td>}
-                      </tr>
-                    </tfoot>
-                  </table>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Financial Summary */}
-          {costItems.length > 0 && (
-            <Card className="bg-gradient-to-br from-gray-50 to-gray-100/50 dark:from-gray-900 dark:to-gray-800/50 border-2">
-              <CardContent className="p-6">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div className="text-center md:text-left">
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
-                      Revenue
-                    </p>
-                    <p className="text-3xl font-bold text-gray-900 dark:text-white">
-                      ¥{revenue.toLocaleString()}
-                    </p>
-                  </div>
-                  <div className="text-center md:text-left">
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
-                      Cost
-                    </p>
-                    <p className="text-3xl font-bold text-gray-900 dark:text-white">
-                      ¥{totalCost.toLocaleString()}
-                    </p>
-                  </div>
-                  <div className="text-center md:text-left border-l-0 md:border-l border-gray-300 dark:border-gray-700 pl-0 md:pl-6">
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
-                      {profit >= 0 ? "Profit" : "Loss"}
-                    </p>
-                    <p
-                      className={`text-3xl font-bold ${profit >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}
-                    >
-                      {profit >= 0 ? "+" : ""}¥
-                      {Math.abs(profit).toLocaleString()}
-                    </p>
-                    <div className="flex items-center justify-center md:justify-start gap-4 mt-3">
-                      <div>
-                        <p className="text-xs text-muted-foreground">Margin</p>
-                        <p className="text-lg font-semibold">
-                          {margin.toFixed(1)}%
-                        </p>
-                      </div>
-                      <Separator orientation="vertical" className="h-6" />
-                      <div>
-                        <p className="text-xs text-muted-foreground">ROI</p>
-                        <p className="text-lg font-semibold">
-                          {roi.toFixed(1)}%
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
         </div>
       </div>
 

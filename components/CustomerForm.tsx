@@ -167,6 +167,9 @@ interface CustomerFormProps {
   } | null;
   onClose: () => void;
   onCustomerCreated?: (customer: { id: string; name: string }) => void;
+  /** When role is SALES, PIC dropdown shows only this user */
+  currentUserId?: string;
+  currentUserRole?: string;
 }
 
 const COUNTRY_CODES = getUniquePhoneCodes(); // for parsing existing phone
@@ -185,6 +188,8 @@ export function CustomerForm({
   customer,
   onClose,
   onCustomerCreated,
+  currentUserId,
+  currentUserRole,
 }: CustomerFormProps) {
   const [saving, setSaving] = useState(false);
   const [selectedCountry, setSelectedCountry] = useState<string>("");
@@ -226,13 +231,16 @@ export function CustomerForm({
     },
   });
 
-  // Fetch users (excluding ACCOUNTANT role)
+  // Fetch users (excluding ACCOUNTANT role). Sales see only themselves in PIC list.
   useEffect(() => {
     const fetchUsers = async () => {
       try {
         const response = await fetch("/api/users?excludeRole=ACCOUNTANT");
         if (response.ok) {
-          const data = await response.json();
+          let data = await response.json();
+          if (currentUserRole === "SALES" && currentUserId) {
+            data = data.filter((u: User) => u.id === currentUserId);
+          }
           setUsers(data);
         }
       } catch (error) {
@@ -240,7 +248,7 @@ export function CustomerForm({
       }
     };
     fetchUsers();
-  }, []);
+  }, [currentUserId, currentUserRole]);
 
   // Parse existing customer data
   useEffect(() => {

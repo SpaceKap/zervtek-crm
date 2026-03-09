@@ -26,9 +26,9 @@ function formatDate(d: Date | null | undefined): string {
  * CRM: when adding a deposit use description containing "Deposit"; when applying wallet to an invoice
  * create OUTGOING with description like "Applied from wallet to Invoice INV-001"; for refunds use "Refund".
  */
-/** INCOMING with description containing "deposit" → increases wallet */
+/** DEPOSIT direction or INCOMING with description containing "deposit" → increases wallet */
 function isDeposit(direction: string, description: string | null): boolean {
-  return direction === "INCOMING" && /deposit/i.test(description ?? "");
+  return direction === "DEPOSIT" || (direction === "INCOMING" && /deposit/i.test(description ?? ""));
 }
 
 /** OUTGOING applied from wallet to an invoice → decreases wallet (e.g. "Applied from wallet to Invoice INV-001") */
@@ -73,8 +73,10 @@ function getTransactionLabel(
   if (isPaymentForInvoice(direction, description))
     return { label: "Payment for invoice", affectsWallet: false, isRefund: false, isDeduction: false };
   if (direction === "OUTGOING")
-    return { label: "Outgoing", affectsWallet: false, isRefund: false, isDeduction: true };
-  return { label: "Incoming", affectsWallet: false, isRefund: false, isDeduction: false };
+    return { label: "Expense", affectsWallet: false, isRefund: false, isDeduction: true };
+  if (direction === "INCOMING")
+    return { label: "Payment", affectsWallet: false, isRefund: false, isDeduction: false };
+  return { label: "Transaction", affectsWallet: false, isRefund: false, isDeduction: false };
 }
 
 export default async function WalletPage() {

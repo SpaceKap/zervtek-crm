@@ -159,6 +159,7 @@ enum VendorCategory {
   FORWARDER // Forwarder
   SHIPPING_AGENT // Shipping agent
   YARD // Yard
+  OFFICE_EXPENSES // Office expenses (rent, electricity, etc.)
 
   @@schema("inquiry_pooler")
 }
@@ -830,6 +831,8 @@ model Transaction {
   invoiceUrl          String? // Link to attached invoice/receipt
   documentId         String? // Link to VehicleDocument if attached
   referenceNumber    String? // Bank reference, transaction ID, etc.
+  depositNumber     String? // DEP-8001, DEP-8002... for direction=DEPOSIT
+  appliedDepositNumber String? // For OUTGOING "Applied from wallet": which deposit (e.g. DEP-8001)
   notes              String?              @db.Text
   createdById        String? // User who created the transaction
   createdAt          DateTime             @default(now())

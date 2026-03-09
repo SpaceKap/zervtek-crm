@@ -7,6 +7,7 @@ import { InvoiceStatus } from "@prisma/client"
 import { convertDecimalsToNumbers } from "@/lib/decimal"
 import { recalcInvoicePaymentStatus, getInvoiceTotalWithTax } from "@/lib/invoice-utils"
 import { invalidateCache } from "@/lib/cache"
+import { isChargeSubtracting } from "@/lib/charge-utils"
 
 export async function GET(request: NextRequest, props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
@@ -246,14 +247,44 @@ export async function PATCH(request: NextRequest, props: { params: Promise<{ id:
           }
         }
 
-        await prisma.invoiceCharge.createMany({
-          data: charges.map((charge: any) => ({
-            invoiceId: params.id,
-            chargeTypeId: chargeTypeMap.get((charge.chargeType || "CUSTOM").toString().toLowerCase()) || null,
-            description: charge.description,
-            amount: parseFloat(charge.amount),
-          })),
-        })
+        for (const charge of charges) {
+          const chargeTypeName = (charge.chargeType || "CUSTOM").toString().trim() || "CUSTOM"
+          const chargeTypeId = chargeTypeMap.get(chargeTypeName.toLowerCase()) || null
+          const rawAmount = parseFloat(charge.amount)
+          const subtracting = isChargeSubtracting(charge as { chargeType?: string | { name?: string } | null })
+          const storedAmount = subtracting ? Math.abs(rawAmount) : rawAmount
+          const created = await prisma.invoiceCharge.create({
+            data: {
+              invoiceId: params.id,
+              chargeTypeId,
+              description: charge.description,
+              amount: storedAmount,
+              appliedDepositTransactionId: charge.appliedDepositTransactionId || null,
+            },
+          })
+          if (charge.appliedDepositTransactionId && updatedInvoice.invoiceNumber) {
+            const appliedDeposit = await prisma.transaction.findUnique({
+              where: { id: charge.appliedDepositTransactionId },
+              select: { depositNumber: true },
+            })
+            const depositLabel = appliedDeposit?.depositNumber ?? "deposit"
+            await prisma.transaction.create({
+              data: {
+                direction: "OUTGOING",
+                type: "BANK_TRANSFER",
+                amount: Math.abs(storedAmount),
+                currency: "JPY",
+                date: new Date(),
+                description: `Applied ${depositLabel} from wallet to Invoice ${updatedInvoice.invoiceNumber}`,
+                invoiceId: params.id,
+                customerId: updatedInvoice.customerId,
+                vehicleId: updatedInvoice.vehicleId,
+                createdById: user.id,
+                appliedDepositNumber: depositLabel,
+              },
+            })
+          }
+        }
       }
 
       await recalcInvoicePaymentStatus(params.id)

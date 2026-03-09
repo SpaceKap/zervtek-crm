@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { canManageVehicleStages } from "@/lib/permissions"
-import { getChargesSubtotal } from "@/lib/charge-utils"
+import { getChargesSubtotal, isChargeSubtracting } from "@/lib/charge-utils"
 
 export async function GET(request: NextRequest, props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
@@ -18,6 +18,9 @@ export async function GET(request: NextRequest, props: { params: Promise<{ id: s
       select: {
         id: true,
         customerId: true,
+        _count: {
+          select: { invoices: true },
+        },
         shippingStage: {
           select: {
             totalCharges: true,
@@ -25,7 +28,6 @@ export async function GET(request: NextRequest, props: { params: Promise<{ id: s
           },
         },
         invoices: {
-          where: { status: { in: ["APPROVED", "FINALIZED"] } },
           select: {
             id: true,
             customerId: true,
@@ -36,21 +38,24 @@ export async function GET(request: NextRequest, props: { params: Promise<{ id: s
                 description: true,
                 amount: true,
                 chargeType: { select: { name: true } },
+                appliedDepositTransactionId: true,
+                appliedDepositTransaction: {
+                  select: { id: true, date: true, amount: true, description: true, type: true, depositNumber: true },
+                },
               },
             },
             paymentStatus: true,
             taxEnabled: true,
             taxRate: true,
-            costInvoice: {
-              select: {
-                costItems: {
-                  select: { amount: true },
-                },
-              },
-            },
           },
         },
         stageCosts: {
+          select: {
+            id: true,
+            amount: true,
+          },
+        },
+        vehicleCostItems: {
           select: {
             id: true,
             amount: true,
@@ -92,7 +97,7 @@ export async function GET(request: NextRequest, props: { params: Promise<{ id: s
       totalRevenue += subtotal
     })
 
-    // Calculate total cost from stage costs, shared invoice allocations, and invoice cost breakdown
+    // Calculate total cost from stage costs, shared invoice allocations, and vehicle cost items (not invoice cost breakdown)
     const stageCostsTotal = vehicle.stageCosts.reduce(
       (sum, cost) => sum + parseFloat(cost.amount.toString()),
       0,
@@ -101,17 +106,18 @@ export async function GET(request: NextRequest, props: { params: Promise<{ id: s
       (sum, siv) => sum + parseFloat(siv.allocatedAmount.toString()),
       0,
     )
-    const invoiceCostItemsTotal = vehicle.invoices.reduce((sum, inv) => {
-      const items = (inv as any).costInvoice?.costItems || []
-      return sum + items.reduce((s: number, item: any) => s + parseFloat(item.amount.toString()), 0)
-    }, 0)
-    const totalCost = stageCostsTotal + sharedInvoiceCostsTotal + invoiceCostItemsTotal
+    const vehicleCostItemsTotal = (vehicle.vehicleCostItems || []).reduce(
+      (sum, item) => sum + parseFloat(item.amount.toString()),
+      0,
+    )
+    const totalCost = stageCostsTotal + sharedInvoiceCostsTotal + vehicleCostItemsTotal
 
-    // Calculate profit and margin
+    // Calculate profit, margin, and ROI
     const profit = totalRevenue - totalCost
     const margin = totalRevenue > 0 ? (profit / totalRevenue) * 100 : 0
+    const roi = totalCost > 0 ? (profit / totalCost) * 100 : 0
 
-    // totalCharges = invoice revenue; totalReceived = sum of incoming transactions linked to vehicle's invoices
+    // totalCharges = invoice revenue; totalReceived = incoming payments + deposit applied to vehicle's invoices
     const totalCharges = totalRevenue
     const invoiceIds = vehicle.invoices.map((inv) => inv.id)
     const incomingTx = invoiceIds.length > 0
@@ -120,30 +126,120 @@ export async function GET(request: NextRequest, props: { params: Promise<{ id: s
             direction: "INCOMING",
             invoiceId: { in: invoiceIds },
           },
-          select: { amount: true },
+          select: { id: true, amount: true, date: true, type: true, description: true, currency: true, referenceNumber: true, invoiceId: true },
         })
       : []
-    const totalReceived = incomingTx.reduce(
+    const fromPayments = incomingTx.reduce(
       (sum, t) => sum + parseFloat(t.amount.toString()),
       0,
     )
+    const fromDeposits = vehicle.invoices.reduce((sum, inv) => {
+      const depositCharges = (inv.charges || []).filter(
+        (c: any) =>
+          c.appliedDepositTransactionId &&
+          (c.chargeType?.name?.toLowerCase() === "deposit" || c.chargeType?.name === "DEPOSIT")
+      )
+      return sum + depositCharges.reduce((s: number, c: any) => s + Math.abs(parseFloat(String(c.amount ?? 0))), 0)
+    }, 0)
+    const totalReceived = fromPayments + fromDeposits
     const balanceDue = Math.max(0, totalCharges - totalReceived)
+
+    const invoiceTotalsByKey: Record<string, { total: number; status: string }> = {}
+    vehicle.invoices.forEach((inv: any) => {
+      let invTotal = getChargesSubtotal(inv.charges || [])
+      if (inv.taxEnabled && inv.taxRate) {
+        invTotal += invTotal * (parseFloat(inv.taxRate.toString()) / 100)
+      }
+      invoiceTotalsByKey[inv.id] = { total: invTotal, status: inv.paymentStatus || "PENDING" }
+    })
+
+    const paymentTimeline = [
+      ...incomingTx.map((t) => {
+        const invMeta = t.invoiceId ? invoiceTotalsByKey[t.invoiceId] : null
+        const inv = vehicle.invoices.find((i: any) => i.id === t.invoiceId)
+        return {
+          id: t.id,
+          date: t.date,
+          amount: parseFloat(t.amount.toString()),
+          currency: "JPY",
+          kind: "payment" as const,
+          type: t.type,
+          description: t.description,
+          referenceNumber: t.referenceNumber,
+          invoiceId: t.invoiceId,
+          invoiceNumber: inv?.invoiceNumber ?? null,
+          invoiceTotal: invMeta?.total ?? null,
+          invoicePaymentStatus: invMeta?.status ?? null,
+        }
+      }),
+      ...vehicle.invoices.flatMap((inv: any) =>
+        (inv.charges || [])
+          .filter(
+            (c: any) =>
+              c.appliedDepositTransactionId &&
+              (c.chargeType?.name?.toLowerCase() === "deposit" || c.chargeType?.name === "DEPOSIT")
+          )
+          .map((c: any) => {
+            const invMeta = invoiceTotalsByKey[inv.id]
+            return {
+              id: `deposit-${c.id}`,
+              date: c.appliedDepositTransaction?.date || c.createdAt,
+              amount: Math.abs(parseFloat(c.amount)),
+              currency: "JPY",
+              kind: "deposit_applied" as const,
+              type: null,
+              depositNumber: c.appliedDepositTransaction?.depositNumber ?? null,
+              description: `Deposit applied to ${inv.invoiceNumber}`,
+              referenceNumber: null,
+              invoiceId: inv.id,
+              invoiceNumber: inv.invoiceNumber,
+              invoiceTotal: invMeta?.total ?? null,
+              invoicePaymentStatus: invMeta?.status ?? null,
+            }
+          })
+      ),
+    ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+
+    // Aggregated charges from all invoices (discount/deposit as negative, same as invoice)
+    const aggregatedCharges = vehicle.invoices.flatMap((inv: any) =>
+      (inv.charges || []).map((c: any) => {
+        const raw = parseFloat(c.amount?.toString() ?? "0")
+        const amount = isChargeSubtracting(c) ? -raw : raw
+        return {
+          id: c.id,
+          invoiceId: inv.id,
+          invoiceNumber: inv.invoiceNumber,
+          description: c.description,
+          chargeTypeName: c.chargeType?.name ?? null,
+          amount,
+          appliedDepositTransactionId: c.appliedDepositTransactionId ?? null,
+        }
+      })
+    )
 
     return NextResponse.json({
       totalRevenue: totalRevenue.toString(),
       totalCost: totalCost.toString(),
       profit: profit.toString(),
       margin: margin.toFixed(2),
+      roi: roi.toFixed(2),
       totalCharges: totalCharges.toString(),
       totalReceived: totalReceived.toString(),
       balanceDue: balanceDue.toString(),
       customerId: vehicle.customerId,
       invoices: vehicle.invoices,
+      paymentTimeline,
+      aggregatedCharges,
+      invoiceCountAll: vehicle._count?.invoices ?? 0,
     })
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error fetching vehicle payments:", error)
+    const message =
+      process.env.NODE_ENV === "development" && error?.message
+        ? error.message
+        : "Failed to fetch vehicle payments"
     return NextResponse.json(
-      { error: "Failed to fetch vehicle payments" },
+      { error: message },
       { status: 500 }
     )
   }

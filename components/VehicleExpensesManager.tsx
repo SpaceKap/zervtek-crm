@@ -50,10 +50,11 @@ interface Expense {
   stage: string | null;
   invoiceUrl?: string | null;
   createdAt: string;
-  source?: "vehicle" | "invoice";
+  source?: "vehicle" | "invoice" | "vehicle_cost_item";
   invoiceId?: string;
   invoiceNumber?: string;
   costItemId?: string;
+  vehicleCostItemId?: string;
 }
 
 interface VehicleExpensesManagerProps {
@@ -143,6 +144,7 @@ export function VehicleExpensesManager({
 
   const handleOpenDialog = (expense?: Expense) => {
     if (expense?.source === "invoice") return; // Invoice costs are read-only here
+    // vehicle_cost_item and vehicle (stage cost) are editable
     setError(null);
     if (expense) {
       setEditingExpense(expense);
@@ -208,7 +210,23 @@ export function VehicleExpensesManager({
       };
 
       let response;
-      if (editingExpense) {
+      if (editingExpense?.source === "vehicle_cost_item" && editingExpense.vehicleCostItemId) {
+        response = await fetch(
+          `/api/vehicles/${vehicleId}/vehicle-cost-items/${editingExpense.vehicleCostItemId}`,
+          {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              description: expenseData.costType,
+              amount: expenseData.amount,
+              vendorId: expenseData.vendorId,
+              paymentDeadline: expenseData.paymentDeadline,
+              paymentDate: expenseData.paymentDate,
+              category: expenseData.costType,
+            }),
+          },
+        );
+      } else if (editingExpense) {
         response = await fetch(
           `/api/vehicles/${vehicleId}/costs/${editingExpense.id}`,
           {
@@ -255,16 +273,17 @@ export function VehicleExpensesManager({
       const expense = expenses.find((e) => e.id === expenseId);
       if (!expense) return;
 
-      const response = await fetch(
-        `/api/vehicles/${vehicleId}/costs/${expenseId}`,
-        {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            paymentDate: isPaid ? new Date().toISOString().split("T")[0] : null,
-          }),
-        },
-      );
+      const url =
+        expense.source === "vehicle_cost_item" && expense.vehicleCostItemId
+          ? `/api/vehicles/${vehicleId}/vehicle-cost-items/${expense.vehicleCostItemId}`
+          : `/api/vehicles/${vehicleId}/costs/${expenseId}`;
+      const response = await fetch(url, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          paymentDate: isPaid ? new Date().toISOString().split("T")[0] : null,
+        }),
+      });
 
       if (response.ok) {
         await fetchExpenses();
@@ -280,13 +299,14 @@ export function VehicleExpensesManager({
     if (expense?.source === "invoice") return; // Invoice costs are managed in the invoice
     if (!confirm("Are you sure you want to delete this expense?")) return;
 
+    const url =
+      expense?.source === "vehicle_cost_item" && expense?.vehicleCostItemId
+        ? `/api/vehicles/${vehicleId}/vehicle-cost-items/${expense.vehicleCostItemId}`
+        : `/api/vehicles/${vehicleId}/costs/${expenseId}`;
     try {
-      const response = await fetch(
-        `/api/vehicles/${vehicleId}/costs/${expenseId}`,
-        {
-          method: "DELETE",
-        },
-      );
+      const response = await fetch(url, {
+        method: "DELETE",
+      });
       if (response.ok) {
         await fetchExpenses();
         if (onUpdate) onUpdate();

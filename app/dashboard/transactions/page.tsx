@@ -13,6 +13,7 @@ interface Transaction {
   currency: string;
   date: string;
   description: string | null;
+  depositNumber: string | null;
   vendor: { id: string; name: string } | null;
   customer: { id: string; name: string; email: string | null } | null;
   vehicle: {
@@ -24,6 +25,8 @@ interface Transaction {
   invoiceUrl: string | null;
   referenceNumber: string | null;
   notes: string | null;
+  invoiceId?: string | null;
+  invoiceNumber?: string | null;
 }
 
 export default function TransactionsPage() {
@@ -123,7 +126,7 @@ export default function TransactionsPage() {
                   : "text-gray-500 dark:text-[#A1A1A1]"
               }`}
             >
-              Incoming Payments
+              Payments
             </button>
             <button
               onClick={() => setActiveTab("OUTGOING")}
@@ -133,7 +136,17 @@ export default function TransactionsPage() {
                   : "text-gray-500 dark:text-[#A1A1A1]"
               }`}
             >
-              Outgoing Costs
+              Expenses
+            </button>
+            <button
+              onClick={() => setActiveTab("DEPOSIT")}
+              className={`px-6 py-3 font-medium ${
+                activeTab === "DEPOSIT"
+                  ? "border-b-2 border-primary text-primary"
+                  : "text-gray-500 dark:text-[#A1A1A1]"
+              }`}
+            >
+              Deposits
             </button>
           </div>
         </div>
@@ -193,6 +206,9 @@ export default function TransactionsPage() {
                       Type
                     </th>
                     <th className="text-left py-3 px-4 font-semibold text-gray-900 dark:text-white">
+                      Invoice #
+                    </th>
+                    <th className="text-left py-3 px-4 font-semibold text-gray-900 dark:text-white">
                       Amount
                     </th>
                     <th className="text-left py-3 px-4 font-semibold text-gray-900 dark:text-white">
@@ -222,6 +238,11 @@ export default function TransactionsPage() {
                         <span className="px-2 py-1 bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 rounded text-sm">
                           {typeLabels[transaction.type]}
                         </span>
+                      </td>
+                      <td className="py-3 px-4 text-gray-900 dark:text-white font-mono text-sm">
+                        {transaction.direction === "DEPOSIT"
+                          ? (transaction.depositNumber ?? "—")
+                          : (transaction.invoiceNumber ?? "—")}
                       </td>
                       <td className="py-3 px-4 text-gray-900 dark:text-white font-semibold">
                         {parseFloat(transaction.amount).toLocaleString()}{" "}

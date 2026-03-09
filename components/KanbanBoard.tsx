@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { Button } from "@/components/ui/button";
 import { KanbanColumn } from "./KanbanColumn";
 import { InquiryStatus, InquirySource } from "@prisma/client";
 import { useRouter } from "next/navigation";
@@ -8,6 +9,7 @@ import { AddInquiryDialog } from "./AddInquiryDialog";
 import { NotesDialog } from "./NotesDialog";
 import { ReleaseConfirmationDialog } from "./ReleaseConfirmationDialog";
 import { AssignToDialog } from "./AssignToDialog";
+import { usePipelineSearch } from "./PipelineSearchContext";
 import {
   DndContext,
   DragEndEvent,
@@ -17,6 +19,7 @@ import {
   useSensor,
   useSensors,
   useDroppable,
+  useDndMonitor,
 } from "@dnd-kit/core";
 import {
   SortableContext,
@@ -58,6 +61,19 @@ interface KanbanBoardProps {
   users?: Array<{ id: string; name: string | null; email: string }>;
   currentUserId?: string;
   currentUserEmail?: string;
+  searchQuery?: string | null;
+}
+
+function inquiryMatchesSearch(inquiry: Inquiry, q: string): boolean {
+  const lower = q.toLowerCase().trim();
+  if (!lower) return true;
+  const fields = [
+    inquiry.customerName,
+    inquiry.email,
+    inquiry.phone,
+    inquiry.message,
+  ].filter(Boolean) as string[];
+  return fields.some((f) => f.toLowerCase().includes(lower));
 }
 
 function TrashDropZone() {
@@ -73,7 +89,9 @@ function TrashDropZone() {
     >
       <span
         className={`material-symbols-outlined text-3xl mb-1 ${
-          isOver ? "text-red-600 dark:text-red-400" : "text-gray-400 dark:text-[#A1A1A1]"
+          isOver
+            ? "text-red-600 dark:text-red-400"
+            : "text-gray-400 dark:text-[#A1A1A1]"
         }`}
       >
         delete
@@ -88,6 +106,75 @@ function TrashDropZone() {
   );
 }
 
+interface DndMonitorHandlerProps {
+  canMergeInquiries: boolean;
+  inquiryIdsSet: Set<string>;
+  mergeTargetId: string | null;
+  clearMergeState: () => void;
+  setMergeHoldProgress: (value: React.SetStateAction<number>) => void;
+  setMergeTargetId: (value: React.SetStateAction<string | null>) => void;
+  mergeOverIdRef: React.MutableRefObject<string | null>;
+  mergeHoldTimerRef: React.MutableRefObject<ReturnType<typeof setInterval> | null>;
+}
+
+function DndMonitorHandler({
+  canMergeInquiries,
+  inquiryIdsSet,
+  mergeTargetId,
+  clearMergeState,
+  setMergeHoldProgress,
+  setMergeTargetId,
+  mergeOverIdRef,
+  mergeHoldTimerRef,
+}: DndMonitorHandlerProps) {
+  useDndMonitor({
+    onDragOver(event) {
+      const { active, over } = event;
+      if (!over?.id || active.id === over.id) {
+        clearMergeState();
+        return;
+      }
+      if (!canMergeInquiries) {
+        clearMergeState();
+        return;
+      }
+      const overId = String(over.id);
+      if (!inquiryIdsSet.has(overId)) {
+        clearMergeState();
+        return;
+      }
+      if (mergeOverIdRef.current !== overId) {
+        if (mergeHoldTimerRef.current) {
+          clearInterval(mergeHoldTimerRef.current);
+          mergeHoldTimerRef.current = null;
+        }
+        setMergeHoldProgress(0);
+        setMergeTargetId(null);
+        mergeOverIdRef.current = overId;
+      }
+      if (!mergeHoldTimerRef.current && mergeTargetId !== overId) {
+        mergeHoldTimerRef.current = setInterval(() => {
+          setMergeHoldProgress((p) => {
+            const next = Math.min(1, p + 0.025);
+            if (next >= 1) {
+              setMergeTargetId(overId);
+              if (mergeHoldTimerRef.current) {
+                clearInterval(mergeHoldTimerRef.current);
+                mergeHoldTimerRef.current = null;
+              }
+            }
+            return next;
+          });
+        }, 50);
+      }
+    },
+    onDragCancel() {
+      clearMergeState();
+    },
+  });
+  return null;
+}
+
 export function KanbanBoard({
   userId,
   isManager = false,
@@ -95,8 +182,11 @@ export function KanbanBoard({
   users = [],
   currentUserId,
   currentUserEmail,
+  searchQuery: searchQueryProp,
 }: KanbanBoardProps) {
   const router = useRouter();
+  const pipelineSearch = usePipelineSearch();
+  const searchQuery = pipelineSearch?.searchQuery ?? searchQueryProp ?? undefined;
   const [stages, setStages] = useState<Stage[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterUserId, setFilterUserId] = useState<string | undefined>(userId);
@@ -112,10 +202,19 @@ export function KanbanBoard({
   const [releaseDialogOpen, setReleaseDialogOpen] = useState(false);
   const [pendingReleaseId, setPendingReleaseId] = useState<string | null>(null);
   const [assignToDialogOpen, setAssignToDialogOpen] = useState(false);
-  const [assignToInquiryId, setAssignToInquiryId] = useState<string | null>(null);
+  const [assignToInquiryId, setAssignToInquiryId] = useState<string | null>(
+    null,
+  );
   const [releasing, setReleasing] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  // Merge mode: enter by long-press on a card; then drop on another card to merge (stable layout)
+  const [mergeMode, setMergeMode] = useState(false);
+  // Legacy: hold dragged card over another for 2s to enable merge (only when not in merge mode)
+  const [mergeTargetId, setMergeTargetId] = useState<string | null>(null);
+  const [mergeHoldProgress, setMergeHoldProgress] = useState(0);
+  const mergeHoldTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const mergeOverIdRef = useRef<string | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -161,11 +260,16 @@ export function KanbanBoard({
       if (response.ok) {
         const data = await response.json();
         if (process.env.NODE_ENV === "development") {
-          console.log("[KanbanBoard] Received data:", { stagesCount: data.stages?.length || 0, stages: data.stages });
+          console.log("[KanbanBoard] Received data:", {
+            stagesCount: data.stages?.length || 0,
+            stages: data.stages,
+          });
         }
         setStages(data.stages || []);
       } else {
-        const errorData = await response.json().catch(() => ({ error: "Unknown error" }));
+        const errorData = await response
+          .json()
+          .catch(() => ({ error: "Unknown error" }));
         console.error("[KanbanBoard] API error:", response.status, errorData);
         setStages([]);
       }
@@ -276,28 +380,115 @@ export function KanbanBoard({
     setAssignToInquiryId(null);
   };
 
+  const clearMergeState = useCallback(() => {
+    if (mergeHoldTimerRef.current) {
+      clearInterval(mergeHoldTimerRef.current);
+      mergeHoldTimerRef.current = null;
+    }
+    setMergeHoldProgress(0);
+    setMergeTargetId(null);
+    mergeOverIdRef.current = null;
+  }, []);
+
+  const canMergeInquiries = isManager || isAdmin;
+  const inquiryIdsSet = useMemo(
+    () => new Set(stages.flatMap((s) => s.inquiries.map((i) => i.id))),
+    [stages]
+  );
+
+  const filteredStages = useMemo(() => {
+    const q = searchQuery?.trim();
+    if (!q) return stages;
+    return stages.map((stage) => ({
+      ...stage,
+      inquiries: stage.inquiries.filter((inq) =>
+        inquiryMatchesSearch(inq, q),
+      ),
+    }));
+  }, [stages, searchQuery]);
+
   const handleDragStart = (event: DragStartEvent) => {
     setActiveId(event.active.id as string);
+    if (!mergeMode) {
+      setMergeTargetId(null);
+      setMergeHoldProgress(0);
+    }
   };
 
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
-    
-    if (!over) {
+    const inquiryId = active.id as string;
+
+    // Merge mode: drop on another card to merge (stable layout, no hold required)
+    if (mergeMode) {
+      clearMergeState();
       setActiveId(null);
+      setMergeMode(false);
+      if (over && over.id !== active.id && inquiryIdsSet.has(String(over.id))) {
+        const targetForMerge = String(over.id);
+        try {
+          const response = await fetch(`/api/inquiries/${targetForMerge}/merge`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ sourceInquiryId: inquiryId }),
+          });
+          if (response.ok) {
+            fetchBoard();
+          } else {
+            const err = await response.json();
+            alert(err.error || "Failed to merge inquiries");
+          }
+        } catch (e) {
+          console.error("Merge error:", e);
+          alert("Failed to merge inquiries");
+        }
+      }
       return;
     }
 
-    const inquiryId = active.id as string;
+    const targetForMerge = mergeTargetId;
+    clearMergeState();
+    setActiveId(null);
+
+    if (!over) {
+      return;
+    }
+
+    const targetIdStr = String(over.id);
+
+    // Legacy merge: drop dragged card onto another after hold (Manager/Admin only)
+    if (canMergeInquiries && targetForMerge && targetIdStr === targetForMerge) {
+      try {
+        const response = await fetch(`/api/inquiries/${targetForMerge}/merge`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sourceInquiryId: inquiryId }),
+        });
+        if (response.ok) {
+          fetchBoard();
+        } else {
+          const err = await response.json();
+          alert(err.error || "Failed to merge inquiries");
+        }
+      } catch (e) {
+        console.error("Merge error:", e);
+        alert("Failed to merge inquiries");
+      }
+      return;
+    }
+
     const targetStageId = over.id as string;
 
     // Trash zone - move to failed leads
     if (targetStageId === "trash") {
       setActiveId(null);
       try {
-        const response = await fetch(`/api/inquiries/${inquiryId}/to-failed-lead`, {
-          method: "POST",
-        });
+        const response = await fetch(
+          `/api/inquiries/${inquiryId}/to-failed-lead`,
+          {
+            method: "POST",
+          },
+        );
         if (response.ok) {
           fetchBoard();
         } else {
@@ -328,7 +519,7 @@ export function KanbanBoard({
         return stage.inquiries;
       })
       .find((inq) => inq.id === inquiryId);
-    
+
     if (!inquiry || !sourceStage) {
       setActiveId(null);
       return;
@@ -437,7 +628,7 @@ export function KanbanBoard({
     );
   }
 
-  const allInquiryIds = stages.flatMap((stage) =>
+  const allInquiryIds = filteredStages.flatMap((stage) =>
     stage.inquiries.map((inq) => inq.id),
   );
 
@@ -447,6 +638,34 @@ export function KanbanBoard({
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
+      {!mergeMode && (
+        <DndMonitorHandler
+          canMergeInquiries={canMergeInquiries}
+          inquiryIdsSet={inquiryIdsSet}
+          mergeTargetId={mergeTargetId}
+          clearMergeState={clearMergeState}
+          setMergeHoldProgress={setMergeHoldProgress}
+          setMergeTargetId={setMergeTargetId}
+          mergeOverIdRef={mergeOverIdRef}
+          mergeHoldTimerRef={mergeHoldTimerRef}
+        />
+      )}
+      {mergeMode && (
+        <div className="flex items-center justify-between gap-3 px-4 py-2 mb-2 rounded-lg bg-primary/10 dark:bg-primary/20 border border-primary/30 text-sm">
+          <span className="flex items-center gap-2 font-medium text-foreground">
+            <span className="material-symbols-outlined text-lg">merge</span>
+            Merge mode — drag a lead onto another to merge
+          </span>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setMergeMode(false)}
+          >
+            Cancel
+          </Button>
+        </div>
+      )}
       <div className="relative h-full">
         {loading && stages.length > 0 && (
           <div className="absolute inset-0 z-10 flex items-center justify-center bg-gray-50/70 dark:bg-[#121212]/70 rounded-lg">
@@ -459,42 +678,46 @@ export function KanbanBoard({
           </div>
         )}
         <div className="flex gap-4 h-full overflow-x-auto overflow-y-hidden pb-4 scrollbar-modern-horizontal">
-        <SortableContext
-          items={allInquiryIds}
-          strategy={verticalListSortingStrategy}
-        >
-          {stages.map((stage) => (
-            <KanbanColumn
-              key={stage.id}
-              id={stage.id}
-              title={stage.name}
-              color={stage.color}
-              inquiries={stage.inquiries}
-              onView={handleView}
-              onCreateInquiry={handleCreateInquiry}
-              status={stage.status}
-              onRelease={handleRelease}
-              onNotes={handleNotes}
-              onAssignTo={handleAssignTo}
-              onDelete={handleDelete}
-              onCountryUpdated={fetchBoard}
-              users={users}
-              currentUserId={currentUserId}
-              currentUserEmail={currentUserEmail}
-              isManager={isManager}
-              isAdmin={isAdmin}
-            />
-          ))}
-        </SortableContext>
-        {/* Trash - drag inquiries here to move to failed leads */}
-        <TrashDropZone />
-        {/* Add Column Button */}
-        <div className="min-w-[360px] flex items-center justify-center flex-shrink-0">
-          <button className="w-full h-12 border-2 border-dashed border-gray-300 dark:border-[#2C2C2C] rounded-lg hover:border-gray-400 dark:hover:border-[#49454F] hover:bg-gray-50 dark:hover:bg-[#1E1E1E] transition-colors flex items-center justify-center gap-2 text-gray-500 dark:text-[#A1A1A1]">
-            <span className="material-symbols-outlined text-xl">add</span>
-            <span className="text-sm font-medium">Add Column</span>
-          </button>
-        </div>
+          <SortableContext
+            items={mergeMode ? [] : allInquiryIds}
+            strategy={verticalListSortingStrategy}
+          >
+            {filteredStages.map((stage) => (
+              <KanbanColumn
+                key={stage.id}
+                id={stage.id}
+                title={stage.name}
+                color={stage.color}
+                inquiries={stage.inquiries}
+                onView={handleView}
+                onCreateInquiry={handleCreateInquiry}
+                status={stage.status}
+                onRelease={handleRelease}
+                onNotes={handleNotes}
+                onAssignTo={handleAssignTo}
+                onDelete={handleDelete}
+                onCountryUpdated={fetchBoard}
+                users={users}
+                currentUserId={currentUserId}
+                currentUserEmail={currentUserEmail}
+                isManager={isManager}
+                isAdmin={isAdmin}
+                mergeTargetId={mergeTargetId}
+                mergeHoldProgress={mergeHoldProgress}
+                mergeMode={mergeMode}
+                onEnterMergeMode={canMergeInquiries ? () => setMergeMode(true) : undefined}
+              />
+            ))}
+          </SortableContext>
+          {/* Trash - drag inquiries here to move to failed leads */}
+          <TrashDropZone />
+          {/* Add Column Button */}
+          <div className="min-w-[360px] flex items-center justify-center flex-shrink-0">
+            <button className="w-full h-12 border-2 border-dashed border-gray-300 dark:border-[#2C2C2C] rounded-lg hover:border-gray-400 dark:hover:border-[#49454F] hover:bg-gray-50 dark:hover:bg-[#1E1E1E] transition-colors flex items-center justify-center gap-2 text-gray-500 dark:text-[#A1A1A1]">
+              <span className="material-symbols-outlined text-xl">add</span>
+              <span className="text-sm font-medium">Add Column</span>
+            </button>
+          </div>
         </div>
       </div>
       <DragOverlay>
@@ -506,13 +729,22 @@ export function KanbanBoard({
                 .find((inq) => inq.id === activeId);
               if (!inquiry) return null;
               return (
-                <div className="bg-white dark:bg-[#1E1E1E] border-2 border-primary dark:border-[#D4AF37] rounded-lg p-4 shadow-xl w-[320px]">
-                  <div className="font-semibold text-sm mb-1">
-                    {inquiry.customerName || inquiry.email || "Unknown Customer"}
+                <div className="relative">
+                  <div className="bg-white dark:bg-[#1E1E1E] border-2 border-primary dark:border-[#D4AF37] rounded-lg p-4 shadow-xl w-[320px]">
+                    <div className="font-semibold text-sm mb-1">
+                      {inquiry.customerName ||
+                        inquiry.email ||
+                        "Unknown Customer"}
+                    </div>
+                    {inquiry.email && (
+                      <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                        {inquiry.email}
+                      </div>
+                    )}
                   </div>
-                  {inquiry.email && (
-                    <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                      {inquiry.email}
+                  {(mergeMode || mergeTargetId) && (
+                    <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 px-2 py-1 bg-primary text-primary-foreground text-xs font-medium rounded shadow-lg whitespace-nowrap">
+                      {mergeMode ? "Drop on a lead to merge" : "Release to merge into lead below"}
                     </div>
                   )}
                 </div>

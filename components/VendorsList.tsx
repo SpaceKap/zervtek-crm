@@ -35,10 +35,11 @@ const categoryLabels: Record<VendorCategory, string> = {
   TRANSPORT_VENDOR: "Transport Company",
   GARAGE: "Garage",
   FREIGHT_VENDOR: "Freight Company",
-  FORWARDING_VENDOR: "Forwarder", // Map to Forwarder for display
+  FORWARDING_VENDOR: "Forwarder",
   FORWARDER: "Forwarder",
   SHIPPING_AGENT: "Shipping Agent",
   YARD: "Yard",
+  OFFICE_EXPENSES: "Office Expenses",
 };
 
 export function VendorsList() {

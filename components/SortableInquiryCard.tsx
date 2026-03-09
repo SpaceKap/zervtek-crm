@@ -36,6 +36,9 @@ interface SortableInquiryCardProps {
   currentUserEmail?: string;
   isManager?: boolean;
   isAdmin?: boolean;
+  isMergeTarget?: boolean;
+  mergeHoldProgress?: number;
+  onEnterMergeMode?: () => void;
 }
 
 function SortableInquiryCardComponent({
@@ -50,6 +53,9 @@ function SortableInquiryCardComponent({
   currentUserEmail,
   isManager = false,
   isAdmin = false,
+  isMergeTarget = false,
+  mergeHoldProgress = 0,
+  onEnterMergeMode,
 }: SortableInquiryCardProps) {
   const {
     attributes,
@@ -64,15 +70,34 @@ function SortableInquiryCardComponent({
 
   const style = {
     transform: CSS.Transform.toString(transform),
-    transition: isDragging ? "none" : transition, // Disable transition during drag
+    transition: isDragging ? "none" : transition,
     opacity: isDragging ? 0.5 : 1,
     cursor: isDragging ? "grabbing" : "grab",
-    willChange: isDragging ? "transform" : "auto", // Optimize for drag performance
+    willChange: isDragging ? "transform" : "auto",
   };
 
   return (
     <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
-      <InquiryCard
+      <div className="relative">
+        {onEnterMergeMode && (
+          <button
+            type="button"
+            className="absolute top-1 right-1 z-10 p-0.5 rounded hover:bg-primary/20 text-muted-foreground hover:text-primary transition-colors"
+            onClick={(e) => {
+              e.stopPropagation();
+              e.preventDefault();
+              onEnterMergeMode();
+            }}
+            onPointerDown={(e) => e.stopPropagation()}
+            aria-label="Enter merge mode"
+            title="Merge mode – drag this lead onto another to merge"
+          >
+            <span className="material-symbols-outlined" style={{ fontSize: 14 }}>
+              merge
+            </span>
+          </button>
+        )}
+        <InquiryCard
         inquiry={inquiry}
         onView={onView}
         onRelease={onRelease}
@@ -93,7 +118,10 @@ function SortableInquiryCardComponent({
         hideStatusBadge={true}
         dragHandleProps={undefined}
         isInFunnel={true}
+        isMergeTarget={isMergeTarget}
+        mergeHoldProgress={mergeHoldProgress}
       />
+      </div>
     </div>
   );
 }

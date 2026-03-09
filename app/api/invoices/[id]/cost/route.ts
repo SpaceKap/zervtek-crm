@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { requireAuth, canEditInvoice } from "@/lib/permissions"
 import { convertDecimalsToNumbers } from "@/lib/decimal"
+import { getChargesSubtotal } from "@/lib/charge-utils"
 
 function calculateProfitMetrics(
   totalRevenue: number,
@@ -36,7 +37,7 @@ export async function GET(request: NextRequest, props: { params: Promise<{ id: s
         },
         invoice: {
           include: {
-            charges: true,
+            charges: { include: { chargeType: { select: { name: true } } } },
             vehicle: {
               include: {
                 sharedInvoiceVehicles: {
@@ -115,19 +116,15 @@ export async function GET(request: NextRequest, props: { params: Promise<{ id: s
       0
     )
 
-    // Calculate revenue including tax (tax is revenue, not a cost)
-    let revenue = parseFloat(costInvoice.totalRevenue.toString())
+    // Calculate revenue (charges subtotal ± deposit/discount, + tax if enabled)
+    const chargesSubtotal = costInvoice.invoice.charges?.length
+      ? getChargesSubtotal(costInvoice.invoice.charges)
+      : parseFloat(costInvoice.totalRevenue.toString())
+    let revenue = chargesSubtotal
     if (costInvoice.invoice.taxEnabled && costInvoice.invoice.taxRate) {
-      // Calculate subtotal from charges
-      const subtotal = costInvoice.invoice.charges?.reduce(
-        (sum: number, charge: any) => sum + parseFloat(charge.amount.toString()),
-        0
-      ) || revenue
-      
-      // Add tax to revenue
       const taxRate = parseFloat(costInvoice.invoice.taxRate.toString())
-      const taxAmount = subtotal * (taxRate / 100)
-      revenue = subtotal + taxAmount
+      const taxAmount = chargesSubtotal * (taxRate / 100)
+      revenue = chargesSubtotal + taxAmount
     }
 
     const metrics = calculateProfitMetrics(

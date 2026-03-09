@@ -73,9 +73,13 @@ const _authOptions = {
             return token
         },
         async session({ session, token }) {
-            if (session.user && token) {
-                session.user.id = token.id as string
-                session.user.role = token.role as UserRole
+            try {
+                if (session?.user && token?.id != null)
+                    session.user.id = token.id as string
+                if (session?.user && token?.role != null)
+                    session.user.role = token.role as UserRole
+            } catch (e) {
+                console.error("Error in session callback:", e)
             }
             return session
         },

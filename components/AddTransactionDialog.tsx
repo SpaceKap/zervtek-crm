@@ -22,6 +22,7 @@ import {
 } from "./ui/select";
 import { VendorForm } from "./VendorForm";
 import { DatePicker } from "@/components/ui/date-picker";
+import { Tabs, TabsList, TabsTrigger } from "./ui/tabs";
 
 interface Vendor {
   id: string;
@@ -64,15 +65,6 @@ interface Transaction {
   paymentDeadline?: string | null;
 }
 
-interface InvoiceOption {
-  id: string;
-  invoiceNumber: string;
-  status: string;
-  paymentStatus: string;
-  customer?: { id: string; name: string; email: string | null } | null;
-  vehicle?: { id: string; vin: string; make: string | null; model: string | null; year: number | null } | null;
-}
-
 interface AddTransactionDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -99,7 +91,7 @@ export function AddTransactionDialog({
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
-  const [customerInvoices, setCustomerInvoices] = useState<InvoiceOption[]>([]);
+  const [customerVehicles, setCustomerVehicles] = useState<Vehicle[]>([]);
   const [showVendorForm, setShowVendorForm] = useState(false);
   const [vendorSearch, setVendorSearch] = useState("");
   const [vendorDropdownOpen, setVendorDropdownOpen] = useState(false);
@@ -107,6 +99,16 @@ export function AddTransactionDialog({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const vendorDropdownRef = useRef<HTMLDivElement>(null);
+
+  type TransactionTab = "payment" | "expense" | "deposit" | "refund";
+  const tabToDirection = (tab: TransactionTab): TransactionDirection =>
+    tab === "payment" ? "INCOMING" : tab === "deposit" ? "DEPOSIT" : "OUTGOING";
+
+  const [transactionTab, setTransactionTab] = useState<TransactionTab>(() => {
+    if (defaultDirection === "INCOMING") return "payment";
+    if (defaultDirection === "DEPOSIT") return "deposit";
+    return "expense";
+  });
 
   const [formData, setFormData] = useState({
     direction: defaultDirection,
@@ -159,15 +161,20 @@ export function AddTransactionDialog({
           }
         }
 
-        // For outgoing transactions, if customer exists but no vendor, it might be a refund
         const vendorId = transaction.vendor?.id || "";
         const customerId = transaction.customer?.id || "";
-        // If it's outgoing and has customer but no vendor, treat customer as the "vendor" for display
-        const displayVendorId =
-          transaction.direction === "OUTGOING" && !vendorId && customerId
-            ? customerId
-            : vendorId;
+        const isRefund = transaction.direction === "OUTGOING" && !vendorId && customerId;
+        const editTab: TransactionTab =
+          transaction.direction === "INCOMING"
+            ? "payment"
+            : transaction.direction === "DEPOSIT"
+              ? "deposit"
+              : isRefund
+                ? "refund"
+                : "expense";
+        const displayVendorId = isRefund ? customerId : vendorId;
 
+        setTransactionTab(editTab);
         setFormData({
           direction: transaction.direction,
           type: transaction.type,
@@ -176,10 +183,7 @@ export function AddTransactionDialog({
           exchangeRate: (transaction as any).exchangeRate || "",
           date: dateValue,
           vendorId: displayVendorId,
-          customerId:
-            transaction.direction === "OUTGOING" && !vendorId && customerId
-              ? ""
-              : customerId,
+          customerId: isRefund ? "" : customerId,
           vehicleId: transaction.vehicle?.id || "",
           invoiceId: (transaction as any).invoiceId || "",
           description: transaction.description || transaction.notes || "",
@@ -190,17 +194,17 @@ export function AddTransactionDialog({
         setUploadedFileUrl(transaction.invoiceUrl);
         if (transaction.vendor) {
           setVendorSearch(transaction.vendor.name);
-        } else if (
-          transaction.direction === "OUTGOING" &&
-          transaction.customer
-        ) {
-          // For refunds, show customer name in vendor search
-          setVendorSearch(
-            transaction.customer.name || transaction.customer.email || "",
-          );
+        } else if (transaction.customer) {
+          setVendorSearch(transaction.customer.name || transaction.customer.email || "");
         }
       } else {
-        // Reset form when creating new
+        setTransactionTab(
+          defaultDirection === "INCOMING"
+            ? "payment"
+            : defaultDirection === "DEPOSIT"
+              ? "deposit"
+              : "expense",
+        );
         setFormData({
           direction: defaultDirection,
           type: "" as TransactionType | "",
@@ -229,23 +233,19 @@ export function AddTransactionDialog({
     defaultInvoiceId,
   ]);
 
-  // Fetch unpaid invoices for INCOMING payments (by vehicle when on vehicle page, or all)
+  // Fetch customer's vehicles for INCOMING "Link to Vehicle"
   useEffect(() => {
-    if (formData.direction === "INCOMING") {
-      const params = new URLSearchParams();
-      params.set("paymentStatus", "PENDING,PARTIALLY_PAID");
-      if (defaultVehicleId) params.set("vehicleId", defaultVehicleId);
-      else if (formData.customerId) params.set("customer", formData.customerId);
-      fetch(`/api/invoices?${params}`)
+    if (formData.direction === "INCOMING" && formData.customerId) {
+      fetch(`/api/vehicles?customerId=${formData.customerId}`, { cache: "no-store" })
         .then((res) => res.json())
         .then((data) => {
-          setCustomerInvoices(data?.invoices ?? []);
+          setCustomerVehicles(Array.isArray(data) ? data : []);
         })
-        .catch(() => setCustomerInvoices([]));
+        .catch(() => setCustomerVehicles([]));
     } else {
-      setCustomerInvoices([]);
+      setCustomerVehicles([]);
     }
-  }, [formData.direction, formData.customerId, defaultVehicleId]);
+  }, [formData.direction, formData.customerId]);
 
   const fetchVendors = async () => {
     try {
@@ -387,13 +387,26 @@ export function AddTransactionDialog({
 
     // Remove commas for validation
     const amountValue = formData.amount.replace(/,/g, "");
-    if (!formData.type || !amountValue || !formData.paymentDeadline) {
+    if (!formData.type || !amountValue) {
       alert("Please fill in all required fields");
+      return;
+    }
+    if (!formData.date) {
+      alert("Please select a date");
+      return;
+    }
+    if (transactionTab === "expense" && !formData.paymentDeadline) {
+      alert("Please set the payment deadline for expenses");
       return;
     }
 
     if (formData.direction === "OUTGOING" && !formData.vendorId) {
       alert("Please select a vendor for outgoing transactions");
+      return;
+    }
+
+    if (formData.direction === "DEPOSIT" && !formData.customerId) {
+      alert("Please select a customer for the deposit so it can be applied to their invoices later.");
       return;
     }
 
@@ -448,7 +461,7 @@ export function AddTransactionDialog({
         description: formData.description || null,
         notes: existing?.notes ?? null,
         date: formData.date || null,
-        paymentDeadline: formData.paymentDeadline,
+        paymentDeadline: transactionTab === "expense" ? formData.paymentDeadline : null,
         exchangeRate:
           formData.currency !== "JPY" && formData.exchangeRate
             ? parseFloat(formData.exchangeRate)
@@ -511,35 +524,49 @@ export function AddTransactionDialog({
             <DialogDescription>
               {transaction
                 ? "Update transaction details"
-                : formData.direction === "INCOMING"
+                : transactionTab === "payment"
                   ? "Record an incoming payment from a customer"
-                  : "Record an outgoing cost or payment"}
+                  : transactionTab === "deposit"
+                    ? "Record a customer deposit (can be applied to their invoices later)"
+                    : transactionTab === "refund"
+                      ? "Record a refund to a customer"
+                      : "Record an outgoing cost or payment"}
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="px-6 pb-6 space-y-6">
-            <div>
-              <Label className="text-sm font-medium">Direction *</Label>
-              <Select
-                value={formData.direction}
-                onValueChange={(value) =>
-                  setFormData({
-                    ...formData,
-                    direction: value as TransactionDirection,
-                    vendorId: "",
-                    customerId: "",
-                    currency: value === "OUTGOING" ? "JPY" : formData.currency,
-                  })
-                }
+            <Tabs
+              value={transactionTab}
+              defaultValue={transactionTab}
+              onValueChange={
+                transaction
+                  ? () => {}
+                  : (value) => {
+                      const tab = value as TransactionTab;
+                      setTransactionTab(tab);
+                      const dir = tabToDirection(tab);
+                      setFormData({
+                        ...formData,
+                        direction: dir,
+                        vendorId: "",
+                        customerId: tab === "deposit" ? formData.customerId : "",
+                        currency: dir === "INCOMING" ? formData.currency : "JPY",
+                        description: tab === "deposit" ? "Deposit" : tab === "refund" ? "Refund" : formData.description,
+                      });
+                      setVendorSearch("");
+                    }
+              }
+              className="w-full"
+            >
+              <TabsList
+                className={`grid w-full grid-cols-4 ${transaction ? "pointer-events-none opacity-70" : ""}`}
+                aria-disabled={!!transaction}
               >
-                <SelectTrigger className="mt-1.5">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="INCOMING">Incoming Payment</SelectItem>
-                  <SelectItem value="OUTGOING">Outgoing Cost</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+                <TabsTrigger value="payment">Payment</TabsTrigger>
+                <TabsTrigger value="expense">Expense</TabsTrigger>
+                <TabsTrigger value="deposit">Deposit</TabsTrigger>
+                <TabsTrigger value="refund">Refund</TabsTrigger>
+              </TabsList>
+            </Tabs>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
@@ -576,14 +603,14 @@ export function AddTransactionDialog({
                         value !== "JPY" ? formData.exchangeRate : "",
                     })
                   }
-                  disabled={formData.direction === "OUTGOING"}
+                  disabled={transactionTab === "expense" || transactionTab === "deposit" || transactionTab === "refund"}
                 >
                   <SelectTrigger className="mt-1.5">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="JPY">JPY</SelectItem>
-                    {formData.direction === "INCOMING" && (
+                    {transactionTab === "payment" && (
                       <>
                         <SelectItem value="USD">USD</SelectItem>
                         <SelectItem value="EUR">EUR</SelectItem>
@@ -591,9 +618,11 @@ export function AddTransactionDialog({
                     )}
                   </SelectContent>
                 </Select>
-                {formData.direction === "OUTGOING" && (
+                {(transactionTab === "expense" || transactionTab === "deposit" || transactionTab === "refund") && (
                   <p className="text-xs text-muted-foreground mt-1">
-                    Outgoing costs are only in JPY
+                    {transactionTab === "deposit"
+                      ? "Deposits require a customer and are stored in JPY for wallet balance."
+                      : "Expenses and refunds are in JPY only."}
                   </p>
                 )}
               </div>
@@ -654,41 +683,44 @@ export function AddTransactionDialog({
               </div>
             </div>
 
-            {/* Date and Payment Deadline in one row */}
-            <div className="grid grid-cols-2 gap-4">
+            {/* Date (required); Payment Deadline only for expense */}
+            <div className={transactionTab === "expense" ? "grid grid-cols-2 gap-4" : ""}>
               <div>
-                <Label className="text-sm font-medium">Date (Optional)</Label>
+                <Label className="text-sm font-medium">Date *</Label>
                 <DatePicker
                   value={formData.date}
                   onChange={(e) =>
                     setFormData({ ...formData, date: e.target.value })
                   }
-                  className="mt-1.5"
-                />
-              </div>
-              <div>
-                <Label className="text-sm font-medium">
-                  Payment Deadline *
-                </Label>
-                <DatePicker
-                  value={formData.paymentDeadline}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      paymentDeadline: e.target.value,
-                    })
-                  }
                   required
                   className="mt-1.5"
                 />
               </div>
+              {transactionTab === "expense" && (
+                <div>
+                  <Label className="text-sm font-medium">
+                    Payment Deadline *
+                  </Label>
+                  <DatePicker
+                    value={formData.paymentDeadline}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        paymentDeadline: e.target.value,
+                      })
+                    }
+                    required
+                    className="mt-1.5"
+                  />
+                </div>
+              )}
             </div>
 
-            {formData.direction === "INCOMING" && (
+            {(transactionTab === "payment" || transactionTab === "deposit") && (
               <>
                 <div>
                   <Label className="text-sm font-medium">
-                    Customer
+                    Customer {transactionTab === "deposit" ? "*" : ""}
                   </Label>
                   <Select
                     value={formData.customerId || undefined}
@@ -696,16 +728,19 @@ export function AddTransactionDialog({
                       setFormData({
                         ...formData,
                         customerId: value || "",
-                        invoiceId: "",
+                        vehicleId: "",
+                        invoiceId: transactionTab === "deposit" ? formData.invoiceId : "",
                       })
                     }
                   >
                     <SelectTrigger className="mt-1.5">
                       <SelectValue
                         placeholder={
-                          defaultVehicleId
-                            ? "Pre-filled from vehicle"
-                            : "Select customer to filter invoices"
+                          transactionTab === "deposit"
+                            ? "Select customer (required for deposit)"
+                            : defaultVehicleId
+                              ? "Pre-filled from vehicle"
+                              : "Select customer to link payment to a vehicle"
                         }
                       />
                     </SelectTrigger>
@@ -718,134 +753,88 @@ export function AddTransactionDialog({
                       ))}
                     </SelectContent>
                   </Select>
-                  {defaultVehicleId && (
+                  {transactionTab === "deposit" && (
                     <p className="text-xs text-muted-foreground mt-1">
-                      Customer and invoice are pre-filled from the vehicle
+                      Deposit is linked to this customer and can be applied to their invoices later.
                     </p>
                   )}
                 </div>
+                {transactionTab === "payment" && (
                 <div>
                   <Label className="text-sm font-medium">
-                    Link to Invoice
+                    Link to Vehicle
                   </Label>
                   <Select
-                    value={formData.invoiceId || undefined}
-                    onValueChange={(value) => {
-                      const inv = customerInvoices.find((i) => i.id === value);
-                      setFormData({
-                        ...formData,
-                        invoiceId: value || "",
-                        customerId: inv?.customer?.id ? inv.customer.id : formData.customerId,
-                        vehicleId: inv?.vehicle?.id ? inv.vehicle.id : formData.vehicleId,
-                      });
-                    }}
+                    value={formData.vehicleId || undefined}
+                    onValueChange={(value) =>
+                      setFormData({ ...formData, vehicleId: value || "" })
+                    }
                   >
                     <SelectTrigger className="mt-1.5">
                       <SelectValue
                         placeholder={
                           formData.customerId
-                            ? "Select invoice for this customer"
+                            ? "Select vehicle for this customer"
                             : "Select customer first"
                         }
                       />
                     </SelectTrigger>
                     <SelectContent>
-                      {customerInvoices.map((inv) => (
-                        <SelectItem key={inv.id} value={inv.id}>
-                          {inv.invoiceNumber}
-                          {inv.vehicle && ` - ${inv.vehicle.make} ${inv.vehicle.model} ${inv.vehicle.year}`}
-                          {` (${inv.paymentStatus})`}
+                      {customerVehicles.map((v) => (
+                        <SelectItem key={v.id} value={v.id}>
+                          {v.vin} – {v.make} {v.model} {v.year != null ? v.year : ""}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
-                  {customerInvoices.length === 0 && (
-                    <p className="text-xs text-muted-foreground mt-1">
-                      No unpaid invoices found{defaultVehicleId ? " for this vehicle" : formData.customerId ? " for this customer" : ""}.
+                  {formData.customerId && customerVehicles.length === 0 && (
+                    <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
+                      No vehicles found for this customer. Add a vehicle to the customer first.
                     </p>
                   )}
                 </div>
+                )}
               </>
             )}
 
-            {formData.direction === "OUTGOING" && (
+            {transactionTab === "expense" && (
               <div>
-                <Label className="text-sm font-medium">Vendor/Customer *</Label>
+                <Label className="text-sm font-medium">Vendor *</Label>
                 <div className="flex gap-2 mt-1.5 relative">
                   <div className="flex-1 relative" ref={vendorDropdownRef}>
                     <Input
                       type="text"
-                      placeholder="Search vendors or customers..."
+                      placeholder="Search vendors..."
                       value={vendorSearch}
                       onChange={(e) => {
                         setVendorSearch(e.target.value);
                         setVendorDropdownOpen(true);
-                        // Clear selection if search doesn't match selected vendor/customer
                         if (formData.vendorId) {
-                          const selectedVendor = vendors.find(
-                            (v) => v.id === formData.vendorId,
-                          );
-                          const selectedCustomer = customers.find(
-                            (c) => c.id === formData.vendorId,
-                          );
-                          const selected = selectedVendor || selectedCustomer;
-                          if (
-                            selected &&
-                            !(selected.name || (selected as any).email || "")
-                              .toLowerCase()
-                              .includes(e.target.value.toLowerCase())
-                          ) {
+                          const selected = vendors.find((v) => v.id === formData.vendorId);
+                          if (selected && !selected.name.toLowerCase().includes(e.target.value.toLowerCase())) {
                             setFormData({ ...formData, vendorId: "" });
                           }
                         }
                       }}
                       onFocus={() => {
                         setVendorDropdownOpen(true);
-                        // Show selected vendor/customer name when focusing if not searching
                         if (!vendorSearch && formData.vendorId) {
-                          const selectedVendor = vendors.find(
-                            (v) => v.id === formData.vendorId,
-                          );
-                          const selectedCustomer = customers.find(
-                            (c) => c.id === formData.vendorId,
-                          );
-                          const selected = selectedVendor || selectedCustomer;
-                          if (selected) {
-                            setVendorSearch(
-                              selected.name || (selected as any).email || "",
-                            );
-                          }
+                          const v = vendors.find((x) => x.id === formData.vendorId);
+                          if (v) setVendorSearch(v.name);
                         }
                       }}
                       className="w-full"
                     />
                     {vendorDropdownOpen && (
                       <div className="absolute z-50 w-full mt-1 bg-white dark:bg-[#1E1E1E] border border-gray-200 dark:border-[#2C2C2C] rounded-md shadow-lg max-h-60 overflow-auto">
-                        {/* Vendors Section */}
-                        {vendors.filter((vendor) =>
-                          vendor.name
-                            .toLowerCase()
-                            .includes(vendorSearch.toLowerCase()),
-                        ).length > 0 && (
-                          <div className="px-2 py-1 text-xs font-semibold text-muted-foreground border-b">
-                            Vendors
-                          </div>
-                        )}
                         {vendors
-                          .filter((vendor) =>
-                            vendor.name
-                              .toLowerCase()
-                              .includes(vendorSearch.toLowerCase()),
-                          )
+                          .filter((v) => v.name.toLowerCase().includes(vendorSearch.toLowerCase()))
                           .map((vendor) => (
                             <button
                               key={vendor.id}
                               type="button"
                               onClick={() => {
-                                setFormData({
-                                  ...formData,
-                                  vendorId: vendor.id,
-                                });
+                                setFormData({ ...formData, vendorId: vendor.id });
                                 setVendorSearch(vendor.name);
                                 setVendorDropdownOpen(false);
                               }}
@@ -853,85 +842,46 @@ export function AddTransactionDialog({
                             >
                               <span>{vendor.name}</span>
                               {formData.vendorId === vendor.id && (
-                                <span className="material-symbols-outlined text-sm text-primary ml-auto">
-                                  check
-                                </span>
+                                <span className="material-symbols-outlined text-sm text-primary ml-auto">check</span>
                               )}
                             </button>
                           ))}
-                        {/* Customers Section */}
-                        {customers.filter((customer) =>
-                          (customer.name || customer.email || "")
-                            .toLowerCase()
-                            .includes(vendorSearch.toLowerCase()),
-                        ).length > 0 && (
-                          <div className="px-2 py-1 text-xs font-semibold text-muted-foreground border-b border-t">
-                            Customers (for refunds)
-                          </div>
+                        {vendors.filter((v) => v.name.toLowerCase().includes(vendorSearch.toLowerCase())).length === 0 && (
+                          <div className="px-3 py-2 text-sm text-muted-foreground">No vendors found</div>
                         )}
-                        {customers
-                          .filter((customer) =>
-                            (customer.name || customer.email || "")
-                              .toLowerCase()
-                              .includes(vendorSearch.toLowerCase()),
-                          )
-                          .map((customer) => (
-                            <button
-                              key={customer.id}
-                              type="button"
-                              onClick={() => {
-                                setFormData({
-                                  ...formData,
-                                  vendorId: customer.id,
-                                });
-                                setVendorSearch(
-                                  customer.name || customer.email || "",
-                                );
-                                setVendorDropdownOpen(false);
-                              }}
-                              className="w-full text-left px-3 py-2 hover:bg-gray-100 dark:hover:bg-[#2C2C2C] cursor-pointer flex items-center gap-2"
-                            >
-                              <span>{customer.name || customer.email}</span>
-                              {formData.vendorId === customer.id && (
-                                <span className="material-symbols-outlined text-sm text-primary ml-auto">
-                                  check
-                                </span>
-                              )}
-                            </button>
-                          ))}
-                        {vendors.filter((vendor) =>
-                          vendor.name
-                            .toLowerCase()
-                            .includes(vendorSearch.toLowerCase()),
-                        ).length === 0 &&
-                          customers.filter((customer) =>
-                            (customer.name || customer.email || "")
-                              .toLowerCase()
-                              .includes(vendorSearch.toLowerCase()),
-                          ).length === 0 && (
-                            <div className="px-3 py-2 text-sm text-muted-foreground">
-                              No vendors or customers found
-                            </div>
-                          )}
                       </div>
                     )}
                   </div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setShowVendorForm(true)}
-                    className="shrink-0"
-                  >
-                    <span className="material-symbols-outlined mr-1 text-lg">
-                      add
-                    </span>
+                  <Button type="button" variant="outline" onClick={() => setShowVendorForm(true)} className="shrink-0">
+                    <span className="material-symbols-outlined mr-1 text-lg">add</span>
                     Add Vendor
                   </Button>
                 </div>
               </div>
             )}
 
-            {formData.direction === "OUTGOING" && (
+            {transactionTab === "refund" && (
+              <div>
+                <Label className="text-sm font-medium">Customer *</Label>
+                <Select
+                  value={formData.vendorId || undefined}
+                  onValueChange={(value) => setFormData({ ...formData, vendorId: value || "" })}
+                >
+                  <SelectTrigger className="mt-1.5">
+                    <SelectValue placeholder="Select customer to refund" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {customers.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.name} {c.email && `(${c.email})`}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {transactionTab === "expense" && (
               <div>
                 <Label className="text-sm font-medium">
                   Vehicle {defaultVehicleId ? "(Pre-selected)" : "(Optional)"}
@@ -963,7 +913,7 @@ export function AddTransactionDialog({
               </div>
             )}
 
-            {formData.direction === "OUTGOING" && (
+            {transactionTab === "expense" && (
               <div>
                 <Label className="text-sm font-medium">Invoice Document</Label>
                 <div className="mt-1.5 space-y-2">

@@ -9,6 +9,7 @@ import {
   canDeleteInvoice,
 } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
+import { convertDecimalsToNumbers } from "@/lib/decimal";
 import { InvoiceDetail } from "@/components/InvoiceDetail";
 import { InvoiceForm } from "@/components/InvoiceForm";
 import { ResourceNotFound } from "@/components/ResourceNotFound";
@@ -76,6 +77,9 @@ export default async function InvoiceDetailPage(
       charges: {
         include: {
           chargeType: true,
+          appliedDepositTransaction: {
+            select: { id: true, date: true, amount: true, description: true, type: true, depositNumber: true },
+          },
         },
       },
       costInvoice: {
@@ -134,20 +138,24 @@ export default async function InvoiceDetailPage(
   const canDelete = canDeleteInvoice(user.role);
   const isEditMode = resolvedSearchParams?.edit === "true";
 
+  // Serialize for Client Components (Prisma Decimals are not serializable)
+  const serializedInvoice = convertDecimalsToNumbers(invoice);
+  const serializedAdditionalVehicles = convertDecimalsToNumbers(additionalVehicles);
+
   // If in edit mode, show InvoiceForm
   if (isEditMode) {
-    return <InvoiceForm invoice={invoice} />;
+    return <InvoiceForm invoice={serializedInvoice} />;
   }
 
   return (
     <div className="min-h-screen">
       <InvoiceDetail
-        invoice={invoice}
+        invoice={serializedInvoice}
         currentUser={user}
         canApprove={canApprove}
         canFinalize={canFinalize}
         canDelete={canDelete}
-        additionalVehicles={additionalVehicles}
+        additionalVehicles={serializedAdditionalVehicles}
       />
     </div>
   );

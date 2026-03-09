@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AddTransactionDialog } from "./AddTransactionDialog";
 import {
@@ -73,6 +73,8 @@ interface Transaction {
   invoiceUrl: string | null;
   referenceNumber: string | null;
   notes: string | null;
+  depositNumber?: string | null;
+  appliedDepositNumber?: string | null; // For OUTGOING "Applied from wallet": e.g. DEP-8001
   invoiceId?: string | null;
   invoiceNumber?: string | null;
   paymentDeadline?: string | null;
@@ -81,6 +83,10 @@ interface Transaction {
   isVehicleStageCost?: boolean;
   isInvoice?: boolean;
   isCostItem?: boolean;
+  isRecurringExpense?: boolean;
+  recurringInstanceId?: string;
+  recurringTemplateType?: string | null;
+  recurringFrequency?: string | null;
   costType?: string | null;
   category?: string | null;
   paymentStatus?: string | null; // due, overdue, partially_paid, paid
@@ -201,6 +207,8 @@ export function FinancialOperationsView({
     TransactionType | ""
   >("");
   const [markAsPaidInvoiceUrl, setMarkAsPaidInvoiceUrl] = useState("");
+  const [markAsPaidRecurringAmount, setMarkAsPaidRecurringAmount] =
+    useState("");
   const [markAsPaidUploading, setMarkAsPaidUploading] = useState(false);
   const markAsPaidFileInputRef = useRef<HTMLInputElement>(null);
   const markAsPaidCameraInputRef = useRef<HTMLInputElement>(null);
@@ -710,8 +718,9 @@ export function FinancialOperationsView({
   };
 
   // Calculate summary statistics (exclude invoices - they're shown in Invoices tab only)
+  // Payments + deposits = money in from customers
   const incomingTransactions = transactions.filter(
-    (t) => t.direction === "INCOMING" && !t.isInvoice,
+    (t) => (t.direction === "INCOMING" || t.direction === "DEPOSIT") && !t.isInvoice,
   );
   const outgoingTransactions = transactions.filter(
     (t) => t.direction === "OUTGOING",
@@ -742,16 +751,16 @@ export function FinancialOperationsView({
     (t) => !t.isInvoice && isOverdue(t),
   ).length;
 
-  // INCOMING transactions are payments received - count as Paid; OUTGOING use paymentDate
+  // INCOMING and DEPOSIT = money received, count as Paid; OUTGOING use paymentDate
   const paidCount = transactions.filter((t) => {
     if (t.isInvoice) return false;
-    if (t.direction === "INCOMING") return true; // Recording incoming payment = money received
+    if (t.direction === "INCOMING" || t.direction === "DEPOSIT") return true; // Money received
     return !!t.paymentDate;
   }).length;
 
   const pendingCount = transactions.filter((t) => {
     if (t.isInvoice) return false;
-    if (t.direction === "INCOMING") return false; // Incoming payments are always "paid"
+    if (t.direction === "INCOMING" || t.direction === "DEPOSIT") return false; // Money in = paid
     return !t.paymentDate;
   }).length;
 
@@ -815,8 +824,12 @@ export function FinancialOperationsView({
   // Filter and sort transactions
   const filteredAndSortedTransactions = transactions
     .filter((t) => {
-      // Only show items matching the current tab (INCOMING = payments received, OUTGOING = costs)
-      if (t.direction !== transactionTab) return false;
+      // Tab match: Payments tab shows INCOMING + DEPOSIT, Expenses only OUTGOING
+      const directionMatch =
+        transactionTab === "INCOMING"
+          ? t.direction === "INCOMING" || t.direction === "DEPOSIT"
+          : t.direction === transactionTab;
+      if (!directionMatch) return false;
 
       // Exclude invoices - they're shown in the Invoices tab only
       if (t.isInvoice) return false;
@@ -834,7 +847,7 @@ export function FinancialOperationsView({
         if (!matchesSearch) return false;
       }
 
-      // Customer filter (for incoming)
+      // Customer filter (for payments)
       if (transactionTab === "INCOMING" && customerFilter !== "all") {
         if (t.customer?.id !== customerFilter) return false;
       }
@@ -862,7 +875,7 @@ export function FinancialOperationsView({
         } else if (paymentStatusFilter === "overdue") {
           if (t.isInvoice && t.paymentStatus !== "overdue") return false;
           if (!t.isInvoice) {
-            if (t.direction === "INCOMING") return false; // Incoming payments not overdue
+            if (t.direction === "INCOMING" || t.direction === "DEPOSIT") return false; // Not overdue
             if (t.paymentDate) return false;
             if (!t.paymentDeadline) return false;
             if (new Date(t.paymentDeadline) >= new Date()) return false;
@@ -873,18 +886,24 @@ export function FinancialOperationsView({
       return true;
     })
     .sort((a, b) => {
-      let aValue: any;
-      let bValue: any;
+      let aValue: number | string;
+      let bValue: number | string;
 
       switch (sortField) {
-        case "date":
-          aValue = a.date ? new Date(a.date).getTime() : 0;
-          bValue = b.date ? new Date(b.date).getTime() : 0;
+        case "date": {
+          const dateA = a.date ? new Date(a.date).getTime() : (("createdAt" in a && a.createdAt) ? new Date((a as { createdAt?: string }).createdAt!).getTime() : 0);
+          const dateB = b.date ? new Date(b.date).getTime() : (("createdAt" in b && b.createdAt) ? new Date((b as { createdAt?: string }).createdAt!).getTime() : 0);
+          aValue = Number.isNaN(dateA) ? (("createdAt" in a && a.createdAt) ? new Date((a as { createdAt?: string }).createdAt!).getTime() : 0) : dateA;
+          bValue = Number.isNaN(dateB) ? (("createdAt" in b && b.createdAt) ? new Date((b as { createdAt?: string }).createdAt!).getTime() : 0) : dateB;
           break;
-        case "amount":
-          aValue = parseFloat(a.amount);
-          bValue = parseFloat(b.amount);
+        }
+        case "amount": {
+          const numA = typeof a.amount === "string" ? parseFloat(String(a.amount).replace(/,/g, "")) : Number(a.amount);
+          const numB = typeof b.amount === "string" ? parseFloat(String(b.amount).replace(/,/g, "")) : Number(b.amount);
+          aValue = Number.isNaN(numA) ? 0 : numA;
+          bValue = Number.isNaN(numB) ? 0 : numB;
           break;
+        }
         case "customer":
           aValue = a.customer?.name || a.customer?.email || "";
           bValue = b.customer?.name || b.customer?.email || "";
@@ -897,11 +916,12 @@ export function FinancialOperationsView({
           return 0;
       }
 
-      if (sortDirection === "asc") {
-        return aValue > bValue ? 1 : aValue < bValue ? -1 : 0;
-      } else {
-        return aValue < bValue ? 1 : aValue > bValue ? -1 : 0;
-      }
+      const cmp = aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
+      const result = sortDirection === "asc" ? cmp : -cmp;
+      if (result !== 0) return result;
+      // Stable sort: when equal, order by id (newer ids last when asc, first when desc)
+      const idCmp = (a.id || "").localeCompare(b.id || "");
+      return sortDirection === "asc" ? idCmp : -idCmp;
     });
 
   const canViewVehicles =
@@ -990,29 +1010,29 @@ export function FinancialOperationsView({
           <TabsContent value="transactions" className="mt-6">
             <Card>
               <CardHeader className="pb-4">
-                <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
-                  <CardTitle>Transactions</CardTitle>
-                  <div className="flex items-center gap-2 flex-wrap">
+                <div className="flex flex-col gap-3 mb-4 sm:flex-row sm:items-center sm:justify-between">
+                  <CardTitle className="flex-shrink-0">Transactions</CardTitle>
+                  <div className="flex items-center gap-2 flex-shrink-0 flex-wrap">
                     <Button
                       onClick={() => setTransactionDialogOpen(true)}
                       variant="outline"
+                      size="sm"
                       className="inline-flex items-center gap-2"
                     >
                       <span className="material-symbols-outlined">add</span>
                       Add Transaction
                     </Button>
-                    {canViewInvoices && (
-                      <Button
-                        variant="outline"
-                        onClick={() => setActiveSection("invoices")}
-                        className="inline-flex items-center gap-2"
-                      >
-                        <span className="material-symbols-outlined">
-                          receipt
-                        </span>
-                        View Invoices
-                      </Button>
-                    )}
+                    <Link
+                      href="/dashboard/general-costs"
+                      className={buttonVariants({
+                        variant: "outline",
+                        size: "sm",
+                        className: "inline-flex items-center gap-2",
+                      })}
+                    >
+                      <span className="material-symbols-outlined">repeat</span>
+                      Recurring payments
+                    </Link>
                   </div>
                 </div>
                 <div className="flex gap-2 border-b">
@@ -1024,7 +1044,7 @@ export function FinancialOperationsView({
                         : "text-muted-foreground hover:text-foreground"
                     }`}
                   >
-                    Incoming Payments
+                    Payments
                     {transactionTab === "INCOMING" && (
                       <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
                     )}
@@ -1448,7 +1468,7 @@ export function FinancialOperationsView({
                           </p>
                           <p className="text-sm text-muted-foreground">
                             {transactionTab === "INCOMING"
-                              ? "No incoming payments recorded yet"
+                              ? "No payments or deposits recorded yet"
                               : "No expenses recorded yet"}
                           </p>
                         </div>
@@ -1460,7 +1480,7 @@ export function FinancialOperationsView({
                             add
                           </span>
                           Add{" "}
-                          {transactionTab === "INCOMING" ? "Payment" : "Cost"}
+                          {transactionTab === "INCOMING" ? "Payment" : "Expense"}
                         </Button>
                       </div>
                     </div>
@@ -1832,29 +1852,20 @@ export function FinancialOperationsView({
                                     </td>
                                     <td className="p-3">
                                       <span
-                                        className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${typeColors[transaction.type]}`}
+                                        className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${transaction.direction === "DEPOSIT" ? "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-200" : typeColors[transaction.type]}`}
                                       >
-                                        {transactionTab === "INCOMING" ? (
-                                          <>
-                                            <span className="material-symbols-outlined text-sm mr-1">
-                                              payments
-                                            </span>
-                                            {typeLabels[transaction.type]}
-                                          </>
-                                        ) : (
-                                          <>
-                                            <span className="material-symbols-outlined text-sm mr-1">
-                                              receipt
-                                            </span>
-                                            {typeLabels[transaction.type]}
-                                          </>
-                                        )}
+                                        <span className="material-symbols-outlined text-sm mr-1">
+                                          {transaction.direction === "DEPOSIT" ? "account_balance_wallet" : transactionTab === "OUTGOING" ? "receipt" : "payments"}
+                                        </span>
+                                        {typeLabels[transaction.type]}
                                       </span>
                                     </td>
                                     {transactionTab === "INCOMING" ? (
                                       <>
                                         <td className="p-3 text-sm font-mono text-gray-900 dark:text-white">
-                                          {transaction.isInvoice ? (
+                                          {transaction.direction === "DEPOSIT" ? (
+                                            transaction.depositNumber ?? "—"
+                                          ) : transaction.isInvoice ? (
                                             <Link
                                               href={`/dashboard/invoices/${transaction.invoiceId}`}
                                               className="text-primary hover:underline"
@@ -1882,7 +1893,16 @@ export function FinancialOperationsView({
                                           )}
                                         </td>
                                         <td className="p-3 text-sm text-gray-900 dark:text-white">
-                                          {vehicleDisplay}
+                                          {transaction.vehicle ? (
+                                            <Link
+                                              href={`/dashboard/vehicles/${transaction.vehicle.id}`}
+                                              className="text-primary dark:text-[#D4AF37] hover:underline"
+                                            >
+                                              {vehicleDisplay}
+                                            </Link>
+                                          ) : (
+                                            "—"
+                                          )}
                                         </td>
                                       </>
                                     ) : (
@@ -1939,7 +1959,8 @@ export function FinancialOperationsView({
                                                 </a>
                                               </div>
                                             )}
-                                            {!transaction.invoiceId &&
+                                            {!transaction.appliedDepositNumber &&
+                                              !transaction.invoiceId &&
                                               !transaction.invoiceUrl && (
                                                 <span className="text-muted-foreground text-xs">
                                                   —
@@ -1954,7 +1975,12 @@ export function FinancialOperationsView({
                                         {fullDescription || "N/A"}
                                         {transaction.isGeneralCost && (
                                           <span className="text-xs text-muted-foreground mt-1">
-                                            General Cost
+                                            General cost
+                                          </span>
+                                        )}
+                                        {transaction.isRecurringExpense && (
+                                          <span className="text-xs text-muted-foreground mt-1">
+                                            Recurring expense
                                           </span>
                                         )}
                                         {transaction.isVehicleStageCost && (
@@ -2205,13 +2231,20 @@ export function FinancialOperationsView({
                                                 if (
                                                   transaction.isVehicleStageCost ||
                                                   transaction.isGeneralCost ||
-                                                  transaction.isCostItem
+                                                  transaction.isCostItem ||
+                                                  transaction.isRecurringExpense
                                                 ) {
                                                   setCostToMarkAsPaid(
                                                     transaction,
                                                   );
                                                   setMarkAsPaidType("");
                                                   setMarkAsPaidInvoiceUrl("");
+                                                  setMarkAsPaidRecurringAmount(
+                                                    typeof transaction.amount ===
+                                                      "string"
+                                                      ? transaction.amount
+                                                      : String(transaction.amount ?? ""),
+                                                  );
                                                   setMarkAsPaidDialogOpen(true);
                                                   return;
                                                 }
@@ -2302,8 +2335,11 @@ export function FinancialOperationsView({
                                               }
 
                                               try {
+                                                const url = transaction.isRecurringExpense && transaction.recurringInstanceId
+                                                  ? `/api/recurring-cost-instances/${transaction.recurringInstanceId}`
+                                                  : `/api/transactions/${transaction.id}`;
                                                 const response = await fetch(
-                                                  `/api/transactions/${transaction.id}`,
+                                                  url,
                                                   {
                                                     method: "DELETE",
                                                   },
@@ -2340,6 +2376,7 @@ export function FinancialOperationsView({
 
                                             return (
                                               <div className="flex items-center gap-2">
+                                                {!transaction.isRecurringExpense && (
                                                 <Button
                                                   variant="ghost"
                                                   size="sm"
@@ -2351,6 +2388,7 @@ export function FinancialOperationsView({
                                                     edit
                                                   </span>
                                                 </Button>
+                                                )}
                                                 <Button
                                                   variant="ghost"
                                                   size="sm"
@@ -2730,6 +2768,7 @@ export function FinancialOperationsView({
                   setCostToMarkAsPaid(null);
                   setMarkAsPaidType("");
                   setMarkAsPaidInvoiceUrl("");
+                  setMarkAsPaidRecurringAmount("");
                   if (markAsPaidFileInputRef.current)
                     markAsPaidFileInputRef.current.value = "";
                   if (markAsPaidCameraInputRef.current)
@@ -2769,6 +2808,32 @@ export function FinancialOperationsView({
                       </SelectContent>
                     </Select>
                   </div>
+                  {costToMarkAsPaid?.isRecurringExpense &&
+                    costToMarkAsPaid.recurringTemplateType === "RECURRING" && (
+                      <div className="space-y-2">
+                        <Label
+                          htmlFor="mark-paid-recurring-amount"
+                          className="text-sm font-medium"
+                        >
+                          Amount (this payment){" "}
+                          <span className="text-destructive">*</span>
+                        </Label>
+                        <Input
+                          id="mark-paid-recurring-amount"
+                          type="text"
+                          inputMode="decimal"
+                          placeholder="Enter amount for this due item"
+                          value={markAsPaidRecurringAmount}
+                          onChange={(e) =>
+                            setMarkAsPaidRecurringAmount(e.target.value)
+                          }
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Variable recurring expenses require an amount each
+                          time.
+                        </p>
+                      </div>
+                    )}
                   <div className="space-y-2">
                     <Label className="text-sm font-medium">
                       Invoice document
@@ -2934,6 +2999,7 @@ export function FinancialOperationsView({
                       setCostToMarkAsPaid(null);
                       setMarkAsPaidType("");
                       setMarkAsPaidInvoiceUrl("");
+                      setMarkAsPaidRecurringAmount("");
                     }}
                   >
                     Cancel
@@ -2944,6 +3010,21 @@ export function FinancialOperationsView({
                       if (!markAsPaidType) {
                         alert("Please select a payment type");
                         return;
+                      }
+                      if (
+                        costToMarkAsPaid.isRecurringExpense &&
+                        costToMarkAsPaid.recurringTemplateType === "RECURRING"
+                      ) {
+                        const n = parseFloat(
+                          String(markAsPaidRecurringAmount || "").replace(
+                            /,/g,
+                            "",
+                          ),
+                        );
+                        if (isNaN(n) || n <= 0) {
+                          alert("Please enter a valid amount for this payment");
+                          return;
+                        }
                       }
                       try {
                         const amount =
@@ -2981,6 +3062,43 @@ export function FinancialOperationsView({
                             costToMarkAsPaid.costItemId ||
                             costToMarkAsPaid.id.replace("cost-item-", "");
                         }
+                        if (costToMarkAsPaid.isRecurringExpense && costToMarkAsPaid.recurringInstanceId) {
+                          const amountOverride =
+                            costToMarkAsPaid.recurringTemplateType ===
+                            "RECURRING"
+                              ? parseFloat(
+                                  String(
+                                    markAsPaidRecurringAmount || "",
+                                  ).replace(/,/g, ""),
+                                )
+                              : undefined;
+                          const res = await fetch(
+                            `/api/recurring-cost-instances/${costToMarkAsPaid.recurringInstanceId}`,
+                            {
+                              method: "PATCH",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({
+                                paidAt: new Date().toISOString(),
+                                invoiceUrl: markAsPaidInvoiceUrl || null,
+                                ...(amountOverride !== undefined
+                                  ? { amountOverride }
+                                  : {}),
+                              }),
+                            },
+                          );
+                          if (res.ok) {
+                            fetchTransactions();
+                            setMarkAsPaidDialogOpen(false);
+                            setCostToMarkAsPaid(null);
+                            setMarkAsPaidType("");
+                            setMarkAsPaidInvoiceUrl("");
+                            setMarkAsPaidRecurringAmount("");
+                          } else {
+                            const err = await res.json().catch(() => ({}));
+                            alert(err.error || "Failed to mark as paid");
+                          }
+                          return;
+                        }
                         const res = await fetch("/api/transactions", {
                           method: "POST",
                           headers: { "Content-Type": "application/json" },
@@ -2992,6 +3110,7 @@ export function FinancialOperationsView({
                           setCostToMarkAsPaid(null);
                           setMarkAsPaidType("");
                           setMarkAsPaidInvoiceUrl("");
+                          setMarkAsPaidRecurringAmount("");
                         } else {
                           const err = await res.json().catch(() => ({}));
                           alert(err.error || "Failed to record payment");
@@ -3867,6 +3986,7 @@ export function FinancialOperationsView({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
     </div>
   );
 }

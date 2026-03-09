@@ -33,7 +33,8 @@ export async function GET(request: NextRequest) {
 
     const where: any = {}
     if (direction) {
-      where.direction = direction
+      // Payments tab shows both INCOMING and DEPOSIT (customer money in)
+      where.direction = direction === "INCOMING" ? { in: ["INCOMING", "DEPOSIT"] } : direction
     }
     if (type) {
       where.type = type
@@ -282,6 +283,70 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // Fetch recurring cost instances (from Recurring Expenses) for Expenses tab.
+    // Only show instances that are due within the next 7 days (or already overdue) and not paid.
+    let recurringInstancesAsTransactions: any[] = []
+    if (!direction || direction === "OUTGOING") {
+      const now = new Date()
+      const sevenDaysFromNow = new Date(now)
+      sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7)
+      const lte = endDate ? new Date(endDate) : sevenDaysFromNow
+      const effectiveLte = lte < sevenDaysFromNow ? lte : sevenDaysFromNow
+
+      const recurringWhere: { dueDate?: { gte?: Date; lte?: Date }; template?: { vendorId?: string } } = {}
+      recurringWhere.dueDate = { lte: effectiveLte }
+      if (startDate) recurringWhere.dueDate.gte = new Date(startDate)
+      if (vendorId) {
+        recurringWhere.template = { vendorId }
+      }
+      const recurringInstances = await prisma.recurringCostInstance.findMany({
+        where: { ...recurringWhere, paidAt: null },
+        include: {
+          template: {
+            include: { vendor: true },
+          },
+        },
+        orderBy: { dueDate: "desc" },
+        take: 500,
+      })
+      for (const inst of recurringInstances) {
+        const t = inst.template
+        const amount = inst.amountOverride != null ? Number(inst.amountOverride) : Number(t.amount)
+        const dueStr = inst.dueDate instanceof Date ? inst.dueDate.toISOString() : new Date(inst.dueDate).toISOString()
+        recurringInstancesAsTransactions.push({
+          id: `recurring-instance-${inst.id}`,
+          direction: "OUTGOING" as TransactionDirection,
+          type: "BANK_TRANSFER" as TransactionType,
+          amount,
+          currency: t.currency || "JPY",
+          date: dueStr,
+          description: t.name,
+          vendorId: t.vendorId,
+          customerId: null,
+          vehicleId: null,
+          invoiceId: null,
+          invoiceNumber: null,
+          invoiceUrl: inst.invoiceUrl || null,
+          documentId: null,
+          referenceNumber: null,
+          notes: inst.notes || t.notes,
+          createdById: null,
+          createdAt: inst.createdAt instanceof Date ? inst.createdAt.toISOString() : new Date(inst.createdAt).toISOString(),
+          updatedAt: inst.updatedAt instanceof Date ? inst.updatedAt.toISOString() : new Date(inst.updatedAt).toISOString(),
+          vendor: t.vendor,
+          customer: null,
+          vehicle: null,
+          isRecurringExpense: true,
+          recurringInstanceId: inst.id,
+          templateId: t.id,
+          recurringTemplateType: t.type,
+          recurringFrequency: t.frequency,
+          paymentDeadline: dueStr,
+          paymentDate: inst.paidAt ? (inst.paidAt instanceof Date ? inst.paidAt.toISOString() : new Date(inst.paidAt).toISOString()) : null,
+        })
+      }
+    }
+
     // Fetch approved/finalized invoices for incoming payments
     let invoicesAsTransactions: any[] = []
     if (!direction || direction === "INCOMING") {
@@ -402,7 +467,7 @@ export async function GET(request: NextRequest) {
       paymentDate: t.paymentDate ? (t.paymentDate instanceof Date ? t.paymentDate.toISOString() : (typeof t.paymentDate === 'string' ? t.paymentDate : new Date(t.paymentDate).toISOString())) : null,
     }))
 
-    // Combine by direction so INCOMING tab only shows payments received + invoices, OUTGOING only shows costs
+    // Combine by direction: INCOMING = payments + invoices, OUTGOING = costs, DEPOSIT = deposit transactions only
     const allTransactions = (
       direction === "INCOMING"
         ? [...normalizedTransactions, ...invoicesAsTransactions]
@@ -412,14 +477,18 @@ export async function GET(request: NextRequest) {
               ...generalCostsAsTransactions,
               ...vehicleStageCostsAsTransactions,
               ...costItemsAsTransactions,
+              ...recurringInstancesAsTransactions,
             ]
-          : [
-              ...normalizedTransactions,
-              ...generalCostsAsTransactions,
-              ...vehicleStageCostsAsTransactions,
-              ...costItemsAsTransactions,
-              ...invoicesAsTransactions,
-            ]
+          : direction === "DEPOSIT"
+            ? normalizedTransactions
+            : [
+                ...normalizedTransactions,
+                ...generalCostsAsTransactions,
+                ...vehicleStageCostsAsTransactions,
+                ...costItemsAsTransactions,
+                ...recurringInstancesAsTransactions,
+                ...invoicesAsTransactions,
+              ]
     ).sort((a, b) => {
       const dateA = new Date(a.date).getTime()
       const dateB = new Date(b.date).getTime()
@@ -460,7 +529,7 @@ export async function GET(request: NextRequest) {
     });
 
     const convertedTransactions = convertDecimalsToNumbers(transactionsWithParsedPaymentDate)
-    console.log(`[Transactions API] Returning ${convertedTransactions.length} transactions (${transactions.length} regular, ${generalCosts.length} general costs, ${vehicleStageCosts.length} vehicle costs, ${costItemsAsTransactions.length} invoice cost items)`)
+    console.log(`[Transactions API] Returning ${convertedTransactions.length} transactions (${transactions.length} regular, ${generalCosts.length} general costs, ${vehicleStageCosts.length} vehicle costs, ${costItemsAsTransactions.length} invoice cost items, ${recurringInstancesAsTransactions.length} recurring instances)`)
     return NextResponse.json(convertedTransactions)
   } catch (error: any) {
     console.error("[Transactions API] Error fetching transactions:", error)
@@ -516,6 +585,13 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    if (direction === "DEPOSIT" && !customerId) {
+      return NextResponse.json(
+        { error: "Customer is required for deposit transactions" },
+        { status: 400 }
+      )
+    }
+
     // Use date or paymentDeadline as fallback (date can be optional)
     const transactionDate = date
       ? new Date(date)
@@ -525,6 +601,20 @@ export async function POST(request: NextRequest) {
 
     // Create transaction and sync with invoice/vehicle
     const transaction = await prisma.$transaction(async (tx) => {
+      let depositNumber: string | null = null
+      if (direction === "DEPOSIT") {
+        const existing = await tx.transaction.findMany({
+          where: { direction: "DEPOSIT", depositNumber: { not: null } },
+          select: { depositNumber: true },
+        })
+        const numbers = existing
+          .map((t) => t.depositNumber && t.depositNumber.match(/^DEP-(\d+)$/))
+          .filter((m): m is RegExpMatchArray => !!m && !!m[1])
+          .map((m) => parseInt(m[1], 10))
+        const next = numbers.length > 0 ? Math.max(...numbers) + 1 : 8001
+        depositNumber = `DEP-${next}`
+      }
+
       const newTransaction = await tx.transaction.create({
         data: {
           direction,
@@ -544,6 +634,7 @@ export async function POST(request: NextRequest) {
           invoiceUrl: invoiceUrl || null,
           referenceNumber: referenceNumber || null,
           notes: notes || null,
+          depositNumber,
           createdById: session.user.id,
         },
         include: {

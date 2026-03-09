@@ -18,7 +18,7 @@
     "lint": "next lint",
     "db:generate": "npm run generate -w @inquiry-pooler/db",
     "db:push": "node scripts/run-db-push.js",
-    "db:migrate": "npm run db:migrate -w @inquiry-pooler/db",
+    "db:migrate": "node scripts/run-db-migrate.js",
     "db:studio": "npm run db:studio -w @inquiry-pooler/db",
     "db:studio:remote": "PRISMA_STUDIO_HOST=0.0.0.0 npm run db:studio -w @inquiry-pooler/db",
     "seed": "tsx scripts/seed-inquiries.ts",

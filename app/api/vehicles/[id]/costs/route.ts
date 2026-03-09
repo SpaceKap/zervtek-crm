@@ -30,7 +30,13 @@ export async function GET(request: NextRequest, props: { params: Promise<{ id: s
       orderBy: { createdAt: "desc" },
     })
 
-    // Also fetch CostItems from invoices linked to this vehicle
+    const vehicleCostItems = await prisma.vehicleCostItem.findMany({
+      where: { vehicleId: params.id },
+      include: { vendor: true },
+      orderBy: { createdAt: "desc" },
+    })
+
+    // Also fetch CostItems from invoices linked to this vehicle (legacy; vehicle cost breakdown is now VehicleCostItem)
     const invoicesWithCosts = await prisma.invoice.findMany({
       where: { vehicleId: params.id },
       include: {
@@ -102,7 +108,22 @@ export async function GET(request: NextRequest, props: { params: Promise<{ id: s
       source: "vehicle" as const,
     }))
 
-    const combined = [...invoiceCostItems, ...stageCostsFormatted].sort(
+    const vehicleCostItemsFormatted = vehicleCostItems.map((c) => ({
+      id: `vehicle-cost-${c.id}`,
+      costType: c.category || c.description,
+      amount: c.amount,
+      currency: "JPY",
+      vendorId: c.vendorId,
+      vendor: c.vendor,
+      paymentDeadline: toDateStr(c.paymentDeadline),
+      paymentDate: toDateStr(c.paymentDate),
+      stage: null,
+      createdAt: toDateStr(c.createdAt),
+      source: "vehicle_cost_item" as const,
+      vehicleCostItemId: c.id,
+    }))
+
+    const combined = [...invoiceCostItems, ...vehicleCostItemsFormatted, ...stageCostsFormatted].sort(
       (a, b) => {
         const ta = a.createdAt ? new Date(a.createdAt).getTime() : 0
         const tb = b.createdAt ? new Date(b.createdAt).getTime() : 0

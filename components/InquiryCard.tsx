@@ -63,6 +63,8 @@ interface InquiryCardProps {
   hideStatusBadge?: boolean;
   dragHandleProps?: any;
   isInFunnel?: boolean; // Indicates if card is in the kanban board (funnel)
+  isMergeTarget?: boolean;
+  mergeHoldProgress?: number;
 }
 
 const COUNTRIES = getCountriesSorted();
@@ -143,6 +145,8 @@ export function InquiryCard({
   hideStatusBadge = false,
   dragHandleProps,
   isInFunnel = false,
+  isMergeTarget = false,
+  mergeHoldProgress = 0,
 }: InquiryCardProps) {
   const canDelete = currentUserEmail === "avi@zervtek.com";
   const metadata = (inquiry.metadata as any) || {};
@@ -194,12 +198,9 @@ export function InquiryCard({
   // Determine if card should be clickable (assigned or admin)
   const isClickable = inquiry.assignedToId !== null || isAdmin;
 
-  // Determine if contact info should be visible
-  // Only show if:
-  // 1. Assigned to current user (they assigned it to themselves)
-  // 2. AND it's in the funnel (kanban board)
+  // Contact details (email, phone) are visible when the card is in the sales pipeline so staff can contact leads
   const isAssignedToCurrentUser = inquiry.assignedToId === currentUserId;
-  const showContactInfo = isInFunnel && isAssignedToCurrentUser;
+  const showContactInfo = isInFunnel;
   const canEditCountry = isInFunnel && (isAssignedToCurrentUser || isManager || isAdmin);
 
   // Country edit modal state
@@ -268,22 +269,51 @@ export function InquiryCard({
   };
 
   return (
-    <Card
-      onClick={handleCardClick}
-      onMouseDown={(e) => {
-        // Allow drag to work, but also allow clicks
-        if (dragHandleProps && !(e.target as HTMLElement).closest("button")) {
-          // Let drag handle handle it
-        }
-      }}
-      className={`bg-white dark:bg-[#1E1E1E] border border-gray-200 dark:border-[#2C2C2C] transition-all group h-full flex flex-col ${
-        isClickable
-          ? "hover:border-gray-300 dark:hover:border-[#49454F] hover:shadow-md dark:hover:shadow-lg dark:hover:shadow-black/20 cursor-pointer"
-          : dragHandleProps
-            ? "cursor-grab"
-            : "opacity-75"
-      }`}
-    >
+    <div className="relative rounded-lg">
+      {/* Merge target: progress ring and highlight */}
+      {isMergeTarget && (
+        <>
+          <div
+            className="absolute inset-0 rounded-lg pointer-events-none border-2 border-primary dark:border-[#D4AF37] animate-pulse"
+            style={{ padding: 2 }}
+            aria-hidden
+          />
+          <div
+            className="absolute bottom-0 left-0 right-0 h-1 rounded-b-lg bg-primary/20 dark:bg-[#D4AF37]/20 overflow-hidden pointer-events-none"
+            aria-hidden
+          >
+            <div
+              className="h-full bg-primary dark:bg-[#D4AF37] transition-all duration-75 ease-linear"
+              style={{ width: `${Math.min(100, mergeHoldProgress * 100)}%` }}
+            />
+          </div>
+          <div className="absolute -bottom-5 left-0 right-0 text-center pointer-events-none">
+            <span className="inline-block px-2 py-0.5 rounded text-xs font-medium bg-primary text-primary-foreground shadow">
+              Release to merge
+            </span>
+          </div>
+        </>
+      )}
+      <Card
+        onClick={handleCardClick}
+        onMouseDown={(e) => {
+          // Allow drag to work, but also allow clicks
+          if (dragHandleProps && !(e.target as HTMLElement).closest("button")) {
+            // Let drag handle handle it
+          }
+        }}
+        className={`bg-white dark:bg-[#1E1E1E] border border-gray-200 dark:border-[#2C2C2C] transition-all group h-full flex flex-col ${
+          isMergeTarget
+            ? "ring-2 ring-primary dark:ring-[#D4AF37] ring-offset-2 dark:ring-offset-[#1E1E1E]"
+            : ""
+        } ${
+          isClickable
+            ? "hover:border-gray-300 dark:hover:border-[#49454F] hover:shadow-md dark:hover:shadow-lg dark:hover:shadow-black/20 cursor-pointer"
+            : dragHandleProps
+              ? "cursor-grab"
+              : "opacity-75"
+        }`}
+      >
       <CardContent className="p-3 flex flex-col flex-1 min-h-0">
         {/* Header Section */}
         <div className="flex flex-col space-y-3 flex-shrink-0">
@@ -406,7 +436,7 @@ export function InquiryCard({
               </div>
             )}
 
-            {/* Contact Info - Only show if assigned or admin */}
+            {/* Contact Info - visible in sales pipeline so staff can contact leads */}
             {showContactInfo && (inquiry.email || inquiry.phone) && (
               <div className="space-y-1.5 text-xs text-gray-600 dark:text-[#A1A1A1] pt-2 mt-2 border-t border-gray-100 dark:border-[#2C2C2C]">
                 {inquiry.email && (
@@ -621,7 +651,6 @@ export function InquiryCard({
                   </span>
                 </div>
               )}
-              {/* Only show contact info if assigned to current user and in funnel */}
               {showContactInfo && inquiry.email && (
                 <div className="flex items-center gap-2">
                   <span className="material-symbols-outlined text-base text-gray-500 dark:text-gray-400">
@@ -668,5 +697,6 @@ export function InquiryCard({
         </DialogContent>
       </Dialog>
     </Card>
+    </div>
   );
 }

@@ -70,6 +70,22 @@ enum PaymentStatus {
   @@schema("inquiry_pooler")
 }
 
+enum RecurringCostFrequency {
+  MONTHLY
+  QUARTERLY
+  SEMI_YEARLY
+  YEARLY
+
+  @@schema("inquiry_pooler")
+}
+
+enum RecurringCostType {
+  RECURRING
+  FIXED
+
+  @@schema("inquiry_pooler")
+}
+
 enum ChargeCategory {
   EXPORT_FEES
   SHIPPING
@@ -118,6 +134,7 @@ enum TransactionType {
 enum TransactionDirection {
   INCOMING
   OUTGOING
+  DEPOSIT
 
   @@schema("inquiry_pooler")
 }
@@ -159,6 +176,7 @@ enum VendorCategory {
   FORWARDER
   SHIPPING_AGENT
   YARD
+  OFFICE_EXPENSES
 
   @@schema("inquiry_pooler")
 }
@@ -364,6 +382,7 @@ model Vehicle {
   documents                VehicleDocument[]
   stageHistory             VehicleStageHistory[]
   stageCosts               VehicleStageCost[]
+  vehicleCostItems         VehicleCostItem[]
   transactions             Transaction[]
   customerLinks            CustomerVehicleLink[]
   stageChecklist           VehicleStageChecklist[]
@@ -433,19 +452,22 @@ model Invoice {
 }
 
 model InvoiceCharge {
-  id           String   @id @default(cuid())
-  invoiceId    String
-  chargeTypeId String?
-  description  String
-  amount       Decimal  @db.Decimal(12, 2)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id                         String   @id @default(cuid())
+  invoiceId                  String
+  chargeTypeId               String?
+  description                String
+  amount                     Decimal  @db.Decimal(12, 2)
+  appliedDepositTransactionId String?  // When charge type is DEPOSIT, links to the Transaction (deposit) being applied
+  createdAt                  DateTime @default(now())
+  updatedAt                  DateTime @updatedAt
 
   invoice    Invoice     @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
   chargeType ChargeType? @relation(fields: [chargeTypeId], references: [id], onDelete: SetNull)
+  appliedDepositTransaction Transaction? @relation("AppliedDeposit", fields: [appliedDepositTransactionId], references: [id], onDelete: SetNull)
 
   @@index([invoiceId])
   @@index([chargeTypeId])
+  @@index([appliedDepositTransactionId])
   @@index([invoiceId, createdAt])
   @@schema("inquiry_pooler")
 }
@@ -515,8 +537,10 @@ model Vendor {
 
   costItems              CostItem[]
   vehicleStageCosts      VehicleStageCost[]
+  vehicleCostItems       VehicleCostItem[]
   transactions           Transaction[]
   generalCosts           GeneralCost[]
+  recurringCostTemplates RecurringCostTemplate[]
   yards                  Yard[]                 @relation("YardVendor")
   purchaseVehicles       VehicleShippingStage[] @relation("PurchaseVendor")
   transportVehicles      VehicleShippingStage[] @relation("TransportVendor")
@@ -756,6 +780,28 @@ model VehicleStageCost {
   @@schema("inquiry_pooler")
 }
 
+model VehicleCostItem {
+  id              String    @id @default(cuid())
+  vehicleId       String
+  description     String
+  amount          Decimal   @db.Decimal(12, 2)
+  vendorId        String
+  paymentDate     DateTime?
+  paymentDeadline DateTime
+  category        String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  vehicle Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  vendor  Vendor  @relation(fields: [vendorId], references: [id], onDelete: Restrict)
+
+  @@index([vehicleId])
+  @@index([vendorId])
+  @@index([paymentDeadline])
+  @@index([paymentDate])
+  @@schema("inquiry_pooler")
+}
+
 model VehicleDocument {
   id                  String           @id @default(cuid())
   vehicleId           String
@@ -821,6 +867,8 @@ model Transaction {
   documentId          String?
   referenceNumber     String?
   notes               String?              @db.Text
+  depositNumber       String?              // DEP-8001, DEP-8002... for direction=DEPOSIT
+  appliedDepositNumber String?             // For OUTGOING "Applied from wallet": which deposit (e.g. DEP-8001)
   createdById         String?
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
@@ -833,6 +881,7 @@ model Transaction {
   vehicleStageCost VehicleStageCost? @relation(fields: [vehicleStageCostId], references: [id], onDelete: SetNull)
   costItem         CostItem?        @relation(fields: [costItemId], references: [id], onDelete: SetNull)
   generalCost      GeneralCost?     @relation(fields: [generalCostId], references: [id], onDelete: SetNull)
+  appliedAsDepositCharge InvoiceCharge[] @relation("AppliedDeposit")
 
   @@index([direction])
   @@index([type])
@@ -884,6 +933,45 @@ model GeneralCost {
 
   @@index([date])
   @@index([vendorId])
+  @@schema("inquiry_pooler")
+}
+
+model RecurringCostTemplate {
+  id                    String                @id @default(cuid())
+  name                  String
+  amount                Decimal               @db.Decimal(12, 2)
+  currency              String                @default("JPY")
+  frequency             RecurringCostFrequency
+  type                  RecurringCostType     @default(RECURRING)
+  firstPaymentDeadline  DateTime?
+  vendorId              String?
+  notes                 String?               @db.Text
+  createdAt             DateTime             @default(now())
+  updatedAt             DateTime             @updatedAt
+
+  vendor    Vendor?                 @relation(fields: [vendorId], references: [id], onDelete: SetNull)
+  instances RecurringCostInstance[]
+
+  @@index([vendorId])
+  @@schema("inquiry_pooler")
+}
+
+model RecurringCostInstance {
+  id            String    @id @default(cuid())
+  templateId    String
+  dueDate       DateTime
+  amountOverride Decimal? @db.Decimal(12, 2)
+  paidAt        DateTime?
+  invoiceUrl    String?
+  notes         String?   @db.Text
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  template RecurringCostTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@index([templateId])
+  @@index([dueDate])
+  @@index([paidAt])
   @@schema("inquiry_pooler")
 }
 

@@ -249,6 +249,8 @@ export function CustomersList() {
         <CustomerForm
           customer={editingCustomer || undefined}
           onClose={handleFormClose}
+          currentUserId={session?.user?.id}
+          currentUserRole={session?.user?.role}
         />
       )}
 
@@ -268,7 +270,10 @@ export function CustomersList() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="none">None</SelectItem>
-                {staff.map((u) => (
+                {(session?.user?.role === "SALES" && session?.user?.id
+                  ? staff.filter((u) => u.id === session.user.id)
+                  : staff
+                ).map((u) => (
                   <SelectItem key={u.id} value={u.id}>
                     {staffDisplayName(u.name, u.email)}
                   </SelectItem>

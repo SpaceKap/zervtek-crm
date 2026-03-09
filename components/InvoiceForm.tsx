@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { useForm, useFieldArray, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -53,6 +54,7 @@ const invoiceSchema = z
         ]),
         description: z.string().optional(),
         amount: z.string().min(1, "Amount is required"),
+        appliedDepositTransactionId: z.string().optional(),
       }),
     ),
   })
@@ -120,6 +122,7 @@ interface InvoiceFormProps {
 export function InvoiceForm({ invoice }: InvoiceFormProps = {}) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { data: session } = useSession();
   const inquiryId = searchParams.get("inquiryId");
   const vehicleIdParam = searchParams.get("vehicleId");
   const customerIdParam = searchParams.get("customerId");
@@ -147,6 +150,9 @@ export function InvoiceForm({ invoice }: InvoiceFormProps = {}) {
   const [currency, setCurrency] = useState<"USD" | "JPY">("JPY");
   // Recycle Fee - manual entry
   const [recycleFee, setRecycleFee] = useState<string>("");
+  const [customerDeposits, setCustomerDeposits] = useState<
+    Array<{ id: string; amount: number; date: string; description: string | null; type: string; depositNumber: string | null }>
+  >([]);
 
   // Helper function to get currency symbol
   const getCurrencySymbol = () => {
@@ -223,36 +229,93 @@ export function InvoiceForm({ invoice }: InvoiceFormProps = {}) {
     }
   }, [inquiryId, customers.length]);
 
-  // Handle vehicleId and customerId from URL params
+  // Handle vehicleId and customerId from URL params (e.g. "Create invoice" from vehicle/customer page)
   useEffect(() => {
-    if (vehicleIdParam && vehicles.length > 0) {
-      const vehicle = vehicles.find((v) => v.id === vehicleIdParam);
-      if (vehicle) {
-        setValue("vehicleId", vehicleIdParam, { shouldValidate: true });
-        // Auto-add vehicle charge if vehicle is selected
-        const currentCharges = watch("charges");
-        const hasVehicleCharge = currentCharges.some(
-          (c: any) => c.chargeType === "VEHICLE",
-        );
-        if (!hasVehicleCharge) {
-          append({
-            chargeType: "VEHICLE",
-            description: "",
-            amount: vehicle.price ? vehicle.price.toLocaleString("en-US") : "",
-          });
-        }
+    if (!vehicleIdParam) return;
+    const vehicle = vehicles.find((v) => v.id === vehicleIdParam);
+    if (vehicle) {
+      setValue("vehicleId", vehicleIdParam, { shouldValidate: true });
+      const currentCharges = watch("charges");
+      const hasVehicleCharge = currentCharges.some(
+        (c: any) => c.chargeType === "VEHICLE",
+      );
+      if (!hasVehicleCharge) {
+        append({
+          chargeType: "VEHICLE",
+          description: "",
+          amount: vehicle.price ? vehicle.price.toLocaleString("en-US") : "",
+        });
       }
+      return;
+    }
+    // Vehicle not in list (e.g. filtered or just created): fetch it so the Select can show it
+    if (vehicles.length > 0) {
+      fetch(`/api/vehicles/${vehicleIdParam}`, { cache: "no-store" })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((v) => {
+          if (!v) return;
+          const withPrice = {
+            ...v,
+            price: v.price ? parseFloat(v.price.toString()) : null,
+          };
+          setVehicles((prev) =>
+            prev.some((x) => x.id === v.id) ? prev : [...prev, withPrice],
+          );
+          setValue("vehicleId", vehicleIdParam, { shouldValidate: true });
+          const currentCharges = watch("charges");
+          const hasVehicleCharge = currentCharges.some(
+            (c: any) => c.chargeType === "VEHICLE",
+          );
+          if (!hasVehicleCharge) {
+            append({
+              chargeType: "VEHICLE",
+              description: "",
+              amount: withPrice.price
+                ? withPrice.price.toLocaleString("en-US")
+                : "",
+            });
+          }
+        })
+        .catch(() => {});
     }
   }, [vehicleIdParam, vehicles.length, setValue, watch, append]);
 
   useEffect(() => {
-    if (customerIdParam && customers.length > 0) {
-      const customer = customers.find((c) => c.id === customerIdParam);
-      if (customer) {
-        setValue("customerId", customerIdParam, { shouldValidate: true });
-      }
+    if (!customerIdParam) return;
+    const customer = customers.find((c) => c.id === customerIdParam);
+    if (customer) {
+      setValue("customerId", customerIdParam, { shouldValidate: true });
+      return;
+    }
+    // Customer not in list: fetch so the Select can show it
+    if (customers.length > 0) {
+      fetch(`/api/customers/${customerIdParam}`, { cache: "no-store" })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((c) => {
+          if (!c) return;
+          setCustomers((prev) =>
+            prev.some((x) => x.id === c.id) ? prev : [...prev, c],
+          );
+          setValue("customerId", customerIdParam, { shouldValidate: true });
+        })
+        .catch(() => {});
     }
   }, [customerIdParam, customers.length, setValue]);
+
+  const customerIdForDeposits = watch("customerId");
+  useEffect(() => {
+    if (!customerIdForDeposits) {
+      setCustomerDeposits([]);
+      return;
+    }
+    fetch(`/api/customers/${customerIdForDeposits}/deposits`, {
+        credentials: "include",
+        cache: "no-store",
+      })
+      .then((r) => (r.ok ? r.json() : []))
+      .then(setCustomerDeposits)
+      .catch(() => setCustomerDeposits([]));
+  }, [customerIdForDeposits]);
 
   // Load invoice data for editing - ensure customers are loaded first
   useEffect(() => {
@@ -306,6 +369,7 @@ export function InvoiceForm({ invoice }: InvoiceFormProps = {}) {
             amount: charge.amount
               ? parseFloat(charge.amount.toString()).toLocaleString("en-US")
               : "",
+            appliedDepositTransactionId: charge.appliedDepositTransactionId || undefined,
           };
         });
         setValue("charges", formattedCharges);
@@ -391,19 +455,21 @@ export function InvoiceForm({ invoice }: InvoiceFormProps = {}) {
     fetchVehicles("");
   }, []);
 
-  const fetchCustomers = async () => {
+  const fetchCustomers = async (): Promise<Customer[]> => {
     try {
       const response = await fetch("/api/customers");
       if (response.ok) {
         const data = await response.json();
         setCustomers(data);
+        return data;
       }
     } catch (error) {
       console.error("Error fetching customers:", error);
     }
+    return [];
   };
 
-  const fetchVehicles = async (search: string) => {
+  const fetchVehicles = async (search: string): Promise<Vehicle[]> => {
     try {
       const response = await fetch(
         `/api/vehicles?search=${encodeURIComponent(search)}`,
@@ -416,10 +482,12 @@ export function InvoiceForm({ invoice }: InvoiceFormProps = {}) {
           price: v.price ? parseFloat(v.price.toString()) : null,
         }));
         setVehicles(vehiclesWithPrice);
+        return vehiclesWithPrice;
       }
     } catch (error) {
       console.error("Error fetching vehicles:", error);
     }
+    return [];
   };
 
   // Helper function to calculate volume in m³ from dimensions in cm
@@ -484,8 +552,9 @@ export function InvoiceForm({ invoice }: InvoiceFormProps = {}) {
           chargeType: charge.chargeType,
           description: charge.description,
           amount: parseFloat(charge.amount.replace(/,/g, "") || "0"),
+          appliedDepositTransactionId: (charge as any).appliedDepositTransactionId || undefined,
         }))
-        .filter((charge) => charge.amount > 0);
+        .filter((charge) => Math.abs(charge.amount) > 0);
 
       if (chargesToSubmit.length === 0) {
         alert("At least one charge with a valid amount is required");
@@ -579,9 +648,10 @@ export function InvoiceForm({ invoice }: InvoiceFormProps = {}) {
         vehicle.make && vehicle.model
           ? `${vehicle.year || ""} ${vehicle.make} ${vehicle.model} - ${vehicle.vin}`.trim()
           : vehicle.vin;
-      const formattedPrice = vehicle.price
-        ? vehicle.price.toLocaleString("en-US")
-        : "";
+      // When vehicle already has an invoice, vehicle charge amount must be 0
+      const formattedPrice = vehicleAlreadyHasInvoice
+        ? "0"
+        : (vehicle.price ? vehicle.price.toLocaleString("en-US") : "");
 
       append({
         chargeType: "VEHICLE",
@@ -595,11 +665,53 @@ export function InvoiceForm({ invoice }: InvoiceFormProps = {}) {
   const selectedVehicleId = watch("vehicleId");
   const charges = watch("charges");
 
+  // When creating a new invoice, if the selected vehicle already has an invoice, vehicle charge amount must be 0
+  const [vehicleAlreadyHasInvoice, setVehicleAlreadyHasInvoice] = useState(false);
+
   // Fetch company info for "From" section
   const [companyInfo, setCompanyInfo] = useState<any>(null);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(
     null,
   );
+
+  useEffect(() => {
+    if (!selectedVehicleId) {
+      setVehicleAlreadyHasInvoice(false);
+      return;
+    }
+    let cancelled = false;
+    fetch(`/api/vehicles/${selectedVehicleId}/payments`, { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : { invoiceCountAll: 0 }))
+      .then((data) => {
+        if (!cancelled) {
+          const count = data.invoiceCountAll ?? data.invoices?.length ?? 0;
+          if (invoice?.id) {
+            setVehicleAlreadyHasInvoice(count > 1);
+          } else {
+            setVehicleAlreadyHasInvoice(count >= 1);
+          }
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setVehicleAlreadyHasInvoice(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedVehicleId, invoice?.id]);
+
+  // When vehicle already has an invoice, force vehicle charge amount to 0
+  useEffect(() => {
+    if (!vehicleAlreadyHasInvoice) return;
+    const currentCharges = watch("charges");
+    const idx = currentCharges.findIndex((c: any) => c.chargeType === "VEHICLE");
+    if (idx === -1) return;
+    const amountStr = currentCharges[idx].amount;
+    const num = parseFloat(typeof amountStr === "string" ? amountStr.replace(/,/g, "") : "0") || 0;
+    if (num !== 0) {
+      setValue(`charges.${idx}.amount`, "0");
+    }
+  }, [vehicleAlreadyHasInvoice, setValue]); // eslint-disable-line react-hooks/exhaustive-deps -- only sync when vehicleAlreadyHasInvoice turns true
 
   useEffect(() => {
     fetch("/api/company")
@@ -617,14 +729,22 @@ export function InvoiceForm({ invoice }: InvoiceFormProps = {}) {
     }
   }, [selectedCustomerId, customers]);
 
-  // Calculate totals - separate regular charges, discounts, and deposits
+  // Calculate totals - separate regular charges, discounts, and deposits.
+  // Normalize chargeType (string or object like { name: "Deposit" }) so deposits/discounts are always subtracted.
   const { subtotal: chargesSubtotal, discountTotal, depositTotal } = charges.reduce(
     (acc, charge) => {
       const amount = parseFloat(charge.amount?.replace(/,/g, "") || "0");
-      if (charge.chargeType === "DISCOUNT") {
-        acc.discountTotal += amount;
-      } else if (charge.chargeType === "DEPOSIT") {
-        acc.depositTotal += amount;
+      const typeName = (
+        typeof charge.chargeType === "string"
+          ? charge.chargeType
+          : (charge.chargeType as { name?: string } | null)?.name ?? ""
+      )
+        .toString()
+        .toLowerCase();
+      if (typeName === "discount") {
+        acc.discountTotal += Math.abs(amount);
+      } else if (typeName === "deposit") {
+        acc.depositTotal += Math.abs(amount);
       } else {
         acc.subtotal += amount;
       }
@@ -1285,6 +1405,88 @@ export function InvoiceForm({ invoice }: InvoiceFormProps = {}) {
                                     </span>
                                   </Button>
                                 </div>
+                              ) : watch(`charges.${index}.chargeType`) === "DEPOSIT" ? (
+                                <div className="flex flex-col gap-2 flex-1">
+                                  <Input
+                                    placeholder="Enter description"
+                                    {...register(
+                                      `charges.${index}.description`,
+                                    )}
+                                    className="h-9 border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm bg-white dark:bg-gray-800"
+                                  />
+                                  {customerIdForDeposits && (
+                                    <>
+                                    <Select
+                                      value={
+                                        watch(
+                                          `charges.${index}.appliedDepositTransactionId`,
+                                        ) || ""
+                                      }
+                                      onValueChange={(value) => {
+                                        const deposit = customerDeposits.find(
+                                          (d) => d.id === value,
+                                        );
+                                        if (deposit) {
+                                          setValue(
+                                            `charges.${index}.appliedDepositTransactionId`,
+                                            value,
+                                          );
+                                          setValue(
+                                            `charges.${index}.amount`,
+                                            (-deposit.amount).toLocaleString("en-US"),
+                                          );
+                                        }
+                                      }}
+                                    >
+                                      <SelectTrigger className="h-9 border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm bg-white dark:bg-gray-800">
+                                        <SelectValue placeholder="Select deposit to apply (optional)" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        {(() => {
+                                          const charges = watch("charges") || [];
+                                          const alreadyUsedInOtherRows = new Set(
+                                            charges
+                                              .map((c: any, j: number) => (j !== index ? c?.appliedDepositTransactionId : null))
+                                              .filter((id: string | null | undefined): id is string => !!id)
+                                          );
+                                          const availableDeposits = customerDeposits.filter(
+                                            (d) => !alreadyUsedInOtherRows.has(d.id)
+                                          );
+                                          if (availableDeposits.length === 0) {
+                                            return (
+                                              <SelectItem value="_none" disabled>
+                                                {customerDeposits.length === 0
+                                                  ? "No deposit available"
+                                                  : "No deposit available (others already used)"}
+                                              </SelectItem>
+                                            );
+                                          }
+                                          return availableDeposits.map((d) => (
+                                            <SelectItem key={d.id} value={d.id}>
+                                              {d.depositNumber ? `${d.depositNumber} · ` : ""}
+                                              ¥{d.amount.toLocaleString()}
+                                              {d.date ? ` · ${new Date(d.date).toLocaleDateString()}` : ""}
+                                              {d.description ? ` · ${d.description}` : ""}
+                                            </SelectItem>
+                                          ));
+                                        })()}
+                                      </SelectContent>
+                                    </Select>
+                                    {watch(`charges.${index}.appliedDepositTransactionId`)
+                                      ? (() => {
+                                          const appliedId = watch(`charges.${index}.appliedDepositTransactionId`);
+                                          const dep = customerDeposits.find((d) => d.id === appliedId);
+                                          return dep ? (
+                                            <p className="text-xs text-muted-foreground mt-1.5">
+                                              Applied: {dep.depositNumber ?? "Deposit"}, ¥{dep.amount.toLocaleString()}
+                                              {dep.date ? `, ${new Date(dep.date).toLocaleDateString()}` : ""}
+                                            </p>
+                                          ) : null;
+                                        })()
+                                      : null}
+                                    </>
+                                  )}
+                                </div>
                               ) : watch(`charges.${index}.chargeType`) ===
                                 "SHIPPING" ? (
                                 <div className="flex-1 space-y-2">
@@ -1661,31 +1863,45 @@ export function InvoiceForm({ invoice }: InvoiceFormProps = {}) {
                               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-medium text-gray-600 dark:text-gray-400">
                                 {getCurrencySymbol()}
                               </span>
-                              <Input
-                                type="text"
-                                placeholder="0"
-                                {...register(`charges.${index}.amount`)}
-                                className="w-full h-9 border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 pl-8 text-sm text-right bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400"
-                                onChange={(e) => {
-                                  const value = e.target.value.replace(
-                                    /[^\d]/g,
-                                    "",
-                                  );
-                                  if (value === "") {
-                                    setValue(`charges.${index}.amount`, "");
-                                  } else {
-                                    const formatted = parseInt(
-                                      value,
-                                      10,
-                                    ).toLocaleString("en-US");
-                                    setValue(
-                                      `charges.${index}.amount`,
-                                      formatted,
+                              {watch(`charges.${index}.chargeType`) === "VEHICLE" && vehicleAlreadyHasInvoice ? (
+                                <Input
+                                  type="text"
+                                  value="0"
+                                  disabled
+                                  className="w-full h-9 border border-gray-200 dark:border-gray-700 rounded-md px-3 py-2 pl-8 text-sm text-right bg-muted/50 text-muted-foreground cursor-not-allowed"
+                                />
+                              ) : (
+                                <Input
+                                  type="text"
+                                  placeholder="0"
+                                  {...register(`charges.${index}.amount`)}
+                                  className="w-full h-9 border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 pl-8 text-sm text-right bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400"
+                                  onChange={(e) => {
+                                    const value = e.target.value.replace(
+                                      /[^\d]/g,
+                                      "",
                                     );
-                                  }
-                                }}
-                              />
+                                    if (value === "") {
+                                      setValue(`charges.${index}.amount`, "");
+                                    } else {
+                                      const formatted = parseInt(
+                                        value,
+                                        10,
+                                      ).toLocaleString("en-US");
+                                      setValue(
+                                        `charges.${index}.amount`,
+                                        formatted,
+                                      );
+                                    }
+                                  }}
+                                />
+                              )}
                             </div>
+                            {watch(`charges.${index}.chargeType`) === "VEHICLE" && vehicleAlreadyHasInvoice && (
+                              <p className="text-xs text-muted-foreground mt-1 px-1">
+                                Vehicle already has an invoice; add only shipping or other charges.
+                              </p>
+                            )}
                             {errors.charges?.[index]?.amount && (
                               <p className="text-xs text-red-500 mt-1.5 px-1">
                                 {errors.charges[index]?.amount?.message}
@@ -1891,16 +2107,26 @@ export function InvoiceForm({ invoice }: InvoiceFormProps = {}) {
           onClose={() => {
             setShowCustomerForm(false);
           }}
+          currentUserId={session?.user?.id}
+          currentUserRole={session?.user?.role}
           onCustomerCreated={async (createdCustomer) => {
-            // Refresh customers list first
-            await fetchCustomers();
-            // Then select the newly created customer
+            // Add the new customer to the list immediately so the Select has the option
+            // (setState from fetchCustomers is async, so without this the dropdown can show blank)
+            const toAdd: Customer = {
+              ...createdCustomer,
+              email: (createdCustomer as any).email ?? null,
+              phone: (createdCustomer as any).phone ?? null,
+            };
+            setCustomers((prev) =>
+              prev.some((c) => c.id === toAdd.id) ? prev : [...prev, toAdd],
+            );
             setValue("customerId", createdCustomer.id, {
               shouldValidate: true,
             });
             setShowCustomerForm(false);
+            // Refresh list in background to stay in sync
+            fetchCustomers();
             // Automatically submit the form after customer is created
-            // Use setTimeout to ensure form state is updated
             setTimeout(() => {
               handleSubmit(onSubmit)();
             }, 100);
@@ -1915,10 +2141,11 @@ export function InvoiceForm({ invoice }: InvoiceFormProps = {}) {
             fetchVehicles(""); // Refresh all vehicles
           }}
           onVehicleCreated={async (vehicle) => {
-            // Refresh vehicles list first to ensure new vehicle is available
-            await fetchVehicles("");
-
-            // Set the vehicle ID after refresh
+            // Add the new vehicle to the list immediately so the Select has the option
+            // (API may filter/paginate so the new vehicle might not be in the refetch)
+            setVehicles((prev) =>
+              prev.some((v) => v.id === vehicle.id) ? prev : [...prev, vehicle],
+            );
             setValue("vehicleId", vehicle.id, { shouldValidate: true });
 
             // Check if there's already a VEHICLE charge type that needs updating
@@ -1947,6 +2174,12 @@ export function InvoiceForm({ invoice }: InvoiceFormProps = {}) {
             }
 
             setShowVehicleForm(false);
+            // Refresh vehicles list in background; merge created vehicle back in case API didn't return it (e.g. role filter, take: 100)
+            fetchVehicles("").then(() => {
+              setVehicles((prev) =>
+                prev.some((v) => v.id === vehicle.id) ? prev : [vehicle, ...prev],
+              );
+            });
           }}
         />
       )}

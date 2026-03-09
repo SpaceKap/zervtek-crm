@@ -2,6 +2,7 @@
 
 import { memo } from "react";
 import { SortableInquiryCard } from "./SortableInquiryCard";
+import { MergeModeCard } from "./MergeModeCard";
 import { InquiryStatus, InquirySource } from "@prisma/client";
 import { useDroppable } from "@dnd-kit/core";
 
@@ -41,6 +42,10 @@ interface KanbanColumnProps {
   currentUserEmail?: string;
   isManager?: boolean;
   isAdmin?: boolean;
+  mergeTargetId?: string | null;
+  mergeHoldProgress?: number;
+  mergeMode?: boolean;
+  onEnterMergeMode?: () => void;
 }
 
 export const KanbanColumn = memo(function KanbanColumn({
@@ -60,6 +65,10 @@ export const KanbanColumn = memo(function KanbanColumn({
   currentUserEmail,
   isManager = false,
   isAdmin = false,
+  mergeTargetId = null,
+  mergeHoldProgress = 0,
+  mergeMode = false,
+  onEnterMergeMode,
 }: KanbanColumnProps) {
   const { setNodeRef, isOver } = useDroppable({
     id: id,
@@ -125,22 +134,42 @@ export const KanbanColumn = memo(function KanbanColumn({
         ref={setNodeRef}
         className="flex-1 p-2 space-y-2 overflow-y-auto overflow-x-hidden min-h-[180px] transition-colors duration-200 scrollbar-modern-vertical"
       >
-        {inquiries.map((inquiry) => (
-          <SortableInquiryCard
-            key={inquiry.id}
-            inquiry={inquiry}
-            onView={onView}
-            onRelease={onRelease}
-            onNotes={onNotes}
-            onAssignTo={onAssignTo}
-            onDelete={onDelete}
-            onCountryUpdated={onCountryUpdated}
-            currentUserId={currentUserId}
-            currentUserEmail={currentUserEmail}
-            isManager={isManager}
-            isAdmin={isAdmin}
-          />
-        ))}
+        {inquiries.map((inquiry) =>
+          mergeMode ? (
+            <MergeModeCard
+              key={inquiry.id}
+              inquiry={inquiry}
+              onView={onView}
+              onRelease={onRelease}
+              onNotes={onNotes}
+              onAssignTo={onAssignTo}
+              onDelete={onDelete}
+              onCountryUpdated={onCountryUpdated}
+              currentUserId={currentUserId}
+              currentUserEmail={currentUserEmail}
+              isManager={isManager}
+              isAdmin={isAdmin}
+            />
+          ) : (
+            <SortableInquiryCard
+              key={inquiry.id}
+              inquiry={inquiry}
+              onView={onView}
+              onRelease={onRelease}
+              onNotes={onNotes}
+              onAssignTo={onAssignTo}
+              onDelete={onDelete}
+              onCountryUpdated={onCountryUpdated}
+              currentUserId={currentUserId}
+              currentUserEmail={currentUserEmail}
+              isManager={isManager}
+              isAdmin={isAdmin}
+              isMergeTarget={mergeTargetId === inquiry.id}
+              mergeHoldProgress={mergeHoldProgress}
+              onEnterMergeMode={onEnterMergeMode}
+            />
+          )
+        )}
         {inquiries.length === 0 && (
           <button
             onClick={(e) => {

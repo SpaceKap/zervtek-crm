@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useSession } from "next-auth/react"
 import { Input } from "@/components/ui/input"
 import {
   Dialog,
@@ -25,6 +26,7 @@ interface CustomerSelectorProps {
 }
 
 export function CustomerSelector({ value, onChange }: CustomerSelectorProps) {
+  const { data: session } = useSession()
   const [customers, setCustomers] = useState<Customer[]>([])
   const [search, setSearch] = useState("")
   const [showDialog, setShowDialog] = useState(false)
@@ -144,7 +146,12 @@ export function CustomerSelector({ value, onChange }: CustomerSelectorProps) {
       )}
 
       {showDialog && (
-        <CustomerForm customer={null} onClose={handleFormClose} />
+        <CustomerForm
+          customer={null}
+          onClose={handleFormClose}
+          currentUserId={session?.user?.id}
+          currentUserRole={session?.user?.role}
+        />
       )}
     </div>
   )

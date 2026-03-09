@@ -145,7 +145,7 @@ export async function PortalDashboard({
       orderBy: { issueDate: "desc" as const },
     }),
     prisma.transaction.findMany({
-      where: { customerId, direction: "INCOMING" as const },
+      where: { customerId, direction: { in: ["INCOMING", "DEPOSIT"] as const } },
       select: {
         id: true,
         date: true,

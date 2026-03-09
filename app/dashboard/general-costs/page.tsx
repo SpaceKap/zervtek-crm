@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -9,19 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DatePicker } from "@/components/ui/date-picker";
-
-interface GeneralCost {
-  id: string;
-  description: string;
-  amount: string;
-  currency: string;
-  date: string;
-  vendor: { id: string; name: string; email: string | null } | null;
-  invoiceUrl: string | null;
-  notes: string | null;
-  createdAt: string;
-  updatedAt: string;
-}
+import { VendorForm } from "@/components/VendorForm";
 
 interface Vendor {
   id: string;
@@ -29,55 +17,66 @@ interface Vendor {
   email: string | null;
 }
 
+interface RecurringCostInstance {
+  id: string;
+  templateId: string;
+  dueDate: string | null;
+  amountOverride?: number | null;
+  paidAt: string | null;
+  invoiceUrl: string | null;
+  notes: string | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+}
+
+interface RecurringCostTemplate {
+  id: string;
+  name: string;
+  amount: number;
+  currency?: string | null;
+  frequency: string;
+  type: string;
+  firstPaymentDeadline?: string | null;
+  vendorId: string;
+  vendor?: { id: string; name: string; email: string | null } | null;
+  notes?: string | null;
+  instances: RecurringCostInstance[];
+}
+
+/** Parse amount string (allows "1,000,000" or "1000000") to number */
+function parseAmountInput(val: string): number {
+  return parseFloat(String(val || "").replace(/,/g, "")) || 0;
+}
+
+/** Format number for display in amount input (e.g. 1000000 → "1,000,000") */
+function formatAmountForDisplay(val: string | number): string {
+  const num = typeof val === "number" ? val : parseFloat(String(val).replace(/,/g, ""));
+  if (isNaN(num)) return "";
+  return num.toLocaleString("en-US", { maximumFractionDigits: 2, minimumFractionDigits: 0 });
+}
+
 export default function GeneralCostsPage() {
-  const [costs, setCosts] = useState<GeneralCost[]>([]);
   const [vendors, setVendors] = useState<Vendor[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingCost, setEditingCost] = useState<GeneralCost | null>(null);
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
-  
-  const [formData, setFormData] = useState({
-    description: "",
+  const [recurringDialogOpen, setRecurringDialogOpen] = useState(false);
+  const [recurringForm, setRecurringForm] = useState({
+    name: "",
     amount: "",
     currency: "JPY",
-    date: new Date().toISOString().split("T")[0],
-    vendorId: "__none__",
-    invoiceUrl: "",
+    frequency: "MONTHLY",
+    type: "FIXED",
+    firstPaymentDeadline: new Date().toISOString().split("T")[0],
+    vendorId: "",
     notes: "",
   });
-  const [uploading, setUploading] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const cameraInputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    fetchCosts();
-    fetchVendors();
-  }, [startDate, endDate]);
-
-  const fetchCosts = async () => {
-    try {
-      setLoading(true);
-      const params = new URLSearchParams();
-      if (startDate) params.append("startDate", startDate);
-      if (endDate) params.append("endDate", endDate);
-
-      const response = await fetch(`/api/general-costs?${params}`);
-      if (response.ok) {
-        const data = await response.json();
-        setCosts(data);
-      }
-    } catch (error) {
-      console.error("Error fetching general costs:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const [recurringSaving, setRecurringSaving] = useState(false);
+  const [recurringError, setRecurringError] = useState<string | null>(null);
+  const [showVendorForm, setShowVendorForm] = useState(false);
+  const [templates, setTemplates] = useState<RecurringCostTemplate[]>([]);
+  const [templatesLoading, setTemplatesLoading] = useState(false);
 
   const fetchVendors = async () => {
     try {
-      const response = await fetch("/api/vendors");
+      const response = await fetch("/api/vendors?category=OFFICE_EXPENSES");
       if (response.ok) {
         const data = await response.json();
         setVendors(data);
@@ -87,96 +86,83 @@ export default function GeneralCostsPage() {
     }
   };
 
-  const handleOpenDialog = (cost?: GeneralCost) => {
-    if (cost) {
-      setEditingCost(cost);
-      setFormData({
-        description: cost.description,
-        amount: cost.amount,
-        currency: cost.currency,
-        date: cost.date.split("T")[0],
-        vendorId: cost.vendor?.id || "__none__",
-        invoiceUrl: cost.invoiceUrl || "",
-        notes: cost.notes || "",
-      });
-    } else {
-      setEditingCost(null);
-      setFormData({
-        description: "",
-        amount: "",
-        currency: "JPY",
-        date: new Date().toISOString().split("T")[0],
-        vendorId: "__none__",
-        invoiceUrl: "",
-        notes: "",
-      });
-    }
-    setDialogOpen(true);
-  };
-
-  const handleCloseDialog = () => {
-    setDialogOpen(false);
-    setEditingCost(null);
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const fetchTemplates = async () => {
     try {
-      const url = editingCost
-        ? `/api/general-costs/${editingCost.id}`
-        : "/api/general-costs";
-      const method = editingCost ? "PATCH" : "POST";
+      setTemplatesLoading(true);
+      const response = await fetch("/api/recurring-cost-templates", {
+        cache: "no-store",
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setTemplates(Array.isArray(data) ? data : []);
+      }
+    } catch (error) {
+      console.error("Error fetching recurring templates:", error);
+    } finally {
+      setTemplatesLoading(false);
+    }
+  };
 
-      const response = await fetch(url, {
-        method,
+  useEffect(() => {
+    fetchVendors();
+    fetchTemplates();
+  }, []);
+
+  const handleAddRecurring = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setRecurringError(null);
+    const amountNum = parseAmountInput(recurringForm.amount);
+    if (!recurringForm.name.trim() || isNaN(amountNum) || amountNum < 0) {
+      setRecurringError("Description and a valid amount are required.");
+      return;
+    }
+    if (!recurringForm.vendorId) {
+      setRecurringError("Vendor is required.");
+      return;
+    }
+    if (!recurringForm.firstPaymentDeadline) {
+      setRecurringError("First payment deadline is required.");
+      return;
+    }
+    try {
+      setRecurringSaving(true);
+      const res = await fetch("/api/recurring-cost-templates", {
+        method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          description: formData.description,
-          amount: parseFloat(formData.amount),
-          currency: formData.currency,
-          date: formData.date,
-          vendorId: formData.vendorId === "__none__" ? null : formData.vendorId || null,
-          invoiceUrl: formData.invoiceUrl || null,
-          notes: formData.notes || null,
+          name: recurringForm.name.trim(),
+          amount: amountNum,
+          currency: recurringForm.currency,
+          frequency: recurringForm.frequency,
+          type: recurringForm.type,
+          firstPaymentDeadline: recurringForm.firstPaymentDeadline,
+          vendorId: recurringForm.vendorId,
+          notes: recurringForm.notes.trim() || null,
+          generateInstances: true,
         }),
       });
-
-      if (response.ok) {
-        fetchCosts();
-        handleCloseDialog();
-      } else {
-        const error = await response.json();
-        alert(error.error || "Failed to save general cost");
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Failed to add recurring expense");
       }
-    } catch (error) {
-      console.error("Error saving general cost:", error);
-      alert("Failed to save general cost");
-    }
-  };
-
-  const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this cost?")) return;
-
-    try {
-      const response = await fetch(`/api/general-costs/${id}`, {
-        method: "DELETE",
+      await fetchTemplates();
+      setRecurringDialogOpen(false);
+      setRecurringForm({
+        name: "",
+        amount: "",
+        currency: "JPY",
+        frequency: "MONTHLY",
+        type: "FIXED",
+        firstPaymentDeadline: new Date().toISOString().split("T")[0],
+        vendorId: "",
+        notes: "",
       });
-
-      if (response.ok) {
-        fetchCosts();
-      } else {
-        alert("Failed to delete cost");
-      }
-    } catch (error) {
-      console.error("Error deleting cost:", error);
-      alert("Failed to delete cost");
+    } catch (err) {
+      setRecurringError(err instanceof Error ? err.message : "Failed to save");
+    } finally {
+      setRecurringSaving(false);
     }
   };
-
-  const totalAmount = costs.reduce(
-    (sum, c) => sum + parseFloat(c.amount),
-    0,
-  );
 
   return (
     <div className="space-y-6">
@@ -187,121 +173,74 @@ export default function GeneralCostsPage() {
           </span>
           <div>
             <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-              General Costs
+              Recurring expenses
             </h1>
             <p className="text-muted-foreground">
-              Track non-vehicle related costs (electricity, rent, fuel, etc.)
+              Manage recurring expenses. They show up in Financial Operations → Transactions → Expenses when due.
             </p>
           </div>
         </div>
-        <Button onClick={() => handleOpenDialog()}>
-          <span className="material-symbols-outlined mr-2">add</span>
-          Add General Cost
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={() => setRecurringDialogOpen(true)}>
+            <span className="material-symbols-outlined mr-2">add</span>
+            Add a recurring expense
+          </Button>
+        </div>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Filters</CardTitle>
+          <CardTitle>Recurring expense templates</CardTitle>
+          <CardDescription>
+            These generate due items that appear in Financial Operations → Transactions → Expenses.
+          </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex gap-4 flex-wrap">
-            <div>
-              <Label>Start Date</Label>
-              <DatePicker
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                placeholder="Start Date"
-              />
-            </div>
-            <div>
-              <Label>End Date</Label>
-              <DatePicker
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                placeholder="End Date"
-              />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle>General Costs</CardTitle>
-              <CardDescription>
-                All non-vehicle related expenses
-              </CardDescription>
-            </div>
-            <div className="text-right">
-              <div className="text-sm text-muted-foreground">Total</div>
-              <div className="text-2xl font-bold">
-                {totalAmount.toLocaleString()} JPY
-              </div>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="text-center py-8 text-muted-foreground">
-              Loading...
-            </div>
-          ) : costs.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              No general costs found
+          {templatesLoading ? (
+            <div className="text-sm text-muted-foreground py-6">Loading…</div>
+          ) : templates.length === 0 ? (
+            <div className="text-sm text-muted-foreground py-6">
+              No recurring expenses yet.
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full">
+              <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b">
-                    <th className="text-left py-3 px-4 font-semibold">Date</th>
-                    <th className="text-left py-3 px-4 font-semibold">Description</th>
-                    <th className="text-left py-3 px-4 font-semibold">Amount</th>
-                    <th className="text-left py-3 px-4 font-semibold">Vendor</th>
-                    <th className="text-left py-3 px-4 font-semibold">Notes</th>
-                    <th className="text-left py-3 px-4 font-semibold">Actions</th>
+                    <th className="text-left py-3 px-3 font-semibold">Description</th>
+                    <th className="text-left py-3 px-3 font-semibold">Vendor</th>
+                    <th className="text-left py-3 px-3 font-semibold">Frequency</th>
+                    <th className="text-left py-3 px-3 font-semibold">Amount</th>
+                    <th className="text-left py-3 px-3 font-semibold">Next due</th>
+                    <th className="text-left py-3 px-3 font-semibold">Status</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {costs.map((cost) => (
-                    <tr key={cost.id} className="border-b hover:bg-muted/50">
-                      <td className="py-3 px-4">
-                        {new Date(cost.date).toLocaleDateString()}
-                      </td>
-                      <td className="py-3 px-4 font-medium">{cost.description}</td>
-                      <td className="py-3 px-4">
-                        {parseFloat(cost.amount).toLocaleString()} {cost.currency}
-                      </td>
-                      <td className="py-3 px-4">
-                        {cost.vendor?.name || "N/A"}
-                      </td>
-                      <td className="py-3 px-4 text-sm text-muted-foreground">
-                        {cost.notes || "-"}
-                      </td>
-                      <td className="py-3 px-4">
-                        <div className="flex gap-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleOpenDialog(cost)}
-                          >
-                            Edit
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDelete(cost.id)}
-                            className="text-destructive"
-                          >
-                            Delete
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                  {templates.map((t) => {
+                    const nextUnpaid =
+                      t.instances?.find((i) => !i.paidAt)?.dueDate ?? null;
+                    const hasDue = Boolean(nextUnpaid);
+                    return (
+                      <tr key={t.id} className="border-b hover:bg-muted/50">
+                        <td className="py-3 px-3 font-medium">{t.name}</td>
+                        <td className="py-3 px-3">
+                          {t.vendor?.name || "—"}
+                        </td>
+                        <td className="py-3 px-3">{t.frequency}</td>
+                        <td className="py-3 px-3">
+                          {Number(t.amount).toLocaleString()} {t.currency || "JPY"}
+                        </td>
+                        <td className="py-3 px-3">
+                          {hasDue
+                            ? new Date(nextUnpaid as string).toLocaleDateString()
+                            : "—"}
+                        </td>
+                        <td className="py-3 px-3">
+                          {hasDue ? "Active" : "No upcoming items"}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -309,47 +248,56 @@ export default function GeneralCostsPage() {
         </CardContent>
       </Card>
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>
-              {editingCost ? "Edit General Cost" : "Add General Cost"}
-            </DialogTitle>
-            <DialogDescription>
-              Record a non-vehicle related expense
+      <Dialog open={recurringDialogOpen} onOpenChange={setRecurringDialogOpen}>
+        <DialogContent className="max-w-lg p-0 gap-0">
+          <DialogHeader className="px-6 pt-6 pb-4">
+            <DialogTitle>Add a recurring expense</DialogTitle>
+            <DialogDescription className="mt-1.5">
+              Add a recurring expense. It will appear in Financial Operations → Transactions → Expenses when due.
             </DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
+          <form onSubmit={handleAddRecurring} className="px-6 pb-6 pt-1">
+            {recurringError && (
+              <p className="text-sm text-destructive mb-4">{recurringError}</p>
+            )}
+            <div className="space-y-5">
+            <div className="space-y-2">
               <Label>Description *</Label>
               <Input
-                value={formData.description}
+                value={recurringForm.name}
                 onChange={(e) =>
-                  setFormData({ ...formData, description: e.target.value })
+                  setRecurringForm((f) => ({ ...f, name: e.target.value }))
                 }
-                placeholder="e.g., Electricity, Rent, Fuel"
+                placeholder="e.g. Electricity, Rent"
                 required
               />
             </div>
             <div className="grid grid-cols-2 gap-4">
-              <div>
+              <div className="space-y-2">
                 <Label>Amount *</Label>
                 <Input
-                  type="number"
-                  step="0.01"
-                  value={formData.amount}
+                  type="text"
+                  inputMode="decimal"
+                  placeholder="e.g. 1,000,000"
+                  value={recurringForm.amount}
                   onChange={(e) =>
-                    setFormData({ ...formData, amount: e.target.value })
+                    setRecurringForm((f) => ({ ...f, amount: e.target.value }))
                   }
+                  onBlur={(e) => {
+                    const parsed = parseAmountInput(e.target.value);
+                    if (!isNaN(parsed) && parsed >= 0) {
+                      setRecurringForm((f) => ({ ...f, amount: formatAmountForDisplay(parsed) }));
+                    }
+                  }}
                   required
                 />
               </div>
-              <div>
+              <div className="space-y-2">
                 <Label>Currency</Label>
                 <Select
-                  value={formData.currency}
-                  onValueChange={(value) =>
-                    setFormData({ ...formData, currency: value })
+                  value={recurringForm.currency}
+                  onValueChange={(v) =>
+                    setRecurringForm((f) => ({ ...f, currency: v }))
                   }
                 >
                   <SelectTrigger>
@@ -363,164 +311,131 @@ export default function GeneralCostsPage() {
                 </Select>
               </div>
             </div>
-            <div>
-              <Label>Date *</Label>
+            <div className="space-y-2">
+              <Label>Vendor *</Label>
+              <div className="flex gap-2">
+                <Select
+                  value={recurringForm.vendorId}
+                  onValueChange={(v) =>
+                    setRecurringForm((f) => ({ ...f, vendorId: v }))
+                  }
+                  required
+                >
+                  <SelectTrigger className="flex-1">
+                    <SelectValue placeholder="Select vendor" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {vendors.map((v) => (
+                      <SelectItem key={v.id} value={v.id}>
+                        {v.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setShowVendorForm(true)}
+                  className="shrink-0"
+                >
+                  <span className="material-symbols-outlined mr-1 text-lg">add</span>
+                  Add Vendor
+                </Button>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Frequency *</Label>
+              <Select
+                value={recurringForm.frequency}
+                onValueChange={(v) =>
+                  setRecurringForm((f) => ({ ...f, frequency: v }))
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="MONTHLY">Monthly</SelectItem>
+                  <SelectItem value="QUARTERLY">Quarterly</SelectItem>
+                  <SelectItem value="SEMI_YEARLY">Semi-Yearly</SelectItem>
+                  <SelectItem value="YEARLY">Yearly</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Amount type *</Label>
+              <Select
+                value={recurringForm.type}
+                onValueChange={(v) =>
+                  setRecurringForm((f) => ({ ...f, type: v }))
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="FIXED">Fixed (same amount each time)</SelectItem>
+                  <SelectItem value="RECURRING">Variable (enter amount each time)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>First payment deadline *</Label>
               <DatePicker
-                value={formData.date}
+                value={recurringForm.firstPaymentDeadline}
                 onChange={(e) =>
-                  setFormData({ ...formData, date: e.target.value })
+                  setRecurringForm((f) => ({
+                    ...f,
+                    firstPaymentDeadline: e.target.value,
+                  }))
                 }
                 required
               />
             </div>
-            <div>
-              <Label>Vendor (Optional)</Label>
-              <Select
-                value={formData.vendorId}
-                onValueChange={(value) =>
-                  setFormData({ ...formData, vendorId: value })
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select vendor" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="">None</SelectItem>
-                  {vendors.map((vendor) => (
-                    <SelectItem key={vendor.id} value={vendor.id}>
-                      {vendor.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>Vendor Invoice (Optional)</Label>
-              <div className="flex gap-2 mt-1">
-                <Input
-                  ref={fileInputRef}
-                  type="file"
-                  accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
-                  onChange={async (e) => {
-                    const file = e.target.files?.[0];
-                    if (!file) return;
-                    setUploading(true);
-                    try {
-                      const fd = new FormData();
-                      fd.append("file", file);
-                      fd.append("context", "general-cost");
-                      fd.append("expenseDate", formData.date);
-                      const res = await fetch("/api/upload", {
-                        method: "POST",
-                        body: fd,
-                      });
-                      if (res.ok) {
-                        const d = await res.json();
-                        setFormData((prev) => ({ ...prev, invoiceUrl: d.url }));
-                      }
-                    } finally {
-                      setUploading(false);
-                    }
-                  }}
-                  className="flex-1 cursor-pointer"
-                  disabled={uploading}
-                />
-                <input
-                  ref={cameraInputRef}
-                  type="file"
-                  accept="image/*"
-                  capture="environment"
-                  onChange={async (e) => {
-                    const file = e.target.files?.[0];
-                    if (!file) return;
-                    setUploading(true);
-                    try {
-                      const fd = new FormData();
-                      fd.append("file", file);
-                      fd.append("context", "general-cost");
-                      fd.append("expenseDate", formData.date);
-                      const res = await fetch("/api/upload", {
-                        method: "POST",
-                        body: fd,
-                      });
-                      if (res.ok) {
-                        const d = await res.json();
-                        setFormData((prev) => ({ ...prev, invoiceUrl: d.url }));
-                      }
-                    } finally {
-                      setUploading(false);
-                    }
-                  }}
-                  className="hidden"
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon"
-                  onClick={() => cameraInputRef.current?.click()}
-                  disabled={uploading}
-                  className="shrink-0"
-                  aria-label="Scan invoice with camera"
-                >
-                  <span className="material-symbols-outlined text-lg">
-                    document_scanner
-                  </span>
-                </Button>
-              </div>
-              {formData.invoiceUrl && (
-                <div className="flex items-center gap-2 p-2 bg-muted rounded-md mt-2">
-                  <span className="material-symbols-outlined text-sm">
-                    description
-                  </span>
-                  <a
-                    href={formData.invoiceUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-sm text-primary hover:underline flex-1"
-                  >
-                    View invoice
-                  </a>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      setFormData((prev) => ({ ...prev, invoiceUrl: "" }));
-                      if (fileInputRef.current) fileInputRef.current.value = "";
-                      if (cameraInputRef.current)
-                        cameraInputRef.current.value = "";
-                    }}
-                    className="h-6 px-2"
-                  >
-                    Remove
-                  </Button>
-                </div>
-              )}
-              {uploading && (
-                <p className="text-xs text-muted-foreground mt-1">
-                  Uploading...
-                </p>
-              )}
-            </div>
-            <div>
-              <Label>Notes (Optional)</Label>
+            <div className="space-y-2">
+              <Label>Notes (optional)</Label>
               <Textarea
-                value={formData.notes}
+                value={recurringForm.notes}
                 onChange={(e) =>
-                  setFormData({ ...formData, notes: e.target.value })
+                  setRecurringForm((f) => ({ ...f, notes: e.target.value }))
                 }
-                rows={3}
+                rows={2}
               />
             </div>
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={handleCloseDialog}>
+            </div>
+            <DialogFooter className="mt-6 pt-4 border-t border-border">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setRecurringDialogOpen(false)}
+              >
                 Cancel
               </Button>
-              <Button type="submit">Save</Button>
+              <Button type="submit" disabled={recurringSaving}>
+                {recurringSaving ? "Saving..." : "Add recurring expense"}
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
+
+      {showVendorForm && (
+        <VendorForm
+          vendor={null}
+          onClose={async (createdVendorId?: string) => {
+            if (createdVendorId) {
+              await fetchVendors();
+              // Fetch vendors again to get the updated list, then select the new vendor
+              const response = await fetch("/api/vendors", { cache: "no-store" });
+              if (response.ok) {
+                const data = await response.json();
+                setRecurringForm((f) => ({ ...f, vendorId: createdVendorId }));
+              }
+            }
+            setShowVendorForm(false);
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -5,6 +5,8 @@ import { prisma } from "@/lib/prisma"
 import { requireAuth, canCreateInvoice, canViewAllInquiries } from "@/lib/permissions"
 import { InvoiceStatus } from "@prisma/client"
 import { convertDecimalsToNumbers } from "@/lib/decimal"
+import { isChargeSubtracting } from "@/lib/charge-utils"
+import { recalcInvoicePaymentStatus } from "@/lib/invoice-utils"
 
 // Generate invoice number: INV-XXXXX (starting from INV-80001)
 async function generateInvoiceNumber(): Promise<string> {
@@ -259,7 +261,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Validate charge amounts
+    // Validate charge amounts (deposit/discount can be negative; we store absolute value)
     for (const charge of charges) {
       if (!charge.description || charge.description.trim() === "") {
         return NextResponse.json(
@@ -268,7 +270,14 @@ export async function POST(request: NextRequest) {
         )
       }
       const amount = typeof charge.amount === "number" ? charge.amount : parseFloat(charge.amount);
-      if (isNaN(amount) || amount <= 0) {
+      if (isNaN(amount) || amount === 0) {
+        return NextResponse.json(
+          { error: `Invalid amount for charge: ${charge.description}` },
+          { status: 400 }
+        )
+      }
+      const subtracting = isChargeSubtracting(charge as { chargeType?: string | { name?: string } | null });
+      if (!subtracting && amount <= 0) {
         return NextResponse.json(
           { error: `Invalid amount for charge: ${charge.description}` },
           { status: 400 }
@@ -338,11 +347,16 @@ export async function POST(request: NextRequest) {
           metadata: metadata || null,
           wisePaymentLink: defaultWiseLink,
           charges: {
-            create: (charges as any[]).map((charge: any, i: number) => ({
-              chargeTypeId: chargeTypeIds[i] ?? null,
-              description: charge.description,
-              amount: typeof charge.amount === "number" ? charge.amount : parseFloat(charge.amount),
-            })),
+            create: (charges as any[]).map((charge: any, i: number) => {
+              const raw = typeof charge.amount === "number" ? charge.amount : parseFloat(charge.amount);
+              const subtracting = isChargeSubtracting(charge);
+              return {
+                chargeTypeId: chargeTypeIds[i] ?? null,
+                description: charge.description,
+                amount: subtracting ? Math.abs(raw) : raw,
+                appliedDepositTransactionId: charge.appliedDepositTransactionId || null,
+              };
+            }),
           },
         },
         include: {
@@ -351,6 +365,35 @@ export async function POST(request: NextRequest) {
           charges: true,
         },
       });
+
+      // Create OUTGOING "Applied from wallet" transaction for each deposit-applied charge
+      for (let i = 0; i < (charges as any[]).length; i++) {
+        const charge = (charges as any[])[i];
+        if (charge.appliedDepositTransactionId && newInvoice.invoiceNumber) {
+          const raw = typeof charge.amount === "number" ? charge.amount : parseFloat(charge.amount);
+          const storedAmount = Math.abs(raw);
+          const appliedDeposit = await tx.transaction.findUnique({
+            where: { id: charge.appliedDepositTransactionId },
+            select: { depositNumber: true },
+          });
+          const depositLabel = appliedDeposit?.depositNumber ?? "deposit";
+          await tx.transaction.create({
+            data: {
+              direction: "OUTGOING",
+              type: "BANK_TRANSFER",
+              amount: storedAmount,
+              currency: "JPY",
+              date: new Date(),
+              description: `Applied ${depositLabel} from wallet to Invoice ${newInvoice.invoiceNumber}`,
+              invoiceId: newInvoice.id,
+              customerId: newInvoice.customerId,
+              vehicleId: newInvoice.vehicleId,
+              createdById: user.id,
+              appliedDepositNumber: depositLabel,
+            },
+          });
+        }
+      }
 
       // Update vehicle: customerId and set purchaseDate to invoice Issue Date
       if (vehicleId) {
@@ -365,6 +408,8 @@ export async function POST(request: NextRequest) {
 
       return newInvoice;
     });
+
+    await recalcInvoicePaymentStatus(invoice.id);
 
     return NextResponse.json(convertDecimalsToNumbers(invoice), { status: 201 })
   } catch (error: any) {

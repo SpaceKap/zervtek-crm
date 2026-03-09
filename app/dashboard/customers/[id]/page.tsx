@@ -20,6 +20,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { staffDisplayName } from "@/lib/staff-display";
 import { getInvoiceTotalWithTax } from "@/lib/invoice-totals";
 import Link from "next/link";
@@ -396,8 +404,21 @@ export default function CustomerDetailPage() {
   const totalDocuments = customer.documents.length;
 
   const totalPaid = customer.transactions
-    .filter((t) => t.direction === "INCOMING")
+    .filter((t) => t.direction === "INCOMING" || t.direction === "DEPOSIT")
     .reduce((sum, t) => sum + parseFloat(t.amount?.toString() || "0"), 0);
+
+  const walletBalance = (() => {
+    let balance = 0;
+    for (const t of customer.transactions) {
+      const amount = parseFloat(t.amount?.toString() || "0");
+      const desc = (t.description ?? "").toLowerCase();
+      if (t.direction === "DEPOSIT" || (t.direction === "INCOMING" && /deposit/.test(desc)))
+        balance += amount;
+      else if (t.direction === "OUTGOING" && (/applied.*(wallet|to invoice)|from wallet|refund/.test(desc)))
+        balance -= amount;
+    }
+    return balance;
+  })();
 
   const totalOutstanding = customer.invoices
     .filter(
@@ -571,6 +592,12 @@ export default function CustomerDetailPage() {
               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Outstanding</p>
               <p className="text-lg font-semibold text-amber-600 dark:text-amber-400 mt-0.5 tabular-nums">
                 {formatCurrency(totalOutstanding)}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Wallet balance</p>
+              <p className="text-lg font-semibold text-foreground mt-0.5 tabular-nums">
+                {formatCurrency(walletBalance)}
               </p>
             </div>
           </div>
@@ -835,7 +862,7 @@ export default function CustomerDetailPage() {
           )}
         </TabsContent>
 
-        {/* Transactions Tab */}
+        {/* Transactions Tab — payments/costs only; invoices are in the Invoices tab */}
         <TabsContent value="transactions" className="space-y-4 mt-4">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold">Transaction History</h3>
@@ -855,176 +882,118 @@ export default function CustomerDetailPage() {
             </div>
           </div>
 
-          {/* Combined Transaction History */}
-          <div className="space-y-4">
-            {/* Invoices Section */}
-            {customer.invoices.length > 0 && (
-              <div>
-                <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
-                  <span className="material-symbols-outlined text-lg">
-                    receipt
-                  </span>
-                  Invoices ({customer.invoices.length})
-                </h4>
-                <div className="space-y-2">
-                  {customer.invoices.map((invoice) => {
-                    const totalAmount = getInvoiceTotalWithTax(invoice);
-                    return (
-                      <Card key={`invoice-${invoice.id}`}>
-                        <CardContent className="pt-6">
-                          <div className="flex items-start justify-between gap-4 flex-wrap">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-2">
-                                <Badge variant="outline">INVOICE</Badge>
-                                <Badge
-                                  className={`${invoiceStatusColors[invoice.status]} border`}
-                                >
-                                  {invoice.status.replace("_", " ")}
-                                </Badge>
-                                <Badge
-                                  className={`${paymentStatusColors[invoice.paymentStatus]} border`}
-                                >
-                                  {invoice.paymentStatus.replace("_", " ")}
-                                </Badge>
-                              </div>
-                              <div className="font-semibold text-lg mb-1">
-                                Invoice {invoice.invoiceNumber}
-                              </div>
-                              {invoice.vehicle && (
-                                <p className="text-sm text-gray-600 dark:text-[#A1A1A1] mb-2">
-                                  Vehicle: {invoice.vehicle.make}{" "}
-                                  {invoice.vehicle.model} ({invoice.vehicle.vin})
-                                </p>
-                              )}
-                              <div className="flex items-center gap-4 text-xs text-gray-500 dark:text-[#A1A1A1] flex-wrap">
-                                <span>
-                                  Issue Date:{" "}
-                                  {format(new Date(invoice.issueDate), "PPP")}
-                                </span>
-                                {invoice.dueDate && (
-                                  <span>
-                                    Due Date:{" "}
-                                    {format(new Date(invoice.dueDate), "PPP")}
-                                  </span>
-                                )}
-                                <span className="font-semibold">
-                                  Total: {formatCurrency(totalAmount)}
-                                </span>
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <Link href={`/dashboard/invoices/${invoice.id}`}>
-                                <Button variant="outline" size="sm">
-                                  View Invoice
-                                </Button>
-                              </Link>
-                              {invoice.vehicle && (
-                                <Link
-                                  href={`/dashboard/vehicles/${invoice.vehicle.id}`}
-                                >
-                                  <Button variant="outline" size="sm">
-                                    View Vehicle
-                                  </Button>
-                                </Link>
-                              )}
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* Transactions Section */}
-            {customer.transactions.length > 0 && (
-              <div>
-                <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
-                  <span className="material-symbols-outlined text-lg">
-                    account_balance
-                  </span>
-                  Payments & Costs ({customer.transactions.length})
-                </h4>
-                <div className="space-y-2">
-                  {customer.transactions.map((transaction) => (
-                    <Card key={transaction.id}>
-                      <CardContent className="pt-6">
-                        <div className="flex items-start justify-between gap-4 flex-wrap">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-2">
+          {customer.transactions.length > 0 ? (
+            <Card>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Date & time</TableHead>
+                      <TableHead>Type</TableHead>
+                      <TableHead className="text-right">Amount</TableHead>
+                      <TableHead>Description</TableHead>
+                      <TableHead>Vehicle</TableHead>
+                      <TableHead>Invoice</TableHead>
+                      <TableHead>Ref</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {[...customer.transactions]
+                      .sort((a, b) => {
+                        const fallbackA = (a as any).createdAt ? new Date((a as any).createdAt).getTime() : 0;
+                        const fallbackB = (b as any).createdAt ? new Date((b as any).createdAt).getTime() : 0;
+                        const timeA = a.date ? new Date(a.date).getTime() : fallbackA;
+                        const timeB = b.date ? new Date(b.date).getTime() : fallbackB;
+                        const aVal = Number.isNaN(timeA) ? fallbackA : timeA;
+                        const bVal = Number.isNaN(timeB) ? fallbackB : timeB;
+                        if (bVal !== aVal) return bVal - aVal;
+                        return (b.id || "").localeCompare(a.id || "");
+                      })
+                      .map((transaction) => (
+                        <TableRow key={transaction.id}>
+                          <TableCell className="whitespace-nowrap text-muted-foreground">
+                            {format(
+                              new Date(transaction.date),
+                              "dd MMM yyyy, HH:mm",
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-1.5 flex-wrap">
                               <Badge
                                 variant={
-                                  transaction.direction === "INCOMING"
+                                  transaction.direction === "INCOMING" ||
+                                  transaction.direction === "DEPOSIT"
                                     ? "default"
                                     : "secondary"
                                 }
                               >
-                                {transaction.direction}
+                                {transaction.direction === "INCOMING"
+                                  ? "Payment"
+                                  : transaction.direction === "DEPOSIT"
+                                    ? "Deposit"
+                                    : "Expense"}
                               </Badge>
-                              <Badge variant="outline">{transaction.type}</Badge>
-                            </div>
-                            <div className="font-semibold text-lg mb-1">
-                              {formatCurrency(
-                                transaction.amount,
-                                transaction.currency,
-                              )}
-                            </div>
-                            {transaction.description && (
-                              <p className="text-sm text-gray-600 dark:text-[#A1A1A1] mb-2">
-                                {transaction.description}
-                              </p>
-                            )}
-                            <div className="flex items-center gap-4 text-xs text-gray-500 dark:text-[#A1A1A1] flex-wrap">
-                              <span>
-                                {format(new Date(transaction.date), "PPP")}
+                              <span className="text-muted-foreground text-xs">
+                                {transaction.type?.replace("_", " ") ?? "—"}
                               </span>
-                              {transaction.vehicle && (
-                                <Link
-                                  href={`/dashboard/vehicles/${transaction.vehicle.id}`}
-                                  className="hover:text-primary dark:hover:text-[#D4AF37] transition-colors"
-                                >
-                                  Vehicle: {transaction.vehicle.make}{" "}
-                                  {transaction.vehicle.model} (
-                                  {transaction.vehicle.vin})
-                                </Link>
-                              )}
-                              {transaction.invoiceId && (
-                                <Link
-                                  href={`/dashboard/invoices/${transaction.invoiceId}`}
-                                  className="hover:text-primary dark:hover:text-[#D4AF37] transition-colors"
-                                >
-                                  View Invoice
-                                </Link>
-                              )}
-                              {transaction.referenceNumber && (
-                                <span>Ref: {transaction.referenceNumber}</span>
-                              )}
                             </div>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Empty State */}
-            {customer.invoices.length === 0 &&
-              customer.transactions.length === 0 && (
-                <Card>
-                  <CardContent className="py-12 text-center">
-                    <span className="material-symbols-outlined text-4xl text-gray-400 mb-4">
-                      payments
-                    </span>
-                    <p className="text-gray-500 dark:text-[#A1A1A1]">
-                      No transactions or invoices found for this customer.
-                    </p>
-                  </CardContent>
-                </Card>
-              )}
-          </div>
+                          </TableCell>
+                          <TableCell className="text-right font-medium">
+                            {formatCurrency(
+                              transaction.amount,
+                              transaction.currency,
+                            )}
+                          </TableCell>
+                          <TableCell className="max-w-[200px] truncate text-muted-foreground">
+                            {transaction.description || "—"}
+                          </TableCell>
+                          <TableCell>
+                            {transaction.vehicle ? (
+                              <Link
+                                href={`/dashboard/vehicles/${transaction.vehicle.id}`}
+                                className="hover:text-primary dark:hover:text-[#D4AF37] transition-colors text-sm"
+                              >
+                                {transaction.vehicle.make}{" "}
+                                {transaction.vehicle.model} (
+                                {transaction.vehicle.vin})
+                              </Link>
+                            ) : (
+                              "—"
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {transaction.invoiceId ? (
+                              <Link
+                                href={`/dashboard/invoices/${transaction.invoiceId}`}
+                                className="hover:text-primary dark:hover:text-[#D4AF37] transition-colors text-sm"
+                              >
+                                View
+                              </Link>
+                            ) : (
+                              "—"
+                            )}
+                          </TableCell>
+                          <TableCell className="text-muted-foreground text-sm">
+                            {transaction.referenceNumber || "—"}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card>
+              <CardContent className="py-12 text-center">
+                <span className="material-symbols-outlined text-4xl text-gray-400 mb-4">
+                  payments
+                </span>
+                <p className="text-gray-500 dark:text-[#A1A1A1]">
+                  No transactions found for this customer.
+                </p>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
 
         {/* Documents Tab */}
@@ -1321,6 +1290,8 @@ export default function CustomerDetailPage() {
             setEditCustomerOpen(false);
             fetchCustomer();
           }}
+          currentUserId={session?.user?.id}
+          currentUserRole={session?.user?.role}
         />
       )}
     </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -41,6 +42,7 @@ interface Customer {
 }
 
 export function AdminCustomersList() {
+  const { data: session } = useSession();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -318,6 +320,8 @@ export function AdminCustomersList() {
         <CustomerForm
           customer={editingCustomer || undefined}
           onClose={handleFormClose}
+          currentUserId={session?.user?.id}
+          currentUserRole={session?.user?.role}
         />
       )}
     </>

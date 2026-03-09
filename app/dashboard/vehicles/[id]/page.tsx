@@ -31,9 +31,9 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { VehicleStageForms } from "@/components/VehicleStageForms";
 import { VehicleDocumentsManager } from "@/components/VehicleDocumentsManager";
-import { VehiclePaymentTracker } from "@/components/VehiclePaymentTracker";
 import { VehicleStageHistory } from "@/components/VehicleStageHistory";
-import { VehicleExpensesManager } from "@/components/VehicleExpensesManager";
+import { VehicleChargesAndExpenses } from "@/components/VehicleChargesAndExpenses";
+import { VehiclePaymentsTab } from "@/components/VehiclePaymentsTab";
 import { StageNavigation } from "@/components/StageNavigation";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -159,6 +159,26 @@ export default function VehicleDetailPage() {
   const [notesEditing, setNotesEditing] = useState(false);
   const [notesSavedAt, setNotesSavedAt] = useState<number | null>(null);
   const [documentsRefreshTrigger, setDocumentsRefreshTrigger] = useState(0);
+  const [paymentData, setPaymentData] = useState<any>(null);
+  const [paymentLoading, setPaymentLoading] = useState(true);
+
+  const fetchPayments = useCallback(async () => {
+    if (!vehicleId) return;
+    setPaymentLoading(true);
+    try {
+      const r = await fetch(`/api/vehicles/${vehicleId}/payments`, { cache: "no-store" });
+      if (r.ok) {
+        const d = await r.json();
+        setPaymentData(d);
+      } else {
+        setPaymentData(null);
+      }
+    } catch {
+      setPaymentData(null);
+    } finally {
+      setPaymentLoading(false);
+    }
+  }, [vehicleId]);
 
   const fetchVendors = useCallback(async () => {
     try {
@@ -199,6 +219,9 @@ export default function VehicleDetailPage() {
         setViewingStage(
           (prev) => prev || data.currentShippingStage || ShippingStage.PURCHASE,
         );
+        if (data.invoices?.length > 0) {
+          setActiveTab("charges");
+        }
       }
     } catch (error) {
       console.error("Error fetching vehicle:", error);
@@ -212,8 +235,9 @@ export default function VehicleDetailPage() {
       fetchVehicle();
       fetchVendors();
       fetchYards();
+      fetchPayments();
     }
-  }, [vehicleId, fetchVehicle, fetchVendors, fetchYards]);
+  }, [vehicleId, fetchVehicle, fetchVendors, fetchYards, fetchPayments]);
 
   useEffect(() => {
     if (viewingStage && vehicle) {
@@ -502,6 +526,41 @@ export default function VehicleDetailPage() {
               )}
             </div>
           </div>
+          {!paymentLoading && paymentData && (
+            <div className="mt-6 pt-6 border-t border-slate-700/50 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
+              <span className="flex items-center gap-x-1.5">
+                <span className="text-slate-400">Revenue:</span>
+                <span className="text-slate-200 font-semibold tabular-nums">¥{Number(paymentData.totalRevenue || 0).toLocaleString("ja-JP")}</span>
+              </span>
+              <span className="flex items-center gap-x-1.5">
+                <span className="text-slate-400">Cost:</span>
+                <span className="text-slate-200 font-semibold tabular-nums">¥{Number(paymentData.totalCost || 0).toLocaleString("ja-JP")}</span>
+              </span>
+              <span className="flex items-center gap-x-1.5">
+                <span className="text-slate-400">{Number(paymentData.profit ?? 0) >= 0 ? "Profit:" : "Loss:"}</span>
+                <span className={`font-semibold tabular-nums ${Number(paymentData.profit ?? 0) >= 0 ? "text-green-400" : "text-red-400"}`}>
+                  {Number(paymentData.profit ?? 0) >= 0 ? "¥" : "- ¥"}
+                  {Math.abs(Number(paymentData.profit ?? 0)).toLocaleString("ja-JP")}
+                </span>
+              </span>
+              <span className="flex items-center gap-x-1.5">
+                <span className="text-slate-400">Margin:</span>
+                <span className="text-slate-200 tabular-nums">{Number(paymentData.margin || 0).toFixed(1)}%</span>
+              </span>
+              <span className="flex items-center gap-x-1.5">
+                <span className="text-slate-400">ROI:</span>
+                <span className="text-slate-200 tabular-nums">{Number(paymentData.roi || 0).toFixed(1)}%</span>
+              </span>
+              <span className="flex items-center gap-x-1.5">
+                <span className="text-slate-400">Received:</span>
+                <span className="text-slate-200 tabular-nums">¥{Number(paymentData.totalReceived || 0).toLocaleString("ja-JP")}</span>
+              </span>
+              <span className="flex items-center gap-x-1.5">
+                <span className="text-slate-400">Due:</span>
+                <span className="text-slate-200 tabular-nums">¥{Number(paymentData.balanceDue || 0).toLocaleString("ja-JP")}</span>
+              </span>
+            </div>
+          )}
         </div>
       </div>
 
@@ -650,7 +709,7 @@ export default function VehicleDetailPage() {
                 aria-label="Vehicle details"
               >
                 {[
-                  { id: "expenses", label: "Expenses", icon: "receipt_long" },
+                  { id: "charges", label: "Charges & Expenses", icon: "receipt_long" },
                   { id: "payments", label: "Payments", icon: "payments" },
                   { id: "documents", label: "Documents", icon: "folder" },
                   { id: "notes", label: "Notes", icon: "note" },
@@ -791,77 +850,9 @@ export default function VehicleDetailPage() {
                             </li>
                           ))}
                         </ul>
-                        {(() => {
-                          const invoicesWithCosts =
-                            vehicle.invoices?.filter(
-                              (inv) =>
-                                inv.costInvoice &&
-                                (parseFloat(
-                                  inv.costInvoice.totalRevenue?.toString() ||
-                                    "0",
-                                ) > 0 ||
-                                  parseFloat(
-                                    inv.costInvoice.totalCost?.toString() ||
-                                      "0",
-                                  ) > 0),
-                            ) || [];
-                          if (invoicesWithCosts.length === 0) return null;
-                          const totalRevenue = invoicesWithCosts.reduce(
-                            (s, inv) =>
-                              s +
-                              parseFloat(
-                                inv.costInvoice?.totalRevenue?.toString() ||
-                                  "0",
-                              ),
-                            0,
-                          );
-                          const totalCost = invoicesWithCosts.reduce(
-                            (s, inv) =>
-                              s +
-                              parseFloat(
-                                inv.costInvoice?.totalCost?.toString() || "0",
-                              ),
-                            0,
-                          );
-                          const totalProfit = invoicesWithCosts.reduce(
-                            (s, inv) =>
-                              s +
-                              parseFloat(
-                                inv.costInvoice?.profit?.toString() || "0",
-                              ),
-                            0,
-                          );
-                          const fmt = (n: number) =>
-                            new Intl.NumberFormat("ja-JP", {
-                              style: "currency",
-                              currency: "JPY",
-                              maximumFractionDigits: 0,
-                            }).format(n);
-                          return (
-                            <div className="pt-4 border-t space-y-1 text-sm">
-                              <div className="flex justify-between text-muted-foreground">
-                                <span>Revenue</span>
-                                <span>{fmt(totalRevenue)}</span>
-                              </div>
-                              <div className="flex justify-between text-muted-foreground">
-                                <span>Costs</span>
-                                <span>{fmt(totalCost)}</span>
-                              </div>
-                              <div className="flex justify-between font-medium">
-                                <span>Profit</span>
-                                <span
-                                  className={
-                                    totalProfit >= 0
-                                      ? "text-green-600 dark:text-green-400"
-                                      : "text-red-600 dark:text-red-400"
-                                  }
-                                >
-                                  {fmt(totalProfit)}
-                                </span>
-                              </div>
-                            </div>
-                          );
-                        })()}
+                        <p className="text-xs text-muted-foreground mt-3">
+                          Revenue, costs, and profit are in the header above. Details in Charges &amp; Expenses and Payments tabs.
+                        </p>
                       </div>
                     ) : (
                       <div className="flex flex-col items-center justify-center py-6 text-center">
@@ -878,18 +869,25 @@ export default function VehicleDetailPage() {
               </div>
             </TabsContent>
 
-            <TabsContent value="expenses" className="mt-0 data-[state=inactive]:hidden">
+            <TabsContent value="charges" className="mt-0 data-[state=inactive]:hidden">
               <div className="rounded-lg border bg-muted/20 p-4">
-                <VehicleExpensesManager
+                <VehicleChargesAndExpenses
                   vehicleId={vehicleId}
-                  onUpdate={() => fetchVehicle(true)}
+                  paymentData={paymentData}
+                  loading={paymentLoading}
+                  onRefresh={fetchPayments}
                 />
               </div>
             </TabsContent>
 
             <TabsContent value="payments" className="mt-0 data-[state=inactive]:hidden">
               <div className="rounded-lg border bg-muted/20 p-4">
-                <VehiclePaymentTracker vehicleId={vehicleId} />
+                <VehiclePaymentsTab
+                  vehicleId={vehicleId}
+                  paymentData={paymentData}
+                  loading={paymentLoading}
+                  onRefresh={fetchPayments}
+                />
               </div>
             </TabsContent>
 

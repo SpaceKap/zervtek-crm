@@ -5,11 +5,13 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { UserRole } from "@prisma/client";
 import { KanbanBoardFilter } from "@/components/KanbanBoardFilter";
+import { KanbanSearch } from "@/components/KanbanSearch";
+import { PipelineSearchProvider } from "@/components/PipelineSearchContext";
 import { Suspense } from "react";
 
 export default async function KanbanPage(
   props: {
-    searchParams: Promise<{ userId?: string }>;
+    searchParams: Promise<{ userId?: string; q?: string }>;
   }
 ) {
   const searchParams = await props.searchParams;
@@ -48,9 +50,10 @@ export default async function KanbanPage(
   }
 
   return (
-    <div className="h-[calc(100dvh-7rem)] sm:h-[calc(100vh-8rem)] flex flex-col min-h-0">
-      {/* Header */}
-      <div className="mb-4 flex-shrink-0">
+    <PipelineSearchProvider initialQuery={searchParams.q ?? ""}>
+      <div className="h-[calc(100dvh-7rem)] sm:h-[calc(100vh-8rem)] flex flex-col min-h-0">
+        {/* Header */}
+        <div className="mb-4 flex-shrink-0">
         <div className="flex items-center justify-between gap-4 flex-wrap">
           <div className="flex items-center gap-2 sm:gap-3">
             <span className="material-symbols-outlined text-3xl sm:text-4xl text-primary dark:text-[#D4AF37]">
@@ -65,7 +68,10 @@ export default async function KanbanPage(
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-3 flex-shrink-0">
+          <div className="flex items-center gap-3 flex-shrink-0 flex-wrap">
+            <Suspense fallback={<div className="w-[280px] h-10" />}>
+              <KanbanSearch />
+            </Suspense>
             {isManager && (
               <Suspense fallback={<div className="w-48 h-10" />}>
                 <KanbanBoardFilter
@@ -95,19 +101,19 @@ export default async function KanbanPage(
             </button>
           </div>
         </div>
+        </div>
+        {/* Kanban Board - Full Width */}
+        <div className="flex-1 bg-gray-50 dark:bg-[#121212] rounded-lg p-4 overflow-hidden">
+          <KanbanBoard
+            userId={searchParams.userId}
+            isManager={isManager}
+            isAdmin={isAdmin}
+            users={users}
+            currentUserId={session.user.id}
+            currentUserEmail={session.user.email || ""}
+          />
+        </div>
       </div>
-
-      {/* Kanban Board - Full Width */}
-      <div className="flex-1 bg-gray-50 dark:bg-[#121212] rounded-lg p-4 overflow-hidden">
-        <KanbanBoard
-          userId={searchParams.userId}
-          isManager={isManager}
-          isAdmin={isAdmin}
-          users={users}
-          currentUserId={session.user.id}
-          currentUserEmail={session.user.email || ""}
-        />
-      </div>
-    </div>
+    </PipelineSearchProvider>
   );
 }

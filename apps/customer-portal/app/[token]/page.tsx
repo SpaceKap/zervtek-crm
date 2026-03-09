@@ -148,7 +148,7 @@ export default async function PortalPage({
       orderBy: { issueDate: "desc" },
     }),
     prisma.transaction.findMany({
-      where: { customerId: customer.id, direction: "INCOMING" },
+      where: { customerId: customer.id, direction: { in: ["INCOMING", "DEPOSIT"] } },
       select: {
         id: true,
         date: true,

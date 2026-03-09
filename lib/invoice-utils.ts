@@ -30,10 +30,18 @@ export async function recalcInvoicePaymentStatus(invoiceId: string): Promise<voi
   const transactions = await prisma.transaction.findMany({
     where: { invoiceId, direction: "INCOMING" },
   });
-  const totalReceived = transactions.reduce(
+  const fromPayments = transactions.reduce(
     (sum, t) => sum + parseFloat(String(t.amount ?? 0)),
     0
   );
+  const fromDeposits = invoice.charges
+    .filter(
+      (c) =>
+        c.appliedDepositTransactionId &&
+        (c.chargeType?.name?.toLowerCase() === "deposit" || c.chargeType?.name === "DEPOSIT")
+    )
+    .reduce((sum, c) => sum + Math.abs(parseFloat(String(c.amount ?? 0))), 0);
+  const totalReceived = fromPayments + fromDeposits;
 
   let paymentStatus: "PENDING" | "PAID" | "PARTIALLY_PAID" = "PENDING";
   if (isAmountPaidInFull(totalReceived, totalAmount)) paymentStatus = "PAID";

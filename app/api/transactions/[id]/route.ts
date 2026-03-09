@@ -9,6 +9,7 @@ import {
   getInvoiceTotalWithTax,
   isAmountPaidInFull,
   hasPartialPayment,
+  recalcInvoicePaymentStatus,
 } from "@/lib/invoice-utils"
 
 /** Transaction client type (same as callback param of prisma.$transaction). */
@@ -17,12 +18,12 @@ type TxClient = Omit<
   "$connect" | "$disconnect" | "$on" | "$transaction" | "$use" | "$extends"
 >
 
-/** Compute totalCharges, totalReceived, purchasePaid for a vehicle (for VehicleShippingStage sync). */
+/** Compute totalCharges, totalReceived, purchasePaid for a vehicle (for VehicleShippingStage sync). Includes deposit-applied amounts. */
 async function getVehiclePaymentSummary(tx: TxClient, vehicleId: string) {
   const vehicleTransactions = await tx.transaction.findMany({
     where: { vehicleId, direction: "INCOMING" },
   })
-  const totalReceived = vehicleTransactions.reduce(
+  const fromPayments = vehicleTransactions.reduce(
     (sum, t) => sum + parseFloat(t.amount.toString()),
     0,
   )
@@ -32,6 +33,15 @@ async function getVehiclePaymentSummary(tx: TxClient, vehicleId: string) {
       charges: { include: { chargeType: { select: { name: true } } } },
     },
   })
+  const fromDeposits = vehicleInvoices.reduce((sum, inv) => {
+    const depositCharges = (inv.charges || []).filter(
+      (c: any) =>
+        c.appliedDepositTransactionId &&
+        (c.chargeType?.name?.toLowerCase() === "deposit" || c.chargeType?.name === "DEPOSIT")
+    )
+    return sum + depositCharges.reduce((s: number, c: any) => s + Math.abs(parseFloat(String(c.amount ?? 0))), 0)
+  }, 0)
+  const totalReceived = fromPayments + fromDeposits
   const totalCharges = vehicleInvoices.reduce(
     (sum, inv) => sum + getInvoiceTotalWithTax(inv),
     0,
@@ -166,102 +176,32 @@ export async function PATCH(request: NextRequest, props: { params: Promise<{ id:
       const oldVehicleId = currentTransaction?.vehicleId
       const wasIncoming = currentTransaction?.direction === "INCOMING"
 
-      // Recalc OLD invoice if we unlinked or changed direction (transaction no longer counts)
-      if (oldInvoiceId && wasIncoming && (oldInvoiceId !== finalInvoiceId || finalDirection !== "INCOMING")) {
-        const invoice = await tx.invoice.findUnique({
-          where: { id: oldInvoiceId },
-          include: {
-            charges: { include: { chargeType: { select: { name: true } } } },
-          },
-        })
-        if (invoice) {
-          const totalAmount = getInvoiceTotalWithTax(invoice)
-          const invoiceTransactions = await tx.transaction.findMany({
-            where: {
-              invoiceId: oldInvoiceId,
-              direction: "INCOMING",
-              id: { not: params.id },
-            },
-          })
-          const totalReceived = invoiceTransactions.reduce(
-            (sum, t) => sum + parseFloat(t.amount.toString()),
-            0,
-          )
-          let paymentStatus = "PENDING"
-          if (isAmountPaidInFull(totalReceived, totalAmount)) paymentStatus = "PAID"
-          else if (hasPartialPayment(totalReceived)) paymentStatus = "PARTIALLY_PAID"
-          await tx.invoice.update({
-            where: { id: oldInvoiceId },
-            data: {
-              paymentStatus: paymentStatus as any,
-              paidAt: paymentStatus === "PAID" ? new Date() : null,
-            },
-          })
-        }
-      }
-
-      // Recalc OLD vehicle if we unlinked or changed direction
+      // Recalc OLD vehicle if we unlinked or changed direction (exclude this tx from totalReceived)
       if (oldVehicleId && wasIncoming && (oldVehicleId !== finalVehicleId || finalDirection !== "INCOMING")) {
         const vehicleTransactions = await tx.transaction.findMany({
-          where: {
-            vehicleId: oldVehicleId,
-            direction: "INCOMING",
-            id: { not: params.id },
-          },
+          where: { vehicleId: oldVehicleId, direction: "INCOMING", id: { not: params.id } },
         })
-        const totalReceived = vehicleTransactions.reduce(
-          (sum, t) => sum + parseFloat(t.amount.toString()),
-          0,
-        )
+        const fromPayments = vehicleTransactions.reduce((sum, t) => sum + parseFloat(t.amount.toString()), 0)
         const vehicleInvoices = await tx.invoice.findMany({
           where: { vehicleId: oldVehicleId },
-          include: {
-            charges: { include: { chargeType: { select: { name: true } } } },
-          },
+          include: { charges: { include: { chargeType: { select: { name: true } } } } },
         })
-        const totalCharges = vehicleInvoices.reduce(
-          (sum, inv) => sum + getInvoiceTotalWithTax(inv),
-          0,
-        )
-        const purchasePaid = totalCharges > 0 && isAmountPaidInFull(totalReceived, totalCharges)
+        const fromDeposits = vehicleInvoices.reduce((sum, inv) => {
+          const depositCharges = (inv.charges || []).filter(
+            (c: any) =>
+              c.appliedDepositTransactionId &&
+              (c.chargeType?.name?.toLowerCase() === "deposit" || c.chargeType?.name === "DEPOSIT")
+          )
+          return sum + depositCharges.reduce((s: number, c: any) => s + Math.abs(parseFloat(String(c.amount ?? 0))), 0)
+        }, 0)
+        const totalCharges = vehicleInvoices.reduce((sum, inv) => sum + getInvoiceTotalWithTax(inv), 0)
+        const totalReceivedWithoutThis = fromPayments + fromDeposits
+        const purchasePaidWithoutThis = totalCharges > 0 && isAmountPaidInFull(totalReceivedWithoutThis, totalCharges)
         await tx.vehicleShippingStage.upsert({
           where: { vehicleId: oldVehicleId },
-          update: { totalCharges, totalReceived, purchasePaid },
-          create: { vehicleId: oldVehicleId, stage: "PURCHASE", totalCharges, totalReceived, purchasePaid },
+          update: { totalCharges, totalReceived: totalReceivedWithoutThis, purchasePaid: purchasePaidWithoutThis },
+          create: { vehicleId: oldVehicleId, stage: "PURCHASE", totalCharges, totalReceived: totalReceivedWithoutThis, purchasePaid: purchasePaidWithoutThis },
         })
-      }
-
-      // Sync NEW invoice payment status
-      if (finalInvoiceId && finalDirection === "INCOMING") {
-        const invoice = await tx.invoice.findUnique({
-          where: { id: finalInvoiceId },
-          include: {
-            charges: { include: { chargeType: { select: { name: true } } } },
-          },
-        })
-        if (invoice) {
-          const totalAmount = getInvoiceTotalWithTax(invoice)
-          const invoiceTransactions = await tx.transaction.findMany({
-            where: {
-              invoiceId: finalInvoiceId,
-              direction: "INCOMING",
-            },
-          })
-          const totalReceived = invoiceTransactions.reduce(
-            (sum, t) => sum + parseFloat(t.amount.toString()),
-            0,
-          )
-          let paymentStatus = "PENDING"
-          if (isAmountPaidInFull(totalReceived, totalAmount)) paymentStatus = "PAID"
-          else if (hasPartialPayment(totalReceived)) paymentStatus = "PARTIALLY_PAID"
-          await tx.invoice.update({
-            where: { id: finalInvoiceId },
-            data: {
-              paymentStatus: paymentStatus as any,
-              paidAt: paymentStatus === "PAID" ? new Date() : null,
-            },
-          })
-        }
       }
 
       // Sync NEW vehicle payment tracking
@@ -295,6 +235,16 @@ export async function PATCH(request: NextRequest, props: { params: Promise<{ id:
 
       return updatedTransaction
     })
+
+    // Recalc invoice payment status so deposit-applied is included
+    const finalInvoiceId = invoiceId !== undefined ? invoiceId : currentTransaction?.invoiceId
+    const finalDirection = direction !== undefined ? direction : currentTransaction?.direction
+    if (currentTransaction?.invoiceId && (currentTransaction.invoiceId !== finalInvoiceId || finalDirection !== "INCOMING")) {
+      await recalcInvoicePaymentStatus(currentTransaction.invoiceId)
+    }
+    if (finalInvoiceId && finalDirection === "INCOMING") {
+      await recalcInvoicePaymentStatus(finalInvoiceId)
+    }
 
     return NextResponse.json(convertDecimalsToNumbers(transaction))
   } catch (error) {
@@ -337,44 +287,6 @@ export async function DELETE(request: NextRequest, props: { params: Promise<{ id
         where: { id: params.id },
       })
 
-      // Sync invoice payment status if transaction was linked to an invoice
-      if (transaction?.invoiceId && transaction.direction === "INCOMING") {
-        const invoice = await tx.invoice.findUnique({
-          where: { id: transaction.invoiceId },
-          include: {
-            charges: { include: { chargeType: { select: { name: true } } } },
-          },
-        })
-
-        if (invoice) {
-          const totalAmount = getInvoiceTotalWithTax(invoice)
-
-          const invoiceTransactions = await tx.transaction.findMany({
-            where: {
-              invoiceId: transaction.invoiceId,
-              direction: "INCOMING",
-            },
-          })
-
-          const totalReceived = invoiceTransactions.reduce(
-            (sum, t) => sum + parseFloat(t.amount.toString()),
-            0,
-          )
-
-          let paymentStatus = "PENDING"
-          if (isAmountPaidInFull(totalReceived, totalAmount)) paymentStatus = "PAID"
-          else if (hasPartialPayment(totalReceived)) paymentStatus = "PARTIALLY_PAID"
-
-          await tx.invoice.update({
-            where: { id: transaction.invoiceId },
-            data: {
-              paymentStatus: paymentStatus as any,
-              paidAt: paymentStatus === "PAID" ? new Date() : null,
-            },
-          })
-        }
-      }
-
       // Sync vehicle payment tracking if transaction was linked to a vehicle
       if (transaction?.vehicleId && transaction.direction === "INCOMING") {
         const { totalCharges, totalReceived, purchasePaid } = await getVehiclePaymentSummary(tx, transaction.vehicleId)
@@ -391,6 +303,10 @@ export async function DELETE(request: NextRequest, props: { params: Promise<{ id
         })
       }
     })
+
+    if (transaction?.invoiceId) {
+      await recalcInvoicePaymentStatus(transaction.invoiceId)
+    }
 
     return NextResponse.json({ success: true })
   } catch (error) {
