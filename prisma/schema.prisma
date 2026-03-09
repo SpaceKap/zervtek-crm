@@ -80,6 +80,22 @@ enum ChargeCategory {
   @@schema("inquiry_pooler")
 }
 
+enum RecurringCostFrequency {
+  MONTHLY
+  QUARTERLY
+  SEMI_YEARLY
+  YEARLY
+
+  @@schema("inquiry_pooler")
+}
+
+enum RecurringCostType {
+  RECURRING
+  FIXED
+
+  @@schema("inquiry_pooler")
+}
+
 enum ShippingStage {
   PURCHASE
   TRANSPORT
@@ -365,6 +381,7 @@ model Vehicle {
   documents                VehicleDocument[]
   stageHistory             VehicleStageHistory[]
   stageCosts               VehicleStageCost[]
+  vehicleCostItems         VehicleCostItem[]
   transactions             Transaction[]
   customerLinks            CustomerVehicleLink[]
   stageChecklist           VehicleStageChecklist[]
@@ -521,6 +538,8 @@ model Vendor {
   vehicleStageCosts      VehicleStageCost[]
   transactions           Transaction[]
   generalCosts           GeneralCost[]
+  recurringCostTemplates RecurringCostTemplate[]
+  vehicleCostItems       VehicleCostItem[]
   yards                  Yard[]                 @relation("YardVendor")
   purchaseVehicles       VehicleShippingStage[] @relation("PurchaseVendor")
   transportVehicles      VehicleShippingStage[] @relation("TransportVendor")
@@ -771,6 +790,28 @@ model VehicleStageCost {
   @@schema("inquiry_pooler")
 }
 
+model VehicleCostItem {
+  id              String    @id @default(cuid())
+  vehicleId       String
+  description     String
+  amount          Decimal   @db.Decimal(12, 2)
+  vendorId        String
+  paymentDate     DateTime?
+  paymentDeadline DateTime
+  category        String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  vehicle Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  vendor  Vendor  @relation(fields: [vendorId], references: [id], onDelete: Restrict)
+
+  @@index([vehicleId])
+  @@index([vendorId])
+  @@index([paymentDeadline])
+  @@index([paymentDate])
+  @@schema("inquiry_pooler")
+}
+
 model VehicleDocument {
   id                  String           @id @default(cuid())
   vehicleId           String
@@ -902,6 +943,45 @@ model GeneralCost {
 
   @@index([date])
   @@index([vendorId])
+  @@schema("inquiry_pooler")
+}
+
+model RecurringCostTemplate {
+  id                    String                @id @default(cuid())
+  name                  String
+  amount                Decimal               @db.Decimal(12, 2)
+  currency              String                @default("JPY")
+  frequency             RecurringCostFrequency
+  type                  RecurringCostType     @default(RECURRING)
+  firstPaymentDeadline  DateTime?
+  vendorId              String?
+  notes                 String?               @db.Text
+  createdAt             DateTime             @default(now())
+  updatedAt             DateTime             @updatedAt
+
+  vendor    Vendor?                 @relation(fields: [vendorId], references: [id], onDelete: SetNull)
+  instances RecurringCostInstance[]
+
+  @@index([vendorId])
+  @@schema("inquiry_pooler")
+}
+
+model RecurringCostInstance {
+  id            String    @id @default(cuid())
+  templateId    String
+  dueDate       DateTime
+  amountOverride Decimal? @db.Decimal(12, 2)
+  paidAt        DateTime?
+  invoiceUrl    String?
+  notes         String?   @db.Text
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  template RecurringCostTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@index([templateId])
+  @@index([dueDate])
+  @@index([paidAt])
   @@schema("inquiry_pooler")
 }
 
