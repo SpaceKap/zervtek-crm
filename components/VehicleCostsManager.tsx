@@ -60,6 +60,9 @@ const costTypes = [
   "Storage Fees",
   "Forwarding Fees",
   "Freight Costs",
+  "Inspections",
+  "Insurance",
+  "Other",
 ];
 
 const purchaseCostTypes = ["Auction Fees", "Purchase Fees"];

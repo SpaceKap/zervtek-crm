@@ -72,6 +72,9 @@ const costCategories = [
   "Repair",
   "Storage",
   "Yard Photos",
+  "Inspections",
+  "Insurance",
+  "Other",
 ];
 
 export function VehicleExpensesManager({

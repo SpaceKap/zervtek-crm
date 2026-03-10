@@ -40,6 +40,9 @@ const categoryLabels: Record<VendorCategory, string> = {
   SHIPPING_AGENT: "Shipping Agent",
   YARD: "Yard",
   OFFICE_EXPENSES: "Office Expenses",
+  INSPECTIONS: "Inspections",
+  INSURANCE: "Insurance",
+  OTHER: "Other",
 };
 
 export function VendorsList() {

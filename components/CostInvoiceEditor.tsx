@@ -53,6 +53,12 @@ const defaultCategories = [
   "DHL",
   "Forwarding",
   "Freight",
+  "Repair",
+  "Storage",
+  "Yard Photos",
+  "Inspections",
+  "Insurance",
+  "Other",
 ];
 
 export function CostInvoiceEditor({

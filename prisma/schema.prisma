@@ -177,6 +177,9 @@ enum VendorCategory {
   SHIPPING_AGENT // Shipping agent
   YARD // Yard
   OFFICE_EXPENSES // Office expenses (rent, electricity, etc.)
+  INSPECTIONS // Inspections
+  INSURANCE // Insurance
+  OTHER // Other
 
   @@schema("inquiry_pooler")
 }

@@ -51,6 +51,9 @@ const defaultCategories = [
   "Repair",
   "Storage",
   "Yard Photos",
+  "Inspections",
+  "Insurance",
+  "Other",
 ];
 
 interface VehicleCostBreakdownProps {

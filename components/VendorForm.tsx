@@ -241,6 +241,13 @@ export function VendorForm({ vendor, initialCategory, onClose }: VendorFormProps
                 <SelectItem value={VendorCategory.OFFICE_EXPENSES}>
                   Office Expenses
                 </SelectItem>
+                <SelectItem value={VendorCategory.INSPECTIONS}>
+                  Inspections
+                </SelectItem>
+                <SelectItem value={VendorCategory.INSURANCE}>
+                  Insurance
+                </SelectItem>
+                <SelectItem value={VendorCategory.OTHER}>Other</SelectItem>
               </SelectContent>
             </Select>
             {errors.category && (

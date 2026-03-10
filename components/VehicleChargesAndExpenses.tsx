@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { VehicleCostBreakdown } from "./VehicleCostBreakdown";
+import { VehicleExpensesManager } from "./VehicleExpensesManager";
 import {
   Card,
   CardContent,
@@ -178,7 +178,7 @@ export function VehicleChargesAndExpenses({
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <VehicleCostBreakdown vehicleId={vehicleId} onUpdate={onRefresh} />
+          <VehicleExpensesManager vehicleId={vehicleId} onUpdate={onRefresh} />
         </CardContent>
       </Card>
     </div>

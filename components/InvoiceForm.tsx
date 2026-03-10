@@ -48,6 +48,8 @@ const invoiceSchema = z
           "EXPORT_FEES",
           "SHIPPING",
           "RECYCLE_FEES",
+          "INSPECTIONS",
+          "INSURANCE",
           "DISCOUNT",
           "DEPOSIT",
           "CUSTOM",
@@ -360,6 +362,8 @@ export function InvoiceForm({ invoice }: InvoiceFormProps = {}) {
             "EXPORT_FEES",
             "SHIPPING",
             "RECYCLE_FEES",
+            "INSPECTIONS",
+            "INSURANCE",
             "DISCOUNT",
             "DEPOSIT",
             "CUSTOM",
@@ -1175,6 +1179,8 @@ export function InvoiceForm({ invoice }: InvoiceFormProps = {}) {
                                     | "EXPORT_FEES"
                                     | "SHIPPING"
                                     | "RECYCLE_FEES"
+                                    | "INSPECTIONS"
+                                    | "INSURANCE"
                                     | "DISCOUNT"
                                     | "DEPOSIT"
                                     | "CUSTOM";
@@ -1212,6 +1218,24 @@ export function InvoiceForm({ invoice }: InvoiceFormProps = {}) {
                                     setValue(
                                       `charges.${index}.description`,
                                       "Recycle Fee",
+                                      {
+                                        shouldValidate: true,
+                                        shouldDirty: true,
+                                      },
+                                    );
+                                  } else if (value === "INSPECTIONS") {
+                                    setValue(
+                                      `charges.${index}.description`,
+                                      "Inspections",
+                                      {
+                                        shouldValidate: true,
+                                        shouldDirty: true,
+                                      },
+                                    );
+                                  } else if (value === "INSURANCE") {
+                                    setValue(
+                                      `charges.${index}.description`,
+                                      "Insurance",
                                       {
                                         shouldValidate: true,
                                         shouldDirty: true,
@@ -1288,6 +1312,8 @@ export function InvoiceForm({ invoice }: InvoiceFormProps = {}) {
                                       currentDesc === "Export Fees" ||
                                       currentDesc === "Shipping" ||
                                       currentDesc === "Recycle Fee" ||
+                                      currentDesc === "Inspections" ||
+                                      currentDesc === "Insurance" ||
                                       currentDesc === "Discount" ||
                                       currentDesc === "Deposit" ||
                                       currentDesc === "Vehicle"
@@ -1319,6 +1345,12 @@ export function InvoiceForm({ invoice }: InvoiceFormProps = {}) {
                                   </SelectItem>
                                   <SelectItem value="RECYCLE_FEES">
                                     Recycle Fee
+                                  </SelectItem>
+                                  <SelectItem value="INSPECTIONS">
+                                    Inspections
+                                  </SelectItem>
+                                  <SelectItem value="INSURANCE">
+                                    Insurance
                                   </SelectItem>
                                   <SelectItem value="DISCOUNT">
                                     Discount
