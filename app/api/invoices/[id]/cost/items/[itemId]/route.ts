@@ -61,7 +61,7 @@ export async function PATCH(
     }
 
     const body = await request.json()
-    const { description, amount, vendorId, paymentDate, paymentDeadline, category } = body
+    const { description, amount, vendorId, paymentDate, paymentDeadline, category, invoiceUrl } = body
 
     const costItem = await prisma.costItem.findUnique({
       where: { id: params.itemId },
@@ -105,6 +105,7 @@ export async function PATCH(
         paymentDate: finalPaymentDate,
         paymentDeadline: finalPaymentDeadline instanceof Date ? finalPaymentDeadline : new Date(finalPaymentDeadline),
         ...(category !== undefined && { category: category || null }),
+        ...(invoiceUrl !== undefined && { invoiceUrl: invoiceUrl || null }),
       },
       include: {
         vendor: true,

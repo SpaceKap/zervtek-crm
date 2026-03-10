@@ -514,6 +514,7 @@ model CostItem {
   paymentDate     DateTime?
   paymentDeadline DateTime
   category        String?
+  invoiceUrl      String?   @db.Text
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
@@ -804,6 +805,7 @@ model VehicleCostItem {
   paymentDate     DateTime?
   paymentDeadline DateTime
   category        String?
+  invoiceUrl      String?   @db.Text
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 

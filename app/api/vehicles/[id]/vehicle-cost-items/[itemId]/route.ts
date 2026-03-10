@@ -20,7 +20,7 @@ export async function PATCH(
     }
 
     const body = await request.json().catch(() => ({}))
-    const { description, amount, vendorId, paymentDeadline, paymentDate, category } = body
+    const { description, amount, vendorId, paymentDeadline, paymentDate, category, invoiceUrl } = body
 
     const existing = await prisma.vehicleCostItem.findFirst({
       where: { id: params.itemId, vehicleId: params.id },
@@ -49,6 +49,7 @@ export async function PATCH(
     if (paymentDeadline !== undefined) updateData.paymentDeadline = new Date(paymentDeadline)
     if (paymentDate !== undefined) updateData.paymentDate = paymentDate ? new Date(paymentDate) : null
     if (category !== undefined) updateData.category = category ? String(category).trim() : null
+    if (invoiceUrl !== undefined) updateData.invoiceUrl = invoiceUrl ? String(invoiceUrl).trim() : null
 
     const item = await prisma.vehicleCostItem.update({
       where: { id: params.itemId },

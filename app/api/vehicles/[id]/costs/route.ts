@@ -82,6 +82,7 @@ export async function GET(request: NextRequest, props: { params: Promise<{ id: s
           costItemId: item.id,
           invoiceId: inv.id,
           invoiceNumber: inv.invoiceNumber,
+          invoiceUrl: item.invoiceUrl ?? null,
         })
       }
     }
@@ -121,6 +122,7 @@ export async function GET(request: NextRequest, props: { params: Promise<{ id: s
       createdAt: toDateStr(c.createdAt),
       source: "vehicle_cost_item" as const,
       vehicleCostItemId: c.id,
+      invoiceUrl: c.invoiceUrl ?? null,
     }))
 
     // Deduplicate: if an invoice cost item and a vehicle/stage item match (same category, amount, vendor), keep only the invoice one

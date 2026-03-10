@@ -513,6 +513,7 @@ model CostItem {
   paymentDate     DateTime? // Optional - set when payment is made
   paymentDeadline DateTime // Required - deadline for payment
   category        String? // "Auction Fees", "Vehicle Purchase", "Inland Transport", "Forwarding", "Freight", etc.
+  invoiceUrl      String?   @db.Text
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
@@ -814,6 +815,7 @@ model VehicleCostItem {
   paymentDate     DateTime?
   paymentDeadline DateTime
   category        String?
+  invoiceUrl      String?   @db.Text
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 

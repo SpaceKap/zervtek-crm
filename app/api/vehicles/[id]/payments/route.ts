@@ -55,7 +55,9 @@ export async function GET(request: NextRequest, props: { params: Promise<{ id: s
             taxRate: true,
             costInvoice: {
               select: {
-                costItems: { select: { amount: true } },
+                costItems: {
+                  select: { amount: true, category: true, description: true, vendorId: true },
+                },
               },
             },
           },
@@ -64,12 +66,17 @@ export async function GET(request: NextRequest, props: { params: Promise<{ id: s
           select: {
             id: true,
             amount: true,
+            costType: true,
+            vendorId: true,
           },
         },
         vehicleCostItems: {
           select: {
             id: true,
             amount: true,
+            category: true,
+            description: true,
+            vendorId: true,
           },
         },
         sharedInvoiceVehicles: {
@@ -121,23 +128,41 @@ export async function GET(request: NextRequest, props: { params: Promise<{ id: s
       chargesTaxTotal += tax
     })
 
-    // Calculate total cost: stage costs, shared invoice allocations, vehicle cost items, and legacy CostInvoice cost items (invoice-level expenses)
-    const stageCostsTotal = vehicle.stageCosts.reduce(
-      (sum, cost) => sum + parseFloat(cost.amount.toString()),
-      0,
-    )
+    // Build invoice cost keys for deduplication (same logic as /api/vehicles/[id]/costs)
+    const invoiceCostKeys = new Set<string>()
+    let costInvoiceItemsTotal = 0
+    for (const inv of vehicle.invoices || []) {
+      const items = (inv as any).costInvoice?.costItems ?? []
+      for (const c of items) {
+        const amount = parseFloat(String(c.amount ?? 0))
+        costInvoiceItemsTotal += amount
+        const key = `${String(c.category ?? c.description ?? "").trim()}|${amount}|${c.vendorId ?? ""}`
+        invoiceCostKeys.add(key)
+      }
+    }
+
     const sharedInvoiceCostsTotal = vehicle.sharedInvoiceVehicles.reduce(
       (sum, siv) => sum + parseFloat(siv.allocatedAmount.toString()),
       0,
     )
-    const vehicleCostItemsTotal = (vehicle.vehicleCostItems || []).reduce(
-      (sum, item) => sum + parseFloat(item.amount.toString()),
-      0,
-    )
-    const costInvoiceItemsTotal = (vehicle.invoices || []).reduce((sum, inv) => {
-      const items = (inv as any).costInvoice?.costItems ?? []
-      return sum + items.reduce((s: number, c: any) => s + parseFloat(String(c.amount ?? 0)), 0)
+
+    // Stage costs: exclude any that match an invoice cost item (same category/amount/vendor) to avoid double-counting
+    const stageCostsTotal = vehicle.stageCosts.reduce((sum, cost) => {
+      const amount = parseFloat(cost.amount.toString())
+      const key = `${String((cost as any).costType ?? "").trim()}|${amount}|${(cost as any).vendorId ?? ""}`
+      if (invoiceCostKeys.has(key)) return sum
+      return sum + amount
     }, 0)
+
+    // Vehicle cost items: exclude any that match an invoice cost item (same category/amount/vendor) to avoid double-counting
+    const vehicleCostItemsTotal = (vehicle.vehicleCostItems || []).reduce((sum, item) => {
+      const amount = parseFloat(item.amount.toString())
+      const costType = String((item as any).category ?? (item as any).description ?? "").trim()
+      const key = `${costType}|${amount}|${(item as any).vendorId ?? ""}`
+      if (invoiceCostKeys.has(key)) return sum
+      return sum + amount
+    }, 0)
+
     const totalCost = stageCostsTotal + sharedInvoiceCostsTotal + vehicleCostItemsTotal + costInvoiceItemsTotal
 
     // Calculate profit, margin, and ROI (revenue = revenue for P&L, deposit not subtracted)

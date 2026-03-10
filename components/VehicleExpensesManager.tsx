@@ -28,7 +28,6 @@ import {
 } from "./ui/dialog";
 import { Badge } from "./ui/badge";
 import { format } from "date-fns";
-import Link from "next/link";
 import { VendorForm } from "./VendorForm";
 import { Checkbox } from "./ui/checkbox";
 import { DatePicker } from "@/components/ui/date-picker";
@@ -99,8 +98,12 @@ export function VehicleExpensesManager({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [uploadExpense, setUploadExpense] = useState<Expense | null>(null);
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
+  const uploadDialogFileRef = useRef<HTMLInputElement>(null);
+  const uploadDialogPhotoRef = useRef<HTMLInputElement>(null);
 
   const fetchExpenses = useCallback(async () => {
     try {
@@ -146,8 +149,6 @@ export function VehicleExpensesManager({
   };
 
   const handleOpenDialog = (expense?: Expense) => {
-    if (expense?.source === "invoice") return; // Invoice costs are read-only here
-    // vehicle_cost_item and vehicle (stage cost) are editable
     setError(null);
     if (expense) {
       setEditingExpense(expense);
@@ -213,7 +214,24 @@ export function VehicleExpensesManager({
       };
 
       let response;
-      if (editingExpense?.source === "vehicle_cost_item" && editingExpense.vehicleCostItemId) {
+      if (editingExpense?.source === "invoice" && editingExpense.costItemId && editingExpense.invoiceId) {
+        response = await fetch(
+          `/api/invoices/${editingExpense.invoiceId}/cost/items/${editingExpense.costItemId}`,
+          {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              description: expenseData.costType,
+              amount: expenseData.amount,
+              vendorId: expenseData.vendorId,
+              paymentDeadline: expenseData.paymentDeadline,
+              paymentDate: expenseData.paymentDate,
+              category: expenseData.costType,
+              invoiceUrl: expenseData.invoiceUrl,
+            }),
+          },
+        );
+      } else if (editingExpense?.source === "vehicle_cost_item" && editingExpense.vehicleCostItemId) {
         response = await fetch(
           `/api/vehicles/${vehicleId}/vehicle-cost-items/${editingExpense.vehicleCostItemId}`,
           {
@@ -226,6 +244,7 @@ export function VehicleExpensesManager({
               paymentDeadline: expenseData.paymentDeadline,
               paymentDate: expenseData.paymentDate,
               category: expenseData.costType,
+              invoiceUrl: expenseData.invoiceUrl,
             }),
           },
         );
@@ -276,16 +295,19 @@ export function VehicleExpensesManager({
       const expense = expenses.find((e) => e.id === expenseId);
       if (!expense) return;
 
+      const payload = {
+        paymentDate: isPaid ? new Date().toISOString().split("T")[0] : null,
+      };
       const url =
-        expense.source === "vehicle_cost_item" && expense.vehicleCostItemId
-          ? `/api/vehicles/${vehicleId}/vehicle-cost-items/${expense.vehicleCostItemId}`
-          : `/api/vehicles/${vehicleId}/costs/${expenseId}`;
+        expense.source === "invoice" && expense.invoiceId && expense.costItemId
+          ? `/api/invoices/${expense.invoiceId}/cost/items/${expense.costItemId}`
+          : expense.source === "vehicle_cost_item" && expense.vehicleCostItemId
+            ? `/api/vehicles/${vehicleId}/vehicle-cost-items/${expense.vehicleCostItemId}`
+            : `/api/vehicles/${vehicleId}/costs/${expenseId}`;
       const response = await fetch(url, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          paymentDate: isPaid ? new Date().toISOString().split("T")[0] : null,
-        }),
+        body: JSON.stringify(payload),
       });
 
       if (response.ok) {
@@ -299,13 +321,14 @@ export function VehicleExpensesManager({
   };
 
   const handleDeleteExpense = async (expenseId: string, expense?: Expense) => {
-    if (expense?.source === "invoice") return; // Invoice costs are managed in the invoice
     if (!confirm("Are you sure you want to delete this expense?")) return;
 
     const url =
-      expense?.source === "vehicle_cost_item" && expense?.vehicleCostItemId
-        ? `/api/vehicles/${vehicleId}/vehicle-cost-items/${expense.vehicleCostItemId}`
-        : `/api/vehicles/${vehicleId}/costs/${expenseId}`;
+      expense?.source === "invoice" && expense?.invoiceId && expense?.costItemId
+        ? `/api/invoices/${expense.invoiceId}/cost/items/${expense.costItemId}`
+        : expense?.source === "vehicle_cost_item" && expense?.vehicleCostItemId
+          ? `/api/vehicles/${vehicleId}/vehicle-cost-items/${expense.vehicleCostItemId}`
+          : `/api/vehicles/${vehicleId}/costs/${expenseId}`;
     try {
       const response = await fetch(url, {
         method: "DELETE",
@@ -442,40 +465,40 @@ export function VehicleExpensesManager({
                       {formatCurrency(expense.amount, expense.currency)}
                     </td>
                     <td className="py-3 px-4 text-right">
-                      {expense.source !== "invoice" && (
-                        <div className="flex items-center justify-end gap-1">
-                          <Checkbox
-                            checked={isPaid(expense)}
-                            onCheckedChange={(checked) =>
-                              handleMarkPaid(expense.id, !!checked)
-                            }
-                            className="mr-1"
-                          />
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="h-8 w-8 p-0"
-                            onClick={() => handleOpenDialog(expense)}
-                          >
-                            <span className="material-symbols-outlined text-base">edit</span>
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="h-8 w-8 p-0 text-destructive hover:text-destructive"
-                            onClick={() => handleDeleteExpense(expense.id, expense)}
-                          >
-                            <span className="material-symbols-outlined text-base">delete</span>
-                          </Button>
-                        </div>
-                      )}
-                      {expense.source === "invoice" && expense.invoiceId && (
-                        <Link href={`/dashboard/invoices/${expense.invoiceId}`}>
-                          <Button size="sm" variant="ghost" className="text-primary">
-                            View invoice
-                          </Button>
-                        </Link>
-                      )}
+                      <div className="flex items-center justify-end gap-1">
+                        <Checkbox
+                          checked={isPaid(expense)}
+                          onCheckedChange={(checked) =>
+                            handleMarkPaid(expense.id, !!checked)
+                          }
+                          className="mr-1"
+                        />
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-8 w-8 p-0"
+                          onClick={() => handleOpenDialog(expense)}
+                        >
+                          <span className="material-symbols-outlined text-base">edit</span>
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-8 w-8 p-0"
+                          onClick={() => setUploadExpense(expense)}
+                          title="Upload invoice document"
+                        >
+                          <span className="material-symbols-outlined text-base">upload_file</span>
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                          onClick={() => handleDeleteExpense(expense.id, expense)}
+                        >
+                          <span className="material-symbols-outlined text-base">delete</span>
+                        </Button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -792,6 +815,160 @@ export function VehicleExpensesManager({
               ) : (
                 "Save"
               )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Upload Invoice Document (per-expense) */}
+      <Dialog
+        open={!!uploadExpense}
+        onOpenChange={(open) => {
+          if (!open) {
+            setUploadExpense(null);
+            setUploadFile(null);
+            uploadDialogFileRef.current && (uploadDialogFileRef.current.value = "");
+            uploadDialogPhotoRef.current && (uploadDialogPhotoRef.current.value = "");
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-md p-0 gap-0">
+          <DialogHeader className="px-6 pt-6 pb-4">
+            <DialogTitle>Upload Invoice Document</DialogTitle>
+            <DialogDescription className="mt-1.5">
+              Attach an invoice or receipt for this expense. The file will be
+              linked to the expense.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="px-6 pb-6 pt-1 space-y-5">
+            <div className="space-y-2">
+              <Label htmlFor="upload-invoice-file" className="text-sm font-medium">
+                File
+              </Label>
+              <input
+                ref={uploadDialogFileRef}
+                id="upload-invoice-file"
+                type="file"
+                accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                className="sr-only"
+                aria-hidden
+                onChange={(e) => setUploadFile(e.target.files?.[0] ?? null)}
+              />
+              <input
+                ref={uploadDialogPhotoRef}
+                id="upload-invoice-photo"
+                type="file"
+                accept="image/*"
+                capture="environment"
+                className="sr-only"
+                aria-hidden
+                onChange={(e) => setUploadFile(e.target.files?.[0] ?? null)}
+              />
+              <div className="flex flex-col gap-2">
+                <div className="grid grid-cols-2 gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full justify-center gap-2 h-10"
+                    onClick={() => uploadDialogFileRef.current?.click()}
+                    disabled={uploading}
+                  >
+                    <span className="material-symbols-outlined text-lg">upload_file</span>
+                    Choose file
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full justify-center gap-2 h-10"
+                    onClick={() => uploadDialogPhotoRef.current?.click()}
+                    disabled={uploading}
+                    title="Take a photo or pick an image"
+                  >
+                    <span className="material-symbols-outlined text-lg">photo_camera</span>
+                    Photo
+                  </Button>
+                </div>
+                {uploadFile && (
+                  <p className="text-xs text-muted-foreground truncate" title={uploadFile.name}>
+                    {uploadFile.name} — replace by choosing again.
+                  </p>
+                )}
+              </div>
+            </div>
+            {uploading && (
+              <p className="text-sm text-muted-foreground flex items-center gap-2">
+                <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" aria-hidden />
+                Uploading…
+              </p>
+            )}
+          </div>
+          <DialogFooter className="mt-6 pt-4 border-t border-border px-6 pb-6">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setUploadExpense(null);
+                setUploadFile(null);
+                uploadDialogFileRef.current && (uploadDialogFileRef.current.value = "");
+                uploadDialogPhotoRef.current && (uploadDialogPhotoRef.current.value = "");
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              disabled={!uploadFile || uploading}
+              onClick={async () => {
+                if (!uploadExpense || !uploadFile) return;
+                setUploading(true);
+                try {
+                  const form = new FormData();
+                  form.append("file", uploadFile);
+                  form.append("context", "general-cost");
+                  form.append(
+                    "expenseDate",
+                    uploadExpense.paymentDate || uploadExpense.paymentDeadline || new Date().toISOString().split("T")[0],
+                  );
+                  const res = await fetch("/api/upload", {
+                    method: "POST",
+                    body: form,
+                    credentials: "include",
+                  });
+                  if (!res.ok) {
+                    const err = await res.json().catch(() => ({}));
+                    alert(err.error || "Upload failed");
+                    return;
+                  }
+                  const data = await res.json();
+                  const patchUrl =
+                    uploadExpense.source === "invoice" && uploadExpense.invoiceId && uploadExpense.costItemId
+                      ? `/api/invoices/${uploadExpense.invoiceId}/cost/items/${uploadExpense.costItemId}`
+                      : uploadExpense.source === "vehicle_cost_item" && uploadExpense.vehicleCostItemId
+                        ? `/api/vehicles/${vehicleId}/vehicle-cost-items/${uploadExpense.vehicleCostItemId}`
+                        : `/api/vehicles/${vehicleId}/costs/${uploadExpense.id}`;
+                  const patchRes = await fetch(patchUrl, {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ invoiceUrl: data.url }),
+                  });
+                  if (patchRes.ok) {
+                    await fetchExpenses();
+                    if (onUpdate) onUpdate();
+                    setUploadExpense(null);
+                    setUploadFile(null);
+                    uploadDialogFileRef.current && (uploadDialogFileRef.current.value = "");
+                    uploadDialogPhotoRef.current && (uploadDialogPhotoRef.current.value = "");
+                  } else {
+                    const err = await patchRes.json().catch(() => ({}));
+                    alert(err.error || "Failed to link document");
+                  }
+                } catch (err) {
+                  console.error(err);
+                  alert("Upload failed");
+                } finally {
+                  setUploading(false);
+                }
+              }}
+            >
+              Upload
             </Button>
           </DialogFooter>
         </DialogContent>
