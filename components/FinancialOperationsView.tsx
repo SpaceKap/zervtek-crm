@@ -203,9 +203,9 @@ export function FinancialOperationsView({
   const [costToMarkAsPaid, setCostToMarkAsPaid] = useState<Transaction | null>(
     null,
   );
-  const [markAsPaidType, setMarkAsPaidType] = useState<
-    TransactionType | ""
-  >("");
+  const [markAsPaidType, setMarkAsPaidType] = useState<TransactionType | "">(
+    "",
+  );
   const [markAsPaidInvoiceUrl, setMarkAsPaidInvoiceUrl] = useState("");
   const [markAsPaidRecurringAmount, setMarkAsPaidRecurringAmount] =
     useState("");
@@ -728,7 +728,8 @@ export function FinancialOperationsView({
   // Calculate summary statistics (exclude invoices - they're shown in Invoices tab only)
   // Payments + deposits = money in from customers
   const incomingTransactions = transactions.filter(
-    (t) => (t.direction === "INCOMING" || t.direction === "DEPOSIT") && !t.isInvoice,
+    (t) =>
+      (t.direction === "INCOMING" || t.direction === "DEPOSIT") && !t.isInvoice,
   );
   const outgoingTransactions = transactions.filter(
     (t) => t.direction === "OUTGOING",
@@ -883,7 +884,8 @@ export function FinancialOperationsView({
         } else if (paymentStatusFilter === "overdue") {
           if (t.isInvoice && t.paymentStatus !== "overdue") return false;
           if (!t.isInvoice) {
-            if (t.direction === "INCOMING" || t.direction === "DEPOSIT") return false; // Not overdue
+            if (t.direction === "INCOMING" || t.direction === "DEPOSIT")
+              return false; // Not overdue
             if (t.paymentDate) return false;
             if (!t.paymentDeadline) return false;
             if (new Date(t.paymentDeadline) >= new Date()) return false;
@@ -899,15 +901,37 @@ export function FinancialOperationsView({
 
       switch (sortField) {
         case "date": {
-          const dateA = a.date ? new Date(a.date).getTime() : (("createdAt" in a && a.createdAt) ? new Date((a as { createdAt?: string }).createdAt!).getTime() : 0);
-          const dateB = b.date ? new Date(b.date).getTime() : (("createdAt" in b && b.createdAt) ? new Date((b as { createdAt?: string }).createdAt!).getTime() : 0);
-          aValue = Number.isNaN(dateA) ? (("createdAt" in a && a.createdAt) ? new Date((a as { createdAt?: string }).createdAt!).getTime() : 0) : dateA;
-          bValue = Number.isNaN(dateB) ? (("createdAt" in b && b.createdAt) ? new Date((b as { createdAt?: string }).createdAt!).getTime() : 0) : dateB;
+          const dateA = a.date
+            ? new Date(a.date).getTime()
+            : "createdAt" in a && a.createdAt
+              ? new Date((a as { createdAt?: string }).createdAt!).getTime()
+              : 0;
+          const dateB = b.date
+            ? new Date(b.date).getTime()
+            : "createdAt" in b && b.createdAt
+              ? new Date((b as { createdAt?: string }).createdAt!).getTime()
+              : 0;
+          aValue = Number.isNaN(dateA)
+            ? "createdAt" in a && a.createdAt
+              ? new Date((a as { createdAt?: string }).createdAt!).getTime()
+              : 0
+            : dateA;
+          bValue = Number.isNaN(dateB)
+            ? "createdAt" in b && b.createdAt
+              ? new Date((b as { createdAt?: string }).createdAt!).getTime()
+              : 0
+            : dateB;
           break;
         }
         case "amount": {
-          const numA = typeof a.amount === "string" ? parseFloat(String(a.amount).replace(/,/g, "")) : Number(a.amount);
-          const numB = typeof b.amount === "string" ? parseFloat(String(b.amount).replace(/,/g, "")) : Number(b.amount);
+          const numA =
+            typeof a.amount === "string"
+              ? parseFloat(String(a.amount).replace(/,/g, ""))
+              : Number(a.amount);
+          const numB =
+            typeof b.amount === "string"
+              ? parseFloat(String(b.amount).replace(/,/g, ""))
+              : Number(b.amount);
           aValue = Number.isNaN(numA) ? 0 : numA;
           bValue = Number.isNaN(numB) ? 0 : numB;
           break;
@@ -1488,7 +1512,9 @@ export function FinancialOperationsView({
                             add
                           </span>
                           Add{" "}
-                          {transactionTab === "INCOMING" ? "Payment" : "Expense"}
+                          {transactionTab === "INCOMING"
+                            ? "Payment"
+                            : "Expense"}
                         </Button>
                       </div>
                     </div>
@@ -1863,7 +1889,11 @@ export function FinancialOperationsView({
                                         className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${transaction.direction === "DEPOSIT" ? "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-200" : typeColors[transaction.type]}`}
                                       >
                                         <span className="material-symbols-outlined text-sm mr-1">
-                                          {transaction.direction === "DEPOSIT" ? "account_balance_wallet" : transactionTab === "OUTGOING" ? "receipt" : "payments"}
+                                          {transaction.direction === "DEPOSIT"
+                                            ? "account_balance_wallet"
+                                            : transactionTab === "OUTGOING"
+                                              ? "receipt"
+                                              : "payments"}
                                         </span>
                                         {typeLabels[transaction.type]}
                                       </span>
@@ -1871,8 +1901,9 @@ export function FinancialOperationsView({
                                     {transactionTab === "INCOMING" ? (
                                       <>
                                         <td className="p-3 text-sm font-mono text-gray-900 dark:text-white">
-                                          {transaction.direction === "DEPOSIT" ? (
-                                            transaction.depositNumber ?? "—"
+                                          {transaction.direction ===
+                                          "DEPOSIT" ? (
+                                            (transaction.depositNumber ?? "—")
                                           ) : transaction.isInvoice ? (
                                             <Link
                                               href={`/dashboard/invoices/${transaction.invoiceId}`}
@@ -2233,98 +2264,98 @@ export function FinancialOperationsView({
                                               paymentDateFromNotes
                                             );
 
-                                            const handleMarkAsPaid =
-                                              () => {
-                                                // For costs without a payment type, open dialog to collect type + optional invoice
-                                                if (
-                                                  transaction.isVehicleStageCost ||
-                                                  transaction.isGeneralCost ||
-                                                  transaction.isCostItem ||
-                                                  transaction.isRecurringExpense
-                                                ) {
-                                                  setCostToMarkAsPaid(
-                                                    transaction,
-                                                  );
-                                                  setMarkAsPaidType("");
-                                                  setMarkAsPaidInvoiceUrl("");
-                                                  setMarkAsPaidRecurringAmount(
-                                                    typeof transaction.amount ===
-                                                      "string"
-                                                      ? transaction.amount
-                                                      : String(transaction.amount ?? ""),
-                                                  );
-                                                  setMarkAsPaidDialogOpen(true);
-                                                  return;
-                                                }
-                                                if (
-                                                  !confirm(
-                                                    "Mark this transaction as paid? This will set the payment date to today.",
-                                                  )
-                                                ) {
-                                                  return;
-                                                }
-                                                (async () => {
+                                            const handleMarkAsPaid = () => {
+                                              // For costs without a payment type, open dialog to collect type + optional invoice
+                                              if (
+                                                transaction.isVehicleStageCost ||
+                                                transaction.isGeneralCost ||
+                                                transaction.isCostItem ||
+                                                transaction.isRecurringExpense
+                                              ) {
+                                                setCostToMarkAsPaid(
+                                                  transaction,
+                                                );
+                                                setMarkAsPaidType("");
+                                                setMarkAsPaidInvoiceUrl("");
+                                                setMarkAsPaidRecurringAmount(
+                                                  typeof transaction.amount ===
+                                                    "string"
+                                                    ? transaction.amount
+                                                    : String(
+                                                        transaction.amount ??
+                                                          "",
+                                                      ),
+                                                );
+                                                setMarkAsPaidDialogOpen(true);
+                                                return;
+                                              }
+                                              if (
+                                                !confirm(
+                                                  "Mark this transaction as paid? This will set the payment date to today.",
+                                                )
+                                              ) {
+                                                return;
+                                              }
+                                              (async () => {
+                                                try {
+                                                  // For regular transactions, store paymentDate in notes as JSON
+                                                  let currentNotes: any = {};
                                                   try {
-                                                    // For regular transactions, store paymentDate in notes as JSON
-                                                    let currentNotes: any = {};
-                                                    try {
-                                                      if (transaction.notes) {
-                                                        currentNotes =
-                                                          JSON.parse(
-                                                            transaction.notes,
-                                                          );
-                                                      }
-                                                    } catch (e) {
-                                                      currentNotes = {
-                                                        originalNotes:
-                                                          transaction.notes,
-                                                      };
+                                                    if (transaction.notes) {
+                                                      currentNotes = JSON.parse(
+                                                        transaction.notes,
+                                                      );
                                                     }
-                                                    const updatedNotes = {
-                                                      ...currentNotes,
-                                                      paymentDate:
-                                                        new Date().toISOString(),
+                                                  } catch (e) {
+                                                    currentNotes = {
+                                                      originalNotes:
+                                                        transaction.notes,
                                                     };
-                                                    const response =
-                                                      await fetch(
-                                                        `/api/transactions/${transaction.id}`,
-                                                        {
-                                                          method: "PATCH",
-                                                          headers: {
-                                                            "Content-Type":
-                                                              "application/json",
-                                                          },
-                                                          body: JSON.stringify({
-                                                            notes:
-                                                              JSON.stringify(
-                                                                updatedNotes,
-                                                              ),
-                                                          }),
-                                                        },
-                                                      );
-                                                    if (response.ok) {
-                                                      fetchTransactions();
-                                                    } else {
-                                                      const errorData =
-                                                        await response
-                                                          .json()
-                                                          .catch(() => ({}));
-                                                      alert(
-                                                        errorData.error ||
-                                                          "Failed to update transaction",
-                                                      );
-                                                    }
-                                                  } catch (error) {
-                                                    console.error(
-                                                      "Error updating transaction:",
-                                                      error,
-                                                    );
+                                                  }
+                                                  const updatedNotes = {
+                                                    ...currentNotes,
+                                                    paymentDate:
+                                                      new Date().toISOString(),
+                                                  };
+                                                  const response = await fetch(
+                                                    `/api/transactions/${transaction.id}`,
+                                                    {
+                                                      method: "PATCH",
+                                                      headers: {
+                                                        "Content-Type":
+                                                          "application/json",
+                                                      },
+                                                      body: JSON.stringify({
+                                                        notes:
+                                                          JSON.stringify(
+                                                            updatedNotes,
+                                                          ),
+                                                      }),
+                                                    },
+                                                  );
+                                                  if (response.ok) {
+                                                    fetchTransactions();
+                                                  } else {
+                                                    const errorData =
+                                                      await response
+                                                        .json()
+                                                        .catch(() => ({}));
                                                     alert(
-                                                      "Failed to update transaction",
+                                                      errorData.error ||
+                                                        "Failed to update transaction",
                                                     );
                                                   }
-                                                })();
-                                              };
+                                                } catch (error) {
+                                                  console.error(
+                                                    "Error updating transaction:",
+                                                    error,
+                                                  );
+                                                  alert(
+                                                    "Failed to update transaction",
+                                                  );
+                                                }
+                                              })();
+                                            };
 
                                             const handleEdit = () => {
                                               setEditingTransaction(
@@ -2343,9 +2374,11 @@ export function FinancialOperationsView({
                                               }
 
                                               try {
-                                                const url = transaction.isRecurringExpense && transaction.recurringInstanceId
-                                                  ? `/api/recurring-cost-instances/${transaction.recurringInstanceId}`
-                                                  : `/api/transactions/${transaction.id}`;
+                                                const url =
+                                                  transaction.isRecurringExpense &&
+                                                  transaction.recurringInstanceId
+                                                    ? `/api/recurring-cost-instances/${transaction.recurringInstanceId}`
+                                                    : `/api/transactions/${transaction.id}`;
                                                 const response = await fetch(
                                                   url,
                                                   {
@@ -2385,26 +2418,31 @@ export function FinancialOperationsView({
                                             return (
                                               <div className="flex items-center gap-2">
                                                 {!transaction.isRecurringExpense && (
-                                                <Button
-                                                  variant="ghost"
-                                                  size="sm"
-                                                  onClick={handleEdit}
-                                                  className="h-8 px-2 text-xs hover:bg-blue-50 dark:hover:bg-blue-900/20"
-                                                  title="Edit transaction"
-                                                >
-                                                  <span className="material-symbols-outlined text-sm">
-                                                    edit
-                                                  </span>
-                                                </Button>
+                                                  <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={handleEdit}
+                                                    className="h-8 px-2 text-xs hover:bg-blue-50 dark:hover:bg-blue-900/20"
+                                                    title="Edit transaction"
+                                                  >
+                                                    <span className="material-symbols-outlined text-sm">
+                                                      edit
+                                                    </span>
+                                                  </Button>
                                                 )}
                                                 <Button
                                                   variant="ghost"
                                                   size="sm"
                                                   onClick={() => {
-                                                    setUploadInvoiceTransaction(transaction);
+                                                    setUploadInvoiceTransaction(
+                                                      transaction,
+                                                    );
                                                     setUploadInvoiceFile(null);
-                                                    if (uploadInvoiceFileInputRef.current)
-                                                      uploadInvoiceFileInputRef.current.value = "";
+                                                    if (
+                                                      uploadInvoiceFileInputRef.current
+                                                    )
+                                                      uploadInvoiceFileInputRef.current.value =
+                                                        "";
                                                   }}
                                                   className="h-8 px-2 text-xs hover:bg-slate-100 dark:hover:bg-slate-800"
                                                   title="Upload invoice document"
@@ -2810,7 +2848,10 @@ export function FinancialOperationsView({
                 </DialogHeader>
                 <div className="px-6 pb-6 pt-1 space-y-6">
                   <div className="space-y-2">
-                    <Label htmlFor="mark-paid-type" className="text-sm font-medium">
+                    <Label
+                      htmlFor="mark-paid-type"
+                      className="text-sm font-medium"
+                    >
                       Payment type <span className="text-destructive">*</span>
                     </Label>
                     <Select
@@ -2978,7 +3019,10 @@ export function FinancialOperationsView({
                       </div>
                       {markAsPaidUploading && (
                         <p className="text-sm text-muted-foreground flex items-center gap-2">
-                          <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" aria-hidden />
+                          <span
+                            className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"
+                            aria-hidden
+                          />
                           Uploading…
                         </p>
                       )}
@@ -3059,9 +3103,7 @@ export function FinancialOperationsView({
                           direction: "OUTGOING",
                           type: markAsPaidType,
                           amount: parseFloat(amount) || 0,
-                          currency:
-                            costToMarkAsPaid.currency ||
-                            "JPY",
+                          currency: costToMarkAsPaid.currency || "JPY",
                           date: new Date().toISOString(),
                           vendorId:
                             costToMarkAsPaid.vendorId ||
@@ -3075,10 +3117,7 @@ export function FinancialOperationsView({
                         };
                         if (costToMarkAsPaid.isVehicleStageCost) {
                           payload.vehicleStageCostId =
-                            costToMarkAsPaid.id.replace(
-                              "vehicle-cost-",
-                              "",
-                            );
+                            costToMarkAsPaid.id.replace("vehicle-cost-", "");
                         } else if (costToMarkAsPaid.isGeneralCost) {
                           payload.generalCostId = costToMarkAsPaid.id;
                         } else if (costToMarkAsPaid.isCostItem) {
@@ -3086,7 +3125,10 @@ export function FinancialOperationsView({
                             costToMarkAsPaid.costItemId ||
                             costToMarkAsPaid.id.replace("cost-item-", "");
                         }
-                        if (costToMarkAsPaid.isRecurringExpense && costToMarkAsPaid.recurringInstanceId) {
+                        if (
+                          costToMarkAsPaid.isRecurringExpense &&
+                          costToMarkAsPaid.recurringInstanceId
+                        ) {
                           const amountOverride =
                             costToMarkAsPaid.recurringTemplateType ===
                             "RECURRING"
@@ -3240,7 +3282,10 @@ export function FinancialOperationsView({
                         </Button>
                       </div>
                       {uploadInvoiceFile && (
-                        <p className="text-xs text-muted-foreground truncate" title={uploadInvoiceFile.name}>
+                        <p
+                          className="text-xs text-muted-foreground truncate"
+                          title={uploadInvoiceFile.name}
+                        >
                           {uploadInvoiceFile.name} — replace by choosing again.
                         </p>
                       )}
@@ -3257,19 +3302,19 @@ export function FinancialOperationsView({
                   )}
                 </div>
                 <DialogFooter className="mt-6 pt-4 border-t border-border px-6 pb-6">
-                    <Button
-                      variant="outline"
-                      onClick={() => {
-                        setUploadInvoiceTransaction(null);
-                        setUploadInvoiceFile(null);
-                        if (uploadInvoiceFileInputRef.current)
-                          uploadInvoiceFileInputRef.current.value = "";
-                        if (uploadInvoicePhotoInputRef.current)
-                          uploadInvoicePhotoInputRef.current.value = "";
-                      }}
-                    >
-                      Cancel
-                    </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setUploadInvoiceTransaction(null);
+                      setUploadInvoiceFile(null);
+                      if (uploadInvoiceFileInputRef.current)
+                        uploadInvoiceFileInputRef.current.value = "";
+                      if (uploadInvoicePhotoInputRef.current)
+                        uploadInvoicePhotoInputRef.current.value = "";
+                    }}
+                  >
+                    Cancel
+                  </Button>
                   <Button
                     disabled={!uploadInvoiceFile || uploadInvoiceUploading}
                     onClick={async () => {
@@ -3323,9 +3368,7 @@ export function FinancialOperationsView({
                           if (uploadInvoiceFileInputRef.current)
                             uploadInvoiceFileInputRef.current.value = "";
                         } else {
-                          const err = await patchRes
-                            .json()
-                            .catch(() => ({}));
+                          const err = await patchRes.json().catch(() => ({}));
                           alert(err.error || "Failed to link document");
                         }
                       } catch (err) {
@@ -4200,7 +4243,6 @@ export function FinancialOperationsView({
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
     </div>
   );
 }

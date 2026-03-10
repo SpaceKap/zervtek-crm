@@ -4,7 +4,7 @@ import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { requireAuth, canEditInvoice } from "@/lib/permissions"
 import { convertDecimalsToNumbers } from "@/lib/decimal"
-import { getChargesSubtotal } from "@/lib/charge-utils"
+import { getInvoiceRevenueForProfit } from "@/lib/invoice-totals"
 
 function calculateProfitMetrics(
   totalRevenue: number,
@@ -116,16 +116,10 @@ export async function GET(request: NextRequest, props: { params: Promise<{ id: s
       0
     )
 
-    // Calculate revenue (charges subtotal ± deposit/discount, + tax if enabled)
-    const chargesSubtotal = costInvoice.invoice.charges?.length
-      ? getChargesSubtotal(costInvoice.invoice.charges)
+    // Revenue for P&L: only discount subtracts; deposit does not (deposit - deposit = 0)
+    const revenue = costInvoice.invoice.charges?.length
+      ? getInvoiceRevenueForProfit(costInvoice.invoice)
       : parseFloat(costInvoice.totalRevenue.toString())
-    let revenue = chargesSubtotal
-    if (costInvoice.invoice.taxEnabled && costInvoice.invoice.taxRate) {
-      const taxRate = parseFloat(costInvoice.invoice.taxRate.toString())
-      const taxAmount = chargesSubtotal * (taxRate / 100)
-      revenue = chargesSubtotal + taxAmount
-    }
 
     const metrics = calculateProfitMetrics(
       revenue,

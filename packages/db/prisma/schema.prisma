@@ -194,9 +194,12 @@ model User {
   assignedInquiries   Inquiry[]             @relation("AssignedTo")
   assignedCustomers   Customer[]            @relation("CustomerAssignedTo")
   inquiryHistory      InquiryHistory[]
-  createdInvoices     Invoice[]             @relation("CreatedBy")
-  approvedInvoices    Invoice[]             @relation("ApprovedBy")
-  finalizedInvoices   Invoice[]             @relation("FinalizedBy")
+  createdInvoices       Invoice[]             @relation("CreatedBy")
+  approvedInvoices      Invoice[]             @relation("ApprovedBy")
+  finalizedInvoices     Invoice[]             @relation("FinalizedBy")
+  unlockedInvoices      Invoice[]             @relation("UnlockedBy")
+  revertedToDraftInvoices Invoice[]           @relation("RevertedToDraftBy")
+  editedInvoices        Invoice[]             @relation("EditedBy")
   vehicleStageHistory VehicleStageHistory[]
   createdVehicles     Vehicle[]             @relation("VehicleCreatedBy")
   auditLogs           AuditLog[]
@@ -405,36 +408,45 @@ model Vehicle {
 }
 
 model Invoice {
-  id                  String        @id @default(cuid())
-  invoiceNumber       String        @unique
-  customerId          String
-  vehicleId           String?
-  createdById         String
-  approvedById        String?
-  finalizedById       String?
-  status              InvoiceStatus @default(DRAFT)
-  finalizedAt         DateTime?
-  isLocked            Boolean       @default(false)
-  issueDate           DateTime      @default(now())
-  dueDate             DateTime?
-  taxEnabled          Boolean       @default(false)
-  taxRate             Decimal       @default(10) @db.Decimal(5, 2)
-  notes               String?       @db.Text
-  isCIF               Boolean       @default(false)
-  customerUsesInJapan  Boolean       @default(false)
-  metadata            Json?
-  shareToken          String?       @unique
-  paymentStatus       PaymentStatus @default(PENDING)
-  wisePaymentLink     String?       @db.Text
-  paidAt              DateTime?
-  createdAt           DateTime      @default(now())
-  updatedAt           DateTime      @updatedAt
+  id                    String        @id @default(cuid())
+  invoiceNumber         String        @unique
+  customerId            String
+  vehicleId             String?
+  createdById           String
+  approvedById          String?
+  finalizedById         String?
+  unlockedById          String?
+  revertedToDraftById   String?
+  editedById            String?
+  status                InvoiceStatus @default(DRAFT)
+  finalizedAt           DateTime?
+  unlockedAt            DateTime?
+  revertedToDraftAt     DateTime?
+  editedAt              DateTime?
+  isLocked              Boolean       @default(false)
+  issueDate             DateTime      @default(now())
+  dueDate               DateTime?
+  taxEnabled            Boolean       @default(false)
+  taxRate               Decimal       @default(10) @db.Decimal(5, 2)
+  notes                 String?       @db.Text
+  isCIF                 Boolean       @default(false)
+  customerUsesInJapan   Boolean       @default(false)
+  metadata              Json?
+  shareToken            String?       @unique
+  paymentStatus         PaymentStatus @default(PENDING)
+  wisePaymentLink       String?       @db.Text
+  paidAt                DateTime?
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
 
   customer    Customer        @relation(fields: [customerId], references: [id], onDelete: Cascade)
   vehicle     Vehicle?        @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
   createdBy   User            @relation("CreatedBy", fields: [createdById], references: [id])
   approvedBy  User?           @relation("ApprovedBy", fields: [approvedById], references: [id], onDelete: SetNull)
   finalizedBy User?           @relation("FinalizedBy", fields: [finalizedById], references: [id], onDelete: SetNull)
+  unlockedBy  User?           @relation("UnlockedBy", fields: [unlockedById], references: [id], onDelete: SetNull)
+  revertedToDraftBy User?     @relation("RevertedToDraftBy", fields: [revertedToDraftById], references: [id], onDelete: SetNull)
+  editedBy    User?           @relation("EditedBy", fields: [editedById], references: [id], onDelete: SetNull)
   charges     InvoiceCharge[]
   costInvoice CostInvoice?
   transactions Transaction[]

@@ -18,12 +18,12 @@ type TxClient = Omit<
   "$connect" | "$disconnect" | "$on" | "$transaction" | "$use" | "$extends"
 >
 
-/** Compute totalCharges, totalReceived, purchasePaid for a vehicle (for VehicleShippingStage sync). Includes deposit-applied amounts. */
+/** Compute totalCharges, totalReceived, purchasePaid for a vehicle (for VehicleShippingStage sync). totalCharges already has deposit subtracted; totalReceived = actual incoming payments only (no double-count of deposit). */
 async function getVehiclePaymentSummary(tx: TxClient, vehicleId: string) {
   const vehicleTransactions = await tx.transaction.findMany({
     where: { vehicleId, direction: "INCOMING" },
   })
-  const fromPayments = vehicleTransactions.reduce(
+  const totalReceived = vehicleTransactions.reduce(
     (sum, t) => sum + parseFloat(t.amount.toString()),
     0,
   )
@@ -33,15 +33,6 @@ async function getVehiclePaymentSummary(tx: TxClient, vehicleId: string) {
       charges: { include: { chargeType: { select: { name: true } } } },
     },
   })
-  const fromDeposits = vehicleInvoices.reduce((sum, inv) => {
-    const depositCharges = (inv.charges || []).filter(
-      (c: any) =>
-        c.appliedDepositTransactionId &&
-        (c.chargeType?.name?.toLowerCase() === "deposit" || c.chargeType?.name === "DEPOSIT")
-    )
-    return sum + depositCharges.reduce((s: number, c: any) => s + Math.abs(parseFloat(String(c.amount ?? 0))), 0)
-  }, 0)
-  const totalReceived = fromPayments + fromDeposits
   const totalCharges = vehicleInvoices.reduce(
     (sum, inv) => sum + getInvoiceTotalWithTax(inv),
     0,
@@ -181,21 +172,12 @@ export async function PATCH(request: NextRequest, props: { params: Promise<{ id:
         const vehicleTransactions = await tx.transaction.findMany({
           where: { vehicleId: oldVehicleId, direction: "INCOMING", id: { not: params.id } },
         })
-        const fromPayments = vehicleTransactions.reduce((sum, t) => sum + parseFloat(t.amount.toString()), 0)
+        const totalReceivedWithoutThis = vehicleTransactions.reduce((sum, t) => sum + parseFloat(t.amount.toString()), 0)
         const vehicleInvoices = await tx.invoice.findMany({
           where: { vehicleId: oldVehicleId },
           include: { charges: { include: { chargeType: { select: { name: true } } } } },
         })
-        const fromDeposits = vehicleInvoices.reduce((sum, inv) => {
-          const depositCharges = (inv.charges || []).filter(
-            (c: any) =>
-              c.appliedDepositTransactionId &&
-              (c.chargeType?.name?.toLowerCase() === "deposit" || c.chargeType?.name === "DEPOSIT")
-          )
-          return sum + depositCharges.reduce((s: number, c: any) => s + Math.abs(parseFloat(String(c.amount ?? 0))), 0)
-        }, 0)
         const totalCharges = vehicleInvoices.reduce((sum, inv) => sum + getInvoiceTotalWithTax(inv), 0)
-        const totalReceivedWithoutThis = fromPayments + fromDeposits
         const purchasePaidWithoutThis = totalCharges > 0 && isAmountPaidInFull(totalReceivedWithoutThis, totalCharges)
         await tx.vehicleShippingStage.upsert({
           where: { vehicleId: oldVehicleId },

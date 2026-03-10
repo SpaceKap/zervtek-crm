@@ -3,7 +3,13 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { canManageVehicleStages } from "@/lib/permissions"
-import { getChargesSubtotal, isChargeSubtracting } from "@/lib/charge-utils"
+import {
+  isChargeSubtracting,
+  getPositiveChargesSubtotal,
+  getDiscountTotal,
+  getDepositTotal,
+} from "@/lib/charge-utils"
+import { getInvoiceTotalWithTax, getInvoiceRevenueForProfit } from "@/lib/invoice-totals"
 
 export async function GET(request: NextRequest, props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
@@ -84,17 +90,30 @@ export async function GET(request: NextRequest, props: { params: Promise<{ id: s
       )
     }
 
-    // Calculate total revenue from finalized invoices (including tax) - discounts/deposits subtract
+    // Total amount due (for balance due / payment tracking): discounts and deposits subtract
+    let totalChargesDue = 0
+    // Revenue for P&L (profit/margin/ROI): only discount subtracts; deposit does not
     let totalRevenue = 0
+    // Breakdown for "All charges" display: Subtotal → Discount → Deposit → Tax → Total
+    let chargesSubtotalPositive = 0
+    let chargesDiscountTotal = 0
+    let chargesDepositTotal = 0
+    let chargesTaxTotal = 0
     vehicle.invoices.forEach((invoice) => {
-      const chargesTotal = getChargesSubtotal(invoice.charges)
-      let subtotal = chargesTotal
-      if (invoice.taxEnabled && invoice.taxRate) {
-        const taxRate = parseFloat(invoice.taxRate.toString())
-        const taxAmount = subtotal * (taxRate / 100)
-        subtotal += taxAmount
-      }
-      totalRevenue += subtotal
+      totalChargesDue += getInvoiceTotalWithTax(invoice)
+      totalRevenue += getInvoiceRevenueForProfit(invoice)
+      const invCharges = invoice.charges || []
+      const pos = getPositiveChargesSubtotal(invCharges)
+      const disc = getDiscountTotal(invCharges)
+      const dep = getDepositTotal(invCharges)
+      const afterDeposit = pos - disc - dep
+      const tax = invoice.taxEnabled && invoice.taxRate
+        ? afterDeposit * (parseFloat(invoice.taxRate.toString()) / 100)
+        : 0
+      chargesSubtotalPositive += pos
+      chargesDiscountTotal += disc
+      chargesDepositTotal += dep
+      chargesTaxTotal += tax
     })
 
     // Calculate total cost from stage costs, shared invoice allocations, and vehicle cost items (not invoice cost breakdown)
@@ -112,23 +131,25 @@ export async function GET(request: NextRequest, props: { params: Promise<{ id: s
     )
     const totalCost = stageCostsTotal + sharedInvoiceCostsTotal + vehicleCostItemsTotal
 
-    // Calculate profit, margin, and ROI
+    // Calculate profit, margin, and ROI (revenue = revenue for P&L, deposit not subtracted)
     const profit = totalRevenue - totalCost
     const margin = totalRevenue > 0 ? (profit / totalRevenue) * 100 : 0
     const roi = totalCost > 0 ? (profit / totalCost) * 100 : 0
 
-    // totalCharges = invoice revenue; totalReceived = incoming payments + deposit applied to vehicle's invoices
-    const totalCharges = totalRevenue
+    // totalCharges = amount due (already has deposit subtracted); totalReceived = incoming payments only
+    const totalCharges = totalChargesDue
     const invoiceIds = vehicle.invoices.map((inv) => inv.id)
-    const incomingTx = invoiceIds.length > 0
-      ? await prisma.transaction.findMany({
-          where: {
-            direction: "INCOMING",
-            invoiceId: { in: invoiceIds },
-          },
-          select: { id: true, amount: true, date: true, type: true, description: true, currency: true, referenceNumber: true, invoiceId: true },
-        })
-      : []
+    // Include all INCOMING payments for this vehicle: linked by invoice OR by vehicle (so payments added with vehicle but no invoice still show)
+    const incomingTx = await prisma.transaction.findMany({
+      where: {
+        direction: "INCOMING",
+        OR: [
+          ...(invoiceIds.length > 0 ? [{ invoiceId: { in: invoiceIds } }] : []),
+          { vehicleId: params.id },
+        ].filter(Boolean),
+      },
+      select: { id: true, amount: true, date: true, type: true, description: true, currency: true, referenceNumber: true, invoiceId: true },
+    })
     const fromPayments = incomingTx.reduce(
       (sum, t) => sum + parseFloat(t.amount.toString()),
       0,
@@ -141,15 +162,21 @@ export async function GET(request: NextRequest, props: { params: Promise<{ id: s
       )
       return sum + depositCharges.reduce((s: number, c: any) => s + Math.abs(parseFloat(String(c.amount ?? 0))), 0)
     }, 0)
-    const totalReceived = fromPayments + fromDeposits
+    // totalCharges already has deposit subtracted (invoice total = subtotal - discount - deposit + tax).
+    // So "Received" = only actual incoming payments; do NOT add deposit applied (would double-count).
+    const totalReceived = fromPayments
     const balanceDue = Math.max(0, totalCharges - totalReceived)
+
+    const paymentStatus =
+      balanceDue <= 0 && totalCharges > 0
+        ? "PAID"
+        : totalReceived > 0 && balanceDue > 0
+          ? "PARTIALLY_PAID"
+          : "PENDING"
 
     const invoiceTotalsByKey: Record<string, { total: number; status: string }> = {}
     vehicle.invoices.forEach((inv: any) => {
-      let invTotal = getChargesSubtotal(inv.charges || [])
-      if (inv.taxEnabled && inv.taxRate) {
-        invTotal += invTotal * (parseFloat(inv.taxRate.toString()) / 100)
-      }
+      const invTotal = getInvoiceTotalWithTax(inv)
       invoiceTotalsByKey[inv.id] = { total: invTotal, status: inv.paymentStatus || "PENDING" }
     })
 
@@ -226,11 +253,19 @@ export async function GET(request: NextRequest, props: { params: Promise<{ id: s
       totalCharges: totalCharges.toString(),
       totalReceived: totalReceived.toString(),
       balanceDue: balanceDue.toString(),
+      paymentStatus,
+      depositApplied: fromDeposits.toString(),
       customerId: vehicle.customerId,
       invoices: vehicle.invoices,
       paymentTimeline,
       aggregatedCharges,
       invoiceCountAll: vehicle._count?.invoices ?? 0,
+      chargesBreakdown: {
+        subtotalPositive: chargesSubtotalPositive.toString(),
+        discountTotal: chargesDiscountTotal.toString(),
+        depositTotal: chargesDepositTotal.toString(),
+        taxTotal: chargesTaxTotal.toString(),
+      },
     })
   } catch (error: any) {
     console.error("Error fetching vehicle payments:", error)

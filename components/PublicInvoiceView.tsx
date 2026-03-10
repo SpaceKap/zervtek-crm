@@ -2,7 +2,11 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { getChargesSubtotal, isChargeSubtracting } from "@/lib/charge-utils";
+import {
+  getPositiveChargesSubtotal,
+  getDiscountTotal,
+  getDepositTotal,
+} from "@/lib/charge-utils";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -160,17 +164,24 @@ export function PublicInvoiceView({
   const billingAddressLines = formatCustomerAddress(billingAddress);
   const shippingAddressLines = formatCustomerAddress(shippingAddress);
 
-  const totalCharges = getChargesSubtotal(invoice?.charges ?? []);
-
-  let subtotal = totalCharges;
+  // Subtotal (positive only) → Discount → Deposit → Tax → Total (same as PDF)
+  const chargesList = invoice?.charges ?? [];
+  const subtotalPositive = getPositiveChargesSubtotal(chargesList);
+  const discountTotal = getDiscountTotal(chargesList);
+  const depositTotal = getDepositTotal(chargesList);
+  const afterDeposit = subtotalPositive - discountTotal - depositTotal;
+  // Line items: only positive charges; discount/deposit appear only in footer after subtotal
+  const lineItemCharges = chargesList.filter((charge: any) => {
+    const name = (typeof charge.chargeType === "string" ? charge.chargeType : charge.chargeType?.name ?? "").toString().toLowerCase();
+    return name !== "discount" && name !== "deposit";
+  });
   let taxAmount = 0;
   if (invoice.taxEnabled && invoice.taxRate) {
     const taxRate = parseFloat(invoice.taxRate.toString());
-    taxAmount = subtotal * (taxRate / 100);
+    taxAmount = afterDeposit * (taxRate / 100);
   }
-  // Recycle Fee is same as tax amount when tax is enabled (10% consumption tax)
   const recycleFee = invoice.taxEnabled ? taxAmount : 0;
-  const total = subtotal + taxAmount + recycleFee;
+  const total = afterDeposit + taxAmount + recycleFee;
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-[#1E1E1E] py-8 px-4">
@@ -378,13 +389,10 @@ export function PublicInvoiceView({
                   </tr>
                 </thead>
                 <tbody>
-                  {(invoice?.charges ?? []).map((charge: any) => {
+                  {lineItemCharges.map((charge: any) => {
                     const amount = parseFloat(charge.amount.toString());
-                    const displayAmount = isChargeSubtracting(charge) ? -amount : amount;
-                    const currencySymbol = "¥"; // TODO: from invoice.currency or company if multi-currency
-                    const formatted = displayAmount < 0
-                      ? `-${currencySymbol}${Math.abs(displayAmount).toLocaleString()}`
-                      : `${currencySymbol}${displayAmount.toLocaleString()}`;
+                    const currencySymbol = "¥";
+                    const formatted = `${currencySymbol}${amount.toLocaleString()}`;
                     return (
                       <tr
                         key={charge.id}
@@ -405,14 +413,48 @@ export function PublicInvoiceView({
                   })}
                 </tbody>
                 <tfoot>
-                  {invoice.taxEnabled && taxAmount > 0 && (
+                  <tr className="border-b border-gray-300 dark:border-gray-600">
+                    <td className="py-2.5 px-4 text-right">
+                      <p className="font-semibold text-gray-900 dark:text-white">Subtotal</p>
+                    </td>
+                    <td className="py-2.5 px-4 text-right w-32">
+                      <p className="font-semibold text-gray-900 dark:text-white whitespace-nowrap">
+                        ¥{subtotalPositive.toLocaleString()}
+                      </p>
+                    </td>
+                  </tr>
+                  {discountTotal > 0 && (
                     <tr>
-                      <td className="py-3 px-4 text-right">
-                        <p className="text-gray-700 dark:text-gray-300">
-                          Tax ({invoice.taxRate}%)
+                      <td className="py-2 px-4 text-right">
+                        <p className="text-gray-700 dark:text-gray-300">Discount</p>
+                      </td>
+                      <td className="py-2 px-4 text-right w-32">
+                        <p className="text-red-600 dark:text-red-400 whitespace-nowrap">
+                          -¥{discountTotal.toLocaleString()}
                         </p>
                       </td>
-                      <td className="py-3 px-4 text-right w-32">
+                    </tr>
+                  )}
+                  {depositTotal > 0 && (
+                    <tr>
+                      <td className="py-2 px-4 text-right">
+                        <p className="text-gray-700 dark:text-gray-300">Deposit</p>
+                      </td>
+                      <td className="py-2 px-4 text-right w-32">
+                        <p className="text-red-600 dark:text-red-400 whitespace-nowrap">
+                          -¥{depositTotal.toLocaleString()}
+                        </p>
+                      </td>
+                    </tr>
+                  )}
+                  {invoice.taxEnabled && taxAmount > 0 && (
+                    <tr>
+                      <td className="py-2 px-4 text-right">
+                        <p className="text-gray-700 dark:text-gray-300">
+                          Japanese Consumption Tax ({invoice.taxRate}%)
+                        </p>
+                      </td>
+                      <td className="py-2 px-4 text-right w-32">
                         <p className="text-gray-700 dark:text-gray-300 whitespace-nowrap">
                           ¥{taxAmount.toLocaleString()}
                         </p>
@@ -421,12 +463,12 @@ export function PublicInvoiceView({
                   )}
                   {invoice.taxEnabled && recycleFee > 0 && (
                     <tr>
-                      <td className="py-3 px-4 text-right">
+                      <td className="py-2 px-4 text-right">
                         <p className="text-gray-700 dark:text-gray-300">
                           Recycle Fee
                         </p>
                       </td>
-                      <td className="py-3 px-4 text-right w-32">
+                      <td className="py-2 px-4 text-right w-32">
                         <p className="text-gray-700 dark:text-gray-300 whitespace-nowrap">
                           ¥{recycleFee.toLocaleString()}
                         </p>

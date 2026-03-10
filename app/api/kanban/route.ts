@@ -116,6 +116,7 @@ export async function GET(request: NextRequest) {
         message: true,
         status: true,
         assignedToId: true,
+        assignedAt: true,
         createdAt: true,
         metadata: true,
         assignedTo: {

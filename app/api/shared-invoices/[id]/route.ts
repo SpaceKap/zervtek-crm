@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { requireAuth, canViewAllInquiries, canDeleteSharedInvoice } from "@/lib/permissions"
 import { convertDecimalsToNumbers } from "@/lib/decimal"
+import { getInvoiceRevenueForProfit } from "@/lib/invoice-totals"
 
 export async function GET(request: NextRequest, props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
@@ -56,6 +57,7 @@ async function recalculateCostInvoicesForVehicles(vehicleIds: string[]) {
         invoices: {
           include: {
             costInvoice: true,
+            charges: { include: { chargeType: true } },
           },
         },
       },
@@ -67,18 +69,8 @@ async function recalculateCostInvoicesForVehicles(vehicleIds: string[]) {
       // Get or create cost invoice
       let costInvoice = invoice.costInvoice
       if (!costInvoice) {
-        // Calculate revenue from invoice charges
-        const charges = await prisma.invoiceCharge.findMany({
-          where: { invoiceId: invoice.id },
-        })
-        const subtotal = charges.reduce(
-          (sum, charge) => sum + parseFloat(charge.amount.toString()),
-          0
-        )
-        const taxAmount = invoice.taxEnabled && invoice.taxRate
-          ? subtotal * (parseFloat(invoice.taxRate.toString()) / 100)
-          : 0
-        const totalRevenue = subtotal + taxAmount
+        // Revenue for P&L: only discount subtracts; deposit does not
+        const totalRevenue = getInvoiceRevenueForProfit(invoice)
 
         costInvoice = await prisma.costInvoice.create({
           data: {
@@ -114,18 +106,8 @@ async function recalculateCostInvoicesForVehicles(vehicleIds: string[]) {
       )
       const totalCost = regularCost + sharedCostAmount
 
-      // Calculate revenue
-      const charges = await prisma.invoiceCharge.findMany({
-        where: { invoiceId: invoice.id },
-      })
-      const subtotal = charges.reduce(
-        (sum, charge) => sum + parseFloat(charge.amount.toString()),
-        0
-      )
-      const taxAmount = invoice.taxEnabled && invoice.taxRate
-        ? subtotal * (parseFloat(invoice.taxRate.toString()) / 100)
-        : 0
-      const totalRevenue = subtotal + taxAmount
+      // Revenue for P&L: only discount subtracts; deposit does not
+      const totalRevenue = getInvoiceRevenueForProfit(invoice)
 
       const profit = totalRevenue - totalCost
       const margin = totalRevenue > 0 ? (profit / totalRevenue) * 100 : 0

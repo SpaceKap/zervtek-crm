@@ -33,6 +33,7 @@ interface InquiryCardProps {
     message: string | null;
     status: InquiryStatus;
     assignedToId: string | null;
+    assignedAt?: Date | string | null;
     createdAt: Date;
     metadata?: any;
     assignedTo?: {
@@ -341,12 +342,23 @@ export function InquiryCard({
                 </span>
               )}
               {!hideSourceBadge && (
-                <span
-                  className={`text-xs px-2 py-0.5 rounded ${
-                    sourceColors[inquiry.source]
-                  }`}
-                >
-                  {sourceLabels[inquiry.source]}
+                <span className="inline-flex items-center gap-1.5">
+                  {inquiry.assignedAt &&
+                    inquiry.assignedToId &&
+                    Date.now() - new Date(inquiry.assignedAt).getTime() < 24 * 60 * 60 * 1000 && (
+                      <span
+                        className="size-2 rounded-full bg-green-500 shrink-0"
+                        title="Newly assigned (last 24h)"
+                        aria-hidden
+                      />
+                    )}
+                  <span
+                    className={`text-xs px-2 py-0.5 rounded ${
+                      sourceColors[inquiry.source]
+                    }`}
+                  >
+                    {sourceLabels[inquiry.source]}
+                  </span>
                 </span>
               )}
               {previouslyTriedBy && (

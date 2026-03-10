@@ -46,7 +46,10 @@ export async function GET(request: NextRequest) {
       where.customerId = customerId
     }
     if (vehicleId) {
-      where.vehicleId = vehicleId
+      where.OR = [
+        { vehicleId },
+        { invoice: { vehicleId } },
+      ]
     }
     if (startDate || endDate) {
       where.date = {}
@@ -86,6 +89,24 @@ export async function GET(request: NextRequest) {
       orderBy: { date: "desc" },
       take: 500,
     })
+
+    // For payments linked to vehicle but not to an invoice: show first invoice for that vehicle in Invoice #
+    const vehicleIdsNeedingInvoice = [...new Set(
+      transactions.filter((t: any) => t.vehicleId && !t.invoiceId).map((t: any) => t.vehicleId)
+    )]
+    const firstInvoicesByVehicle = new Map<string, string>()
+    if (vehicleIdsNeedingInvoice.length > 0) {
+      const firstInvoices = await prisma.invoice.findMany({
+        where: { vehicleId: { in: vehicleIdsNeedingInvoice } },
+        select: { vehicleId: true, invoiceNumber: true, createdAt: true },
+        orderBy: { createdAt: "asc" },
+      })
+      firstInvoices.forEach((inv) => {
+        if (inv.vehicleId && !firstInvoicesByVehicle.has(inv.vehicleId)) {
+          firstInvoicesByVehicle.set(inv.vehicleId, inv.invoiceNumber)
+        }
+      })
+    }
 
     // Also fetch general costs and combine them with transactions
     const generalCostsWhere: any = {}
@@ -456,10 +477,10 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    // Normalize dates for regular transactions from database; include invoiceNumber from linked invoice
+    // Normalize dates for regular transactions from database; include invoiceNumber from linked invoice or first invoice for vehicle
     const normalizedTransactions = transactions.map((t: any) => ({
       ...t,
-      invoiceNumber: t.invoice?.invoiceNumber ?? t.invoiceNumber ?? null,
+      invoiceNumber: t.invoice?.invoiceNumber ?? firstInvoicesByVehicle.get(t.vehicleId) ?? t.invoiceNumber ?? null,
       date: t.date instanceof Date ? t.date.toISOString() : (typeof t.date === 'string' ? t.date : new Date(t.date).toISOString()),
       createdAt: t.createdAt instanceof Date ? t.createdAt.toISOString() : (typeof t.createdAt === 'string' ? t.createdAt : new Date(t.createdAt).toISOString()),
       updatedAt: t.updatedAt instanceof Date ? t.updatedAt.toISOString() : (typeof t.updatedAt === 'string' ? t.updatedAt : new Date(t.updatedAt).toISOString()),

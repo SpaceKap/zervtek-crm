@@ -1,11 +1,11 @@
 /**
  * Pure invoice total helpers (no Prisma). Safe to import from Client Components.
  */
-import { getChargesSubtotal } from "./charge-utils";
+import { getChargesSubtotal, getChargesSubtotalForRevenue } from "./charge-utils";
 
 /**
  * Calculate total invoice amount (charges + tax if enabled).
- * Discounts and deposits are subtracted. Use for payment comparison.
+ * Discounts and deposits are subtracted. Use for amount due and payment comparison.
  */
 export function getInvoiceTotalWithTax(invoice: {
   charges: Array<{ amount: unknown; chargeType?: string | { name?: string } | null }>;
@@ -19,6 +19,24 @@ export function getInvoiceTotalWithTax(invoice: {
     return chargesSubtotal + taxAmount;
   }
   return chargesSubtotal;
+}
+
+/**
+ * Revenue for P&L: only discount subtracts; deposit does not (deposit - deposit = 0).
+ * Use for profit, margin, ROI so applied deposit doesn't reduce revenue.
+ */
+export function getInvoiceRevenueForProfit(invoice: {
+  charges: Array<{ amount: unknown; chargeType?: string | { name?: string } | null }>;
+  taxEnabled?: boolean;
+  taxRate?: unknown;
+}): number {
+  const revenueSubtotal = getChargesSubtotalForRevenue(invoice.charges);
+  if (invoice.taxEnabled && invoice.taxRate != null) {
+    const taxRate = parseFloat(String(invoice.taxRate));
+    const taxAmount = revenueSubtotal * (taxRate / 100);
+    return revenueSubtotal + taxAmount;
+  }
+  return revenueSubtotal;
 }
 
 /** Small tolerance for floating-point comparison (0.01 = 1 cent) */

@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import {
   getInvoiceTotalWithTax,
+  getInvoiceRevenueForProfit,
   isAmountPaidInFull,
   hasPartialPayment,
 } from "./invoice-totals";
@@ -9,6 +10,7 @@ import {
 export { isChargeSubtracting } from "./charge-utils";
 export {
   getInvoiceTotalWithTax,
+  getInvoiceRevenueForProfit,
   isAmountPaidInFull,
   hasPartialPayment,
 } from "./invoice-totals";
@@ -30,18 +32,12 @@ export async function recalcInvoicePaymentStatus(invoiceId: string): Promise<voi
   const transactions = await prisma.transaction.findMany({
     where: { invoiceId, direction: "INCOMING" },
   });
-  const fromPayments = transactions.reduce(
+  const totalReceived = transactions.reduce(
     (sum, t) => sum + parseFloat(String(t.amount ?? 0)),
     0
   );
-  const fromDeposits = invoice.charges
-    .filter(
-      (c) =>
-        c.appliedDepositTransactionId &&
-        (c.chargeType?.name?.toLowerCase() === "deposit" || c.chargeType?.name === "DEPOSIT")
-    )
-    .reduce((sum, c) => sum + Math.abs(parseFloat(String(c.amount ?? 0))), 0);
-  const totalReceived = fromPayments + fromDeposits;
+  // Do NOT add deposit applied: totalAmount already has deposit subtracted (amount due).
+  // Payment status = compare actual incoming payments to amount due.
 
   let paymentStatus: "PENDING" | "PAID" | "PARTIALLY_PAID" = "PENDING";
   if (isAmountPaidInFull(totalReceived, totalAmount)) paymentStatus = "PAID";

@@ -1900,11 +1900,6 @@ export function InvoiceForm({ invoice }: InvoiceFormProps = {}) {
                                 />
                               )}
                             </div>
-                            {watch(`charges.${index}.chargeType`) === "VEHICLE" && vehicleAlreadyHasInvoice && (
-                              <p className="text-xs text-muted-foreground mt-1 px-1">
-                                Vehicle already has an invoice; add only shipping or other charges.
-                              </p>
-                            )}
                             {errors.charges?.[index]?.amount && (
                               <p className="text-xs text-red-500 mt-1.5 px-1">
                                 {errors.charges[index]?.amount?.message}

@@ -14,12 +14,10 @@ import { InvoiceDetail } from "@/components/InvoiceDetail";
 import { InvoiceForm } from "@/components/InvoiceForm";
 import { ResourceNotFound } from "@/components/ResourceNotFound";
 
-export default async function InvoiceDetailPage(
-  props: {
-    params: Promise<{ id: string }>;
-    searchParams: Promise<{ edit?: string }>;
-  }
-) {
+export default async function InvoiceDetailPage(props: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ edit?: string }>;
+}) {
   const searchParams = await props.searchParams;
   const params = await props.params;
   const [resolvedParams, resolvedSearchParams] = await Promise.all([
@@ -99,7 +97,14 @@ export default async function InvoiceDetailPage(
         include: {
           chargeType: true,
           appliedDepositTransaction: {
-            select: { id: true, date: true, amount: true, description: true, type: true, depositNumber: true },
+            select: {
+              id: true,
+              date: true,
+              amount: true,
+              description: true,
+              type: true,
+              depositNumber: true,
+            },
           },
         },
       },
@@ -163,7 +168,8 @@ export default async function InvoiceDetailPage(
 
   // Serialize for Client Components (Prisma Decimals are not serializable)
   const serializedInvoice = convertDecimalsToNumbers(invoice);
-  const serializedAdditionalVehicles = convertDecimalsToNumbers(additionalVehicles);
+  const serializedAdditionalVehicles =
+    convertDecimalsToNumbers(additionalVehicles);
 
   // If in edit mode, show InvoiceForm
   if (isEditMode) {

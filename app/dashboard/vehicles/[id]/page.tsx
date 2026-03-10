@@ -528,6 +528,26 @@ export default function VehicleDetailPage() {
           </div>
           {!paymentLoading && paymentData && (
             <div className="mt-6 pt-6 border-t border-slate-700/50 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
+              {paymentData.paymentStatus && (
+                <span className="flex items-center gap-x-1.5">
+                  <span className="text-slate-400">Payment status:</span>
+                  <Badge
+                    className={
+                      paymentData.paymentStatus === "PAID"
+                        ? "bg-green-100 text-green-800 border-green-200 dark:bg-green-900/30 dark:text-green-300 dark:border-green-800"
+                        : paymentData.paymentStatus === "PARTIALLY_PAID"
+                          ? "bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800"
+                          : "bg-yellow-100 text-yellow-800 border-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-300 dark:border-yellow-800"
+                    }
+                  >
+                    {paymentData.paymentStatus === "PAID"
+                      ? "Paid"
+                      : paymentData.paymentStatus === "PARTIALLY_PAID"
+                        ? "Partially Paid"
+                        : "Pending"}
+                  </Badge>
+                </span>
+              )}
               <span className="flex items-center gap-x-1.5">
                 <span className="text-slate-400">Revenue:</span>
                 <span className="text-slate-200 font-semibold tabular-nums">¥{Number(paymentData.totalRevenue || 0).toLocaleString("ja-JP")}</span>

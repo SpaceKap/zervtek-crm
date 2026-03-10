@@ -217,11 +217,16 @@ export default async function VehiclePage(
     prisma.transaction.findMany({
       where: {
         direction: "INCOMING",
-        invoice: {
-          vehicleId: vehicle.id,
-          status: { in: [InvoiceStatus.APPROVED, InvoiceStatus.FINALIZED] },
-          customerId: { in: customerIdsToShow },
-        },
+        OR: [
+          {
+            invoice: {
+              vehicleId: vehicle.id,
+              status: { in: [InvoiceStatus.APPROVED, InvoiceStatus.FINALIZED] },
+              customerId: { in: customerIdsToShow },
+            },
+          },
+          { vehicleId: vehicle.id },
+        ],
       },
       select: {
         id: true,

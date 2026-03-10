@@ -7,7 +7,11 @@ import {
   StyleSheet,
   Image,
 } from "@react-pdf/renderer";
-import { getChargesSubtotal, isChargeSubtracting } from "@/lib/charge-utils";
+import {
+  getPositiveChargesSubtotal,
+  getDiscountTotal,
+  getDepositTotal,
+} from "@/lib/charge-utils";
 
 const styles = StyleSheet.create({
   page: {
@@ -149,6 +153,26 @@ const styles = StyleSheet.create({
     marginTop: 4,
     width: "100%",
   },
+  subtotalRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 4,
+    paddingBottom: 6,
+    marginBottom: 2,
+    borderBottom: "1 solid #000000",
+    width: "100%",
+  },
+  subtotalLabel: {
+    fontSize: 9,
+    fontWeight: "bold",
+    color: "#000000",
+  },
+  subtotalAmount: {
+    fontSize: 9,
+    fontWeight: "bold",
+    color: "#000000",
+    textAlign: "right",
+  },
   totalLabel: {
     fontSize: 9,
     color: "#666666",
@@ -281,16 +305,25 @@ export function CustomerInvoicePDF({
     return `-${formatCurrency(Math.abs(amount))}`;
   };
 
-  // Calculate totals (getChargesSubtotal includes discounts/deposits as negative)
-  const subtotal = getChargesSubtotal(invoice.charges);
+  // Totals breakdown: Subtotal (positive) → Discount → Deposit → Tax → Total
+  const chargesList = invoice.charges ?? [];
+  const subtotalPositive = getPositiveChargesSubtotal(chargesList);
+  const discountTotal = getDiscountTotal(chargesList);
+  const depositTotal = getDepositTotal(chargesList);
+  const afterDeposit = subtotalPositive - discountTotal - depositTotal;
+  // Line items: only positive charges; discount/deposit appear only in totals after subtotal
+  const lineItemCharges = chargesList.filter((charge: any) => {
+    const name = (typeof charge.chargeType === "string" ? charge.chargeType : charge.chargeType?.name ?? "").toString().toLowerCase();
+    return name !== "discount" && name !== "deposit";
+  });
 
   const taxAmount = invoice.taxEnabled
-    ? subtotal * (parseFloat(invoice.taxRate.toString()) / 100)
+    ? afterDeposit * (parseFloat(invoice.taxRate.toString()) / 100)
     : 0;
 
   const recycleFee = invoice.taxEnabled ? taxAmount : 0;
 
-  const total = subtotal + taxAmount + recycleFee;
+  const total = afterDeposit + taxAmount + recycleFee;
 
   const issueDate = formatDate(invoice.issueDate || invoice.createdAt);
   const dueDate = formatDate(invoice.dueDate);
@@ -490,11 +523,9 @@ export function CustomerInvoicePDF({
               AMOUNT
             </Text>
           </View>
-          {invoice.charges.map((charge: any, index: number) => {
+          {lineItemCharges.map((charge: any, index: number) => {
             const amount = parseFloat(charge.amount.toString());
-            const isDeduction = isChargeSubtracting(charge);
-            const displayAmount = isDeduction ? -amount : amount;
-            const formatted = isDeduction ? formatCurrencyNegative(displayAmount) : formatCurrency(displayAmount);
+            const formatted = formatCurrency(amount);
             return (
               <View key={index} style={styles.tableRow}>
                 <Text
@@ -513,27 +544,40 @@ export function CustomerInvoicePDF({
           })}
         </View>
 
-        {/* Totals Section */}
+        {/* Totals Section: Subtotal → Discount → Deposit → Tax → Total */}
         <View style={styles.totalsSection}>
-          {/* Subtotal */}
-          <View style={styles.totalRow}>
-            <Text style={styles.totalLabel}>Subtotal</Text>
-            <Text style={styles.totalAmount}>
-              JPY {formatCurrency(subtotal)}
+          <View style={styles.subtotalRow}>
+            <Text style={styles.subtotalLabel}>Subtotal</Text>
+            <Text style={styles.subtotalAmount}>
+              JPY {formatCurrency(subtotalPositive)}
             </Text>
           </View>
-          {/* Tax */}
+          {discountTotal > 0 && (
+            <View style={styles.totalRow}>
+              <Text style={styles.totalLabel}>Discount</Text>
+              <Text style={styles.totalAmount}>
+                JPY {formatCurrencyNegative(-discountTotal)}
+              </Text>
+            </View>
+          )}
+          {depositTotal > 0 && (
+            <View style={styles.totalRow}>
+              <Text style={styles.totalLabel}>Deposit</Text>
+              <Text style={styles.totalAmount}>
+                JPY {formatCurrencyNegative(-depositTotal)}
+              </Text>
+            </View>
+          )}
           {invoice.taxEnabled && taxAmount > 0 && invoice.taxRate && (
             <View style={styles.totalRow}>
               <Text style={styles.totalLabel}>
-                Tax ({parseFloat(invoice.taxRate.toString())}%)
+                Japanese Consumption Tax ({parseFloat(invoice.taxRate.toString())}%)
               </Text>
               <Text style={styles.totalAmount}>
                 JPY {formatCurrency(taxAmount)}
               </Text>
             </View>
           )}
-          {/* Recycle Fee */}
           {invoice.taxEnabled && recycleFee > 0 && (
             <View style={styles.totalRow}>
               <Text style={styles.totalLabel}>Recycle Fee</Text>

@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma"
 import { requireAuth, canEditInvoice, canViewAllInquiries, canDeleteInvoice } from "@/lib/permissions"
 import { InvoiceStatus } from "@prisma/client"
 import { convertDecimalsToNumbers } from "@/lib/decimal"
-import { recalcInvoicePaymentStatus, getInvoiceTotalWithTax } from "@/lib/invoice-utils"
+import { recalcInvoicePaymentStatus, getInvoiceTotalWithTax, getInvoiceRevenueForProfit } from "@/lib/invoice-utils"
 import { invalidateCache } from "@/lib/cache"
 import { isChargeSubtracting } from "@/lib/charge-utils"
 
@@ -312,9 +312,9 @@ export async function PATCH(request: NextRequest, props: { params: Promise<{ id:
         },
       })
 
-      // Sync cost invoice totalRevenue so vehicle page and everywhere use invoice total as source of truth
+      // Sync cost invoice totalRevenue (revenue for P&L: deposit not subtracted) for profit/margin/ROI
       if (invoiceWithCharges) {
-        const totalRevenue = getInvoiceTotalWithTax(invoiceWithCharges)
+        const totalRevenue = getInvoiceRevenueForProfit(invoiceWithCharges)
         await prisma.costInvoice.updateMany({
           where: { invoiceId: params.id },
           data: { totalRevenue },
@@ -327,7 +327,7 @@ export async function PATCH(request: NextRequest, props: { params: Promise<{ id:
       return NextResponse.json(convertDecimalsToNumbers(invoiceWithCharges))
     }
 
-    // When only tax (or other fields) changed, sync cost invoice totalRevenue from current charges
+    // When only tax (or other fields) changed, sync cost invoice totalRevenue (revenue for P&L) from current charges
     if (taxEnabled !== undefined || taxRate !== undefined) {
       const inv = await prisma.invoice.findUnique({
         where: { id: params.id },
@@ -336,7 +336,7 @@ export async function PATCH(request: NextRequest, props: { params: Promise<{ id:
         },
       })
       if (inv) {
-        const totalRevenue = getInvoiceTotalWithTax(inv)
+        const totalRevenue = getInvoiceRevenueForProfit(inv)
         await prisma.costInvoice.updateMany({
           where: { invoiceId: params.id },
           data: { totalRevenue },
