@@ -337,9 +337,14 @@ export function VehicleExpensesManager({
   const formatCurrency = (amount: string | number, currency: string) => {
     const cleanAmount =
       typeof amount === "string"
-        ? parseFloat(amount.replace(/,/g, ""))
-        : amount;
-    return `${cleanAmount.toLocaleString("en-US")} ${currency}`;
+        ? parseFloat(String(amount).replace(/,/g, ""))
+        : Number(amount);
+    if (isNaN(cleanAmount)) return "—";
+    return new Intl.NumberFormat("ja-JP", {
+      style: "currency",
+      currency: currency || "JPY",
+      maximumFractionDigits: 0,
+    }).format(cleanAmount);
   };
 
   const safeFormatDate = (d: string | Date | null | undefined) => {
@@ -360,112 +365,131 @@ export function VehicleExpensesManager({
     return <div className="text-center py-4">Loading expenses...</div>;
   }
 
+  const sourceLabel =
+    (s: Expense["source"]) =>
+    s === "invoice"
+      ? "invoice"
+      : s === "vehicle_cost_item"
+        ? "vehicle"
+        : s === "vehicle"
+          ? "stage cost"
+          : "—";
+
   return (
     <div className="space-y-4">
-      <div className="flex justify-between items-center">
-        <div>
-          <h3 className="font-semibold">Vehicle Expenses</h3>
-          <p className="text-sm text-gray-500 dark:text-[#A1A1A1]">
-            Total: {formatCurrency(totalAmount, "JPY")}
-          </p>
-        </div>
-        <Button onClick={() => handleOpenDialog()}>Add Expense</Button>
+      <div className="flex justify-end">
+        <Button onClick={() => handleOpenDialog()} className="gap-1.5">
+          <span className="material-symbols-outlined text-lg">add</span>
+          Add Expense
+        </Button>
       </div>
 
-      <div className="space-y-2">
-        {expenses.length === 0 ? (
-          <div className="text-center py-8 text-gray-500">
-            No expenses added yet
+      {expenses.length === 0 ? (
+        <div className="rounded-lg border border-dashed py-10 text-center text-muted-foreground">
+          <span className="material-symbols-outlined text-3xl mb-2 block">account_balance_wallet</span>
+          <p className="text-sm">No expenses added yet.</p>
+        </div>
+      ) : (
+        <>
+          <div className="overflow-x-auto rounded-lg border bg-card">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b bg-muted/50">
+                  <th className="text-left py-3 px-4 font-medium w-28">Date</th>
+                  <th className="text-left py-3 px-4 font-medium">Description</th>
+                  <th className="text-left py-3 px-4 font-medium w-24">Status</th>
+                  <th className="text-right py-3 px-4 font-medium w-32">Amount</th>
+                  <th className="text-right py-3 px-4 font-medium w-36">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {expenses.map((expense) => (
+                  <tr key={expense.id} className="border-b last:border-0 hover:bg-muted/30">
+                    <td className="py-3 px-4 text-muted-foreground whitespace-nowrap">
+                      {expense.paymentDate
+                        ? safeFormatDate(expense.paymentDate)
+                        : expense.paymentDeadline
+                          ? safeFormatDate(expense.paymentDeadline)
+                          : expense.createdAt
+                            ? safeFormatDate(expense.createdAt)
+                            : "—"}
+                    </td>
+                    <td className="py-3 px-4">
+                      <span className="font-medium">{expense.costType}</span>
+                      <span className="text-muted-foreground text-xs ml-1.5">
+                        ({sourceLabel(expense.source)})
+                      </span>
+                      {expense.vendor?.name && (
+                        <p className="text-muted-foreground text-xs mt-0.5">{expense.vendor.name}</p>
+                      )}
+                    </td>
+                    <td className="py-3 px-4">
+                      {isPaid(expense) ? (
+                        <Badge className="bg-green-100 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-300 dark:border-green-800 text-xs">
+                          Paid
+                        </Badge>
+                      ) : isOverdue(expense) ? (
+                        <Badge className="bg-red-100 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-300 dark:border-red-800 text-xs">
+                          Overdue
+                        </Badge>
+                      ) : (
+                        <Badge className="bg-yellow-100 text-yellow-700 border-yellow-200 dark:bg-yellow-900/20 dark:text-yellow-300 dark:border-yellow-800 text-xs">
+                          Pending
+                        </Badge>
+                      )}
+                    </td>
+                    <td className="py-3 px-4 text-right font-medium tabular-nums">
+                      {formatCurrency(expense.amount, expense.currency)}
+                    </td>
+                    <td className="py-3 px-4 text-right">
+                      {expense.source !== "invoice" && (
+                        <div className="flex items-center justify-end gap-1">
+                          <Checkbox
+                            checked={isPaid(expense)}
+                            onCheckedChange={(checked) =>
+                              handleMarkPaid(expense.id, !!checked)
+                            }
+                            className="mr-1"
+                          />
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-8 w-8 p-0"
+                            onClick={() => handleOpenDialog(expense)}
+                          >
+                            <span className="material-symbols-outlined text-base">edit</span>
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                            onClick={() => handleDeleteExpense(expense.id, expense)}
+                          >
+                            <span className="material-symbols-outlined text-base">delete</span>
+                          </Button>
+                        </div>
+                      )}
+                      {expense.source === "invoice" && expense.invoiceId && (
+                        <Link href={`/dashboard/invoices/${expense.invoiceId}`}>
+                          <Button size="sm" variant="ghost" className="text-primary">
+                            View invoice
+                          </Button>
+                        </Link>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-        ) : (
-          expenses.map((expense) => (
-            <div
-              key={expense.id}
-              className="flex items-center justify-between p-4 bg-gray-50 dark:bg-[#2C2C2C] rounded-lg border"
-            >
-              <div className="flex-1">
-                <div className="flex items-center gap-2">
-                  <div className="font-medium">{expense.costType}</div>
-                  {expense.source === "invoice" && expense.invoiceNumber && (
-                    <Badge variant="outline" className="text-xs">
-                      {expense.invoiceNumber}
-                    </Badge>
-                  )}
-                  {isPaid(expense) ? (
-                    <Badge className="bg-green-100 text-green-700 border-green-300 dark:bg-green-900/20 dark:text-green-300 dark:border-green-700">
-                      Paid
-                    </Badge>
-                  ) : isOverdue(expense) ? (
-                    <Badge className="bg-red-100 text-red-700 border-red-300 dark:bg-red-900/20 dark:text-red-300 dark:border-red-700">
-                      Overdue
-                    </Badge>
-                  ) : (
-                    <Badge className="bg-yellow-100 text-yellow-700 border-yellow-300 dark:bg-yellow-900/20 dark:text-yellow-300 dark:border-yellow-700">
-                      Pending
-                    </Badge>
-                  )}
-                </div>
-                <div className="text-sm text-gray-600 dark:text-[#A1A1A1] mt-1">
-                  {expense.vendor.name} •{" "}
-                  {formatCurrency(expense.amount, expense.currency)}
-                </div>
-                {(expense.paymentDeadline || expense.paymentDate) && (
-                  <div className="text-xs text-gray-500 dark:text-[#A1A1A1] mt-1 space-y-0.5">
-                    {expense.paymentDeadline && safeFormatDate(expense.paymentDeadline) && (
-                      <div>
-                        Deadline:{" "}
-                        {safeFormatDate(expense.paymentDeadline)}
-                      </div>
-                    )}
-                    {expense.paymentDate && safeFormatDate(expense.paymentDate) && (
-                      <div>
-                        Paid:{" "}
-                        {safeFormatDate(expense.paymentDate)}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-              <div className="flex items-center gap-2">
-                {expense.source !== "invoice" && (
-                  <>
-                    <Checkbox
-                      checked={isPaid(expense)}
-                      onCheckedChange={(checked) =>
-                        handleMarkPaid(expense.id, !!checked)
-                      }
-                    />
-                    <span className="text-xs text-gray-500 dark:text-[#A1A1A1]">
-                      Mark paid
-                    </span>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => handleOpenDialog(expense)}
-                    >
-                      Edit
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => handleDeleteExpense(expense.id, expense)}
-                    >
-                      Delete
-                    </Button>
-                  </>
-                )}
-                {expense.source === "invoice" && expense.invoiceId && (
-                  <Link href={`/dashboard/invoices/${expense.invoiceId}/cost`}>
-                    <Button size="sm" variant="ghost">
-                      Edit in Invoice
-                    </Button>
-                  </Link>
-                )}
-              </div>
+          <div className="mt-4 w-full max-w-sm ml-auto rounded-lg border bg-muted/30 p-4 text-sm">
+            <div className="flex justify-between pt-2 border-t font-semibold">
+              <span>Total</span>
+              <span className="tabular-nums">{formatCurrency(totalAmount, "JPY")}</span>
             </div>
-          ))
-        )}
-      </div>
+          </div>
+        </>
+      )}
 
       {/* Add/Edit Expense Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>

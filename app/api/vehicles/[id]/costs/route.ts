@@ -123,7 +123,27 @@ export async function GET(request: NextRequest, props: { params: Promise<{ id: s
       vehicleCostItemId: c.id,
     }))
 
-    const combined = [...invoiceCostItems, ...vehicleCostItemsFormatted, ...stageCostsFormatted].sort(
+    // Deduplicate: if an invoice cost item and a vehicle/stage item match (same category, amount, vendor), keep only the invoice one
+    const invoiceKeys = new Set(
+      invoiceCostItems.map(
+        (c) =>
+          `${(c.costType || "").toString().trim()}|${parseFloat(String(c.amount ?? 0))}|${c.vendorId}`
+      )
+    )
+    const vehicleFiltered = vehicleCostItemsFormatted.filter(
+      (c) =>
+        !invoiceKeys.has(
+          `${(c.costType || "").toString().trim()}|${parseFloat(String(c.amount ?? 0))}|${c.vendorId}`
+        )
+    )
+    const stageFiltered = stageCostsFormatted.filter(
+      (c) =>
+        !invoiceKeys.has(
+          `${(c.costType || "").toString().trim()}|${parseFloat(String(c.amount ?? 0))}|${c.vendorId}`
+        )
+    )
+
+    const combined = [...invoiceCostItems, ...vehicleFiltered, ...stageFiltered].sort(
       (a, b) => {
         const ta = a.createdAt ? new Date(a.createdAt).getTime() : 0
         const tb = b.createdAt ? new Date(b.createdAt).getTime() : 0
