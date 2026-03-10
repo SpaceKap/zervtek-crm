@@ -239,6 +239,15 @@ export default function VehicleDetailPage() {
     }
   }, [vehicleId, fetchVehicle, fetchVendors, fetchYards, fetchPayments]);
 
+  // Refetch payments when user returns to this tab/window so totals stay in sync after editing invoice
+  useEffect(() => {
+    const onVisible = () => {
+      if (vehicleId && document.visibilityState === "visible") fetchPayments();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [vehicleId, fetchPayments]);
+
   useEffect(() => {
     if (viewingStage && vehicle) {
       fetchVendors();

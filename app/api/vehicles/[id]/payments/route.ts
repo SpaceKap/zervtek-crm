@@ -53,6 +53,11 @@ export async function GET(request: NextRequest, props: { params: Promise<{ id: s
             paymentStatus: true,
             taxEnabled: true,
             taxRate: true,
+            costInvoice: {
+              select: {
+                costItems: { select: { amount: true } },
+              },
+            },
           },
         },
         stageCosts: {
@@ -116,7 +121,7 @@ export async function GET(request: NextRequest, props: { params: Promise<{ id: s
       chargesTaxTotal += tax
     })
 
-    // Calculate total cost from stage costs, shared invoice allocations, and vehicle cost items (not invoice cost breakdown)
+    // Calculate total cost: stage costs, shared invoice allocations, vehicle cost items, and legacy CostInvoice cost items (invoice-level expenses)
     const stageCostsTotal = vehicle.stageCosts.reduce(
       (sum, cost) => sum + parseFloat(cost.amount.toString()),
       0,
@@ -129,7 +134,11 @@ export async function GET(request: NextRequest, props: { params: Promise<{ id: s
       (sum, item) => sum + parseFloat(item.amount.toString()),
       0,
     )
-    const totalCost = stageCostsTotal + sharedInvoiceCostsTotal + vehicleCostItemsTotal
+    const costInvoiceItemsTotal = (vehicle.invoices || []).reduce((sum, inv) => {
+      const items = (inv as any).costInvoice?.costItems ?? []
+      return sum + items.reduce((s: number, c: any) => s + parseFloat(String(c.amount ?? 0)), 0)
+    }, 0)
+    const totalCost = stageCostsTotal + sharedInvoiceCostsTotal + vehicleCostItemsTotal + costInvoiceItemsTotal
 
     // Calculate profit, margin, and ROI (revenue = revenue for P&L, deposit not subtracted)
     const profit = totalRevenue - totalCost

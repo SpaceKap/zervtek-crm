@@ -18,6 +18,7 @@ export function isChargeSubtracting(charge: {
 /**
  * Sum of charge amounts: positive for normal charges, negative for discount/deposit.
  * Use for invoice total (amount due) and payment comparison.
+ * Uses Math.abs for discount/deposit so totals are correct even if stored amount was negative (legacy/data fix).
  */
 export function getChargesSubtotal(charges: Array<{
   amount: unknown;
@@ -25,13 +26,14 @@ export function getChargesSubtotal(charges: Array<{
 }>): number {
   return charges.reduce((sum, charge) => {
     const amount = parseFloat(String(charge.amount ?? 0));
-    return isChargeSubtracting(charge) ? sum - amount : sum + amount;
+    return isChargeSubtracting(charge) ? sum - Math.abs(amount) : sum + amount;
   }, 0);
 }
 
 /**
  * Subtotal for revenue in P&L: only discount subtracts; deposit does not.
  * Use for profit, margin, ROI so applied deposit doesn't reduce revenue (deposit - deposit = 0).
+ * Uses Math.abs for discount so revenue is correct even if stored amount was negative.
  */
 export function getChargesSubtotalForRevenue(charges: Array<{
   amount: unknown;
@@ -44,7 +46,7 @@ export function getChargesSubtotalForRevenue(charges: Array<{
         ? charge.chargeType
         : charge.chargeType?.name;
     const typeLower = (name || "").toLowerCase();
-    if (REVENUE_SUBTRACTING_TYPES.includes(typeLower)) return sum - amount;
+    if (REVENUE_SUBTRACTING_TYPES.includes(typeLower)) return sum - Math.abs(amount);
     if (typeLower === "deposit") return sum; // deposit neutral for revenue
     return sum + amount;
   }, 0);
@@ -66,22 +68,22 @@ export function getPositiveChargesSubtotal(charges: Array<{
   }, 0);
 }
 
-/** Get discount total (positive number) from charges */
+/** Get discount total (positive number) from charges. Uses Math.abs so display is correct even if stored negative. */
 export function getDiscountTotal(charges: Array<{
   amount: unknown;
   chargeType?: string | { name?: string } | null;
 }>): number {
   return charges
     .filter((c) => (typeof c.chargeType === "string" ? c.chargeType : c.chargeType?.name || "").toLowerCase() === "discount")
-    .reduce((sum, c) => sum + parseFloat(String(c.amount ?? 0)), 0);
+    .reduce((sum, c) => sum + Math.abs(parseFloat(String(c.amount ?? 0))), 0);
 }
 
-/** Get deposit total (positive number) from charges */
+/** Get deposit total (positive number) from charges. Uses Math.abs so display is correct even if stored negative. */
 export function getDepositTotal(charges: Array<{
   amount: unknown;
   chargeType?: string | { name?: string } | null;
 }>): number {
   return charges
     .filter((c) => (typeof c.chargeType === "string" ? c.chargeType : c.chargeType?.name || "").toLowerCase() === "deposit")
-    .reduce((sum, c) => sum + parseFloat(String(c.amount ?? 0)), 0);
+    .reduce((sum, c) => sum + Math.abs(parseFloat(String(c.amount ?? 0))), 0);
 }
