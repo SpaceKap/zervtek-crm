@@ -113,9 +113,6 @@ export function VehicleChargesAndExpenses({
                         </td>
                         <td className="py-3 px-4">
                           {c.description}
-                          {c.chargeTypeName && (
-                            <span className="text-muted-foreground text-xs ml-1.5">({c.chargeTypeName})</span>
-                          )}
                         </td>
                         <td className="py-3 px-4 text-right font-medium tabular-nums">
                           {c.amount < 0 ? "−" : ""}{formatCurrency(Math.abs(c.amount))}

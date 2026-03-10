@@ -388,16 +388,6 @@ export function VehicleExpensesManager({
     return <div className="text-center py-4">Loading expenses...</div>;
   }
 
-  const sourceLabel =
-    (s: Expense["source"]) =>
-    s === "invoice"
-      ? "invoice"
-      : s === "vehicle_cost_item"
-        ? "vehicle"
-        : s === "vehicle"
-          ? "stage cost"
-          : "—";
-
   return (
     <div className="space-y-4">
       <div className="flex justify-end">
@@ -439,9 +429,6 @@ export function VehicleExpensesManager({
                     </td>
                     <td className="py-3 px-4">
                       <span className="font-medium">{expense.costType}</span>
-                      <span className="text-muted-foreground text-xs ml-1.5">
-                        ({sourceLabel(expense.source)})
-                      </span>
                       {expense.vendor?.name && (
                         <p className="text-muted-foreground text-xs mt-0.5">{expense.vendor.name}</p>
                       )}
