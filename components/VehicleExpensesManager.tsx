@@ -390,8 +390,12 @@ export function VehicleExpensesManager({
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
-        <Button onClick={() => handleOpenDialog()} className="gap-1.5">
+      <div className="flex items-center justify-between gap-4">
+        <h3 className="font-semibold tracking-tight text-base flex items-center gap-2">
+          <span className="material-symbols-outlined text-lg text-muted-foreground">account_balance_wallet</span>
+          Our expenses
+        </h3>
+        <Button onClick={() => handleOpenDialog()} className="gap-1.5 shrink-0">
           <span className="material-symbols-outlined text-lg">add</span>
           Add Expense
         </Button>

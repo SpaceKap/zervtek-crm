@@ -168,13 +168,7 @@ export function VehicleChargesAndExpenses({
       </Card>
 
       <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base flex items-center gap-2">
-            <span className="material-symbols-outlined text-lg text-muted-foreground">account_balance_wallet</span>
-            Our expenses
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
+        <CardContent className="pt-6">
           <VehicleExpensesManager vehicleId={vehicleId} onUpdate={onRefresh} />
         </CardContent>
       </Card>
