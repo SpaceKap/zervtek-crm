@@ -65,6 +65,9 @@ import { invalidateCachePattern } from "@/lib/cache"
  * - "lookingFor" is auto-generated from form data if not provided
  * - "sourceId" is auto-generated from email+timestamp if not provided
  * - All form-specific fields are stored in metadata
+ *
+ * WhatsApp/n8n flow (source: "website_whatsapp" or "whatsapp"):
+ * - Send phone (E.164 digits or with +), customerName/name, message (first message text), country (resolved e.g. "Jamaica", "NA"), callingCode → stored in inquiry + metadata; same phone within 30 days updates existing inquiry.
  */
 
 // Optional: Add webhook secret validation
@@ -72,7 +75,7 @@ const WEBHOOK_SECRET = process.env.N8N_WEBHOOK_SECRET
 
 function normalizeSource(source: string): InquirySource {
   const normalized = source.toLowerCase().trim()
-  if (normalized === "whatsapp") return InquirySource.WHATSAPP
+  if (normalized === "whatsapp" || normalized === "website_whatsapp") return InquirySource.WHATSAPP
   if (normalized === "email") return InquirySource.EMAIL
   if (normalized === "chatbot" || normalized === "chat") return InquirySource.CHATBOT
   if (normalized === "jct stock inquiry" || normalized === "jct_stock_inquiry" || normalized === "jctstockinquiry") return InquirySource.JCT_STOCK_INQUIRY
