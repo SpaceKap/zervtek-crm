@@ -73,6 +73,55 @@ import { invalidateCachePattern } from "@/lib/cache"
 // Optional: Add webhook secret validation
 const WEBHOOK_SECRET = process.env.N8N_WEBHOOK_SECRET
 
+const JCT_MERGE_WINDOW_MINUTES = 15
+
+/**
+ * Extract a stable key from a message that identifies a JCT stock inquiry
+ * (e.g. "JCT-13422356" or id from japanesecartrade.com URL) for matching
+ * WhatsApp and JCT Stock Inquiry as the same lead.
+ */
+function getJctMessageKey(message: string | null): string | null {
+  if (!message || typeof message !== "string") return null
+  const trimmed = message.trim()
+  // JCT-13422356 [1680810511] ...
+  const jctMatch = trimmed.match(/JCT-(\d+)/i)
+  if (jctMatch) return `JCT-${jctMatch[1]}`
+  // https://www.japanesecartrade.com/13422356-japan-used-...
+  const urlMatch = trimmed.match(/japanesecartrade\.com\/(\d+)/i)
+  if (urlMatch) return `JCT-${urlMatch[1]}`
+  return null
+}
+
+async function findJctInquiryWithKey(key: string): Promise<{ id: string; message: string | null } | null> {
+  const since = new Date()
+  since.setMinutes(since.getMinutes() - JCT_MERGE_WINDOW_MINUTES)
+  const recent = await prisma.inquiry.findMany({
+    where: {
+      source: InquirySource.JCT_STOCK_INQUIRY,
+      createdAt: { gte: since },
+    },
+    orderBy: { createdAt: "desc" },
+    take: 50,
+    select: { id: true, message: true },
+  })
+  return recent.find((inq) => getJctMessageKey(inq.message) === key) ?? null
+}
+
+async function findWhatsAppInquiryWithKey(key: string): Promise<{ id: string; phone: string | null; customerName: string | null; message: string | null } | null> {
+  const since = new Date()
+  since.setMinutes(since.getMinutes() - JCT_MERGE_WINDOW_MINUTES)
+  const recent = await prisma.inquiry.findMany({
+    where: {
+      source: InquirySource.WHATSAPP,
+      createdAt: { gte: since },
+    },
+    orderBy: { createdAt: "desc" },
+    take: 50,
+    select: { id: true, phone: true, customerName: true, message: true },
+  })
+  return recent.find((inq) => getJctMessageKey(inq.message) === key) ?? null
+}
+
 function normalizeSource(source: string): InquirySource {
   const normalized = source.toLowerCase().trim()
   if (normalized === "whatsapp" || normalized === "website_whatsapp") return InquirySource.WHATSAPP
@@ -254,6 +303,41 @@ export async function POST(request: NextRequest) {
             },
           },
         })
+        // If this WhatsApp message is the same JCT stock inquiry (same key) as a JCT card from the last 15 min, merge into JCT and keep one card labeled JCT Stock Inquiry
+        const jctKey = getJctMessageKey(message ?? existing.message)
+        if (jctKey) {
+          const jctInquiry = await findJctInquiryWithKey(jctKey)
+          if (jctInquiry) {
+            const mergedJct = await prisma.inquiry.update({
+              where: { id: jctInquiry.id },
+              data: {
+                phone: phone ?? inquiry.phone,
+                customerName: customerName ?? inquiry.customerName,
+                email: email ?? inquiry.email ?? undefined,
+                message: message ?? inquiry.message,
+                metadata: updatedMetadata as any,
+              },
+              include: {
+                assignedTo: {
+                  select: { id: true, name: true, email: true, image: true },
+                },
+              },
+            })
+            await prisma.inquiry.delete({ where: { id: existing.id } })
+            await invalidateCachePattern("inquiries:list:")
+            await invalidateCachePattern("kanban:")
+            return NextResponse.json(
+              {
+                success: true,
+                inquiry: mergedJct,
+                updated: true,
+                mergedFromWhatsApp: true,
+                message: "Merged WhatsApp into existing JCT Stock Inquiry",
+              },
+              { status: 200 }
+            )
+          }
+        }
         await invalidateCachePattern("inquiries:list:")
         await invalidateCachePattern("kanban:")
         return NextResponse.json(
@@ -268,6 +352,40 @@ export async function POST(request: NextRequest) {
       }
     }
     
+    // If this is a WhatsApp message that matches a JCT Stock Inquiry from the last 15 min, enrich the JCT inquiry instead of creating a new WhatsApp card
+    const whatsAppJctKey = normalizedSource === InquirySource.WHATSAPP ? getJctMessageKey(message) : null
+    if (whatsAppJctKey) {
+      const jctInquiry = await findJctInquiryWithKey(whatsAppJctKey)
+      if (jctInquiry) {
+        const mergedJct = await prisma.inquiry.update({
+          where: { id: jctInquiry.id },
+          data: {
+            phone: phone ?? undefined,
+            customerName: customerName ?? undefined,
+            email: email ?? undefined,
+            message: message ?? undefined,
+            metadata: metadata as any,
+          },
+          include: {
+            assignedTo: {
+              select: { id: true, name: true, email: true, image: true },
+            },
+          },
+        })
+        await invalidateCachePattern("inquiries:list:")
+        await invalidateCachePattern("kanban:")
+        return NextResponse.json(
+          {
+            success: true,
+            inquiry: mergedJct,
+            mergedFromWhatsApp: true,
+            message: "WhatsApp message matched JCT Stock Inquiry; merged into existing inquiry",
+          },
+          { status: 200 }
+        )
+      }
+    }
+
     // Generate sourceId if not provided (for duplicate detection)
     let sourceId = body.sourceId
     if (!sourceId && email) {
@@ -323,10 +441,41 @@ export async function POST(request: NextRequest) {
       console.warn("Could not create history entry for webhook inquiry:", error)
     }
 
+    // If this JCT Stock Inquiry has a matching WhatsApp lead from the last 15 min, merge WhatsApp into this inquiry and remove the WhatsApp card
+    let finalInquiry = inquiry
+    if (
+      normalizedSource === InquirySource.JCT_STOCK_INQUIRY &&
+      message
+    ) {
+      const jctKey = getJctMessageKey(message)
+      if (jctKey) {
+        const whatsAppInquiry = await findWhatsAppInquiryWithKey(jctKey)
+        if (whatsAppInquiry) {
+          finalInquiry = await prisma.inquiry.update({
+            where: { id: inquiry.id },
+            data: {
+              phone: whatsAppInquiry.phone ?? inquiry.phone,
+              customerName: whatsAppInquiry.customerName ?? inquiry.customerName,
+              email: inquiry.email ?? undefined,
+              message: inquiry.message ?? whatsAppInquiry.message,
+            },
+            include: {
+              assignedTo: {
+                select: { id: true, name: true, email: true, image: true },
+              },
+            },
+          })
+          await prisma.inquiry.delete({ where: { id: whatsAppInquiry.id } })
+          await invalidateCachePattern("inquiries:list:")
+          await invalidateCachePattern("kanban:")
+        }
+      }
+    }
+
     return NextResponse.json(
       {
         success: true,
-        inquiry: inquiry,
+        inquiry: finalInquiry,
       },
       { status: 201 }
     )
