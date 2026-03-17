@@ -55,6 +55,7 @@ services:
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
       - DEFAULT_WISE_PAYMENT_LINK=${DEFAULT_WISE_PAYMENT_LINK:-https://wise.com/pay/business/ugoigd}
       - N8N_WEBHOOK_SECRET=${N8N_WEBHOOK_SECRET:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
     networks:
       - app_network
       - caddy_proxy

@@ -65,6 +65,9 @@ COPY --from=builder --chown=nextjs:nodejs /app/lib ./lib
 # Copy data files (CSV files for vehicle catalog)
 COPY --from=builder --chown=nextjs:nodejs /app/data ./data
 
+# Copy packages/db so deploy.sh db:push uses the correct schema (includes StockListing)
+COPY --from=builder --chown=nextjs:nodejs /app/packages ./packages
+
 EXPOSE 3000
 
 ENV PORT=3000
