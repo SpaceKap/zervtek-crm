@@ -14,7 +14,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   STOCK_LISTING_YEARS,
   FUEL_OPTIONS,
@@ -22,6 +21,7 @@ import {
   DRIVE_OPTIONS,
   EQUIPMENT_OPTIONS,
   SCORE_OPTIONS,
+  COLOR_OPTIONS,
   formatNumberWithCommas,
   parseFormattedNumber,
   generateStaticSeoClient,
@@ -49,7 +49,6 @@ export default function NewStockListingPage() {
     grade: "",
     year: "",
     mileageDisplay: "",
-    mileageVerified: false,
     transmission: "",
     extColor: "",
     fuel: "",
@@ -173,7 +172,6 @@ export default function NewStockListingPage() {
           grade: form.grade || null,
           year: form.year ? parseInt(form.year, 10) : null,
           mileage: form.mileageDisplay ? parseFormattedNumber(form.mileageDisplay) ?? null : null,
-          mileageVerified: form.mileageVerified,
           transmission: form.transmission || null,
           extColor: form.extColor || null,
           fuel: form.fuel || null,
@@ -199,8 +197,8 @@ export default function NewStockListingPage() {
         alert(j.error?.message || "Failed to create");
         return;
       }
-      const json = await res.json();
-      router.push(`/dashboard/stock-listings/${json.data.id}/edit`);
+      await res.json();
+      router.push("/dashboard/stock-listings");
     } catch (err) {
       alert("Failed to create stock listing");
     } finally {
@@ -364,17 +362,8 @@ export default function NewStockListingPage() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="flex flex-col gap-2">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <Label className="mb-0">Mileage (km)</Label>
-                  <label className="flex items-center gap-2 text-sm">
-                    <Checkbox
-                      checked={form.mileageVerified}
-                      onCheckedChange={(v) => setForm((p) => ({ ...p, mileageVerified: !!v }))}
-                    />
-                    Mileage Verified
-                  </label>
-                </div>
+              <div>
+                <Label>Mileage (km)</Label>
                 <Input
                   value={form.mileageDisplay}
                   onChange={(e) => {
@@ -404,11 +393,19 @@ export default function NewStockListingPage() {
               </div>
               <div>
                 <Label>Ext. color</Label>
-                <Input
-                  value={form.extColor}
-                  onChange={(e) => setForm((p) => ({ ...p, extColor: e.target.value }))}
-                  placeholder="BLACK"
-                />
+                <Select
+                  value={form.extColor || undefined}
+                  onValueChange={(v) => setForm((p) => ({ ...p, extColor: v }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {COLOR_OPTIONS.map((c) => (
+                      <SelectItem key={c} value={c}>{c}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div>
                 <Label>Fuel</Label>

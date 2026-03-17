@@ -16,22 +16,25 @@ export const FUEL_OPTIONS = [
   "Mild Hybrid",
 ]
 
-export const TRANSMISSION_OPTIONS = [
-  "Automatic",
-  "Manual",
-  "CVT",
-  "Semi-Auto",
-  "DCT",
-  "Dual Clutch",
-  "Single Speed",
-]
+export const TRANSMISSION_OPTIONS = ["AT", "FAT", "Manual", "CVT"]
 
-export const DRIVE_OPTIONS = [
-  "FWD",
-  "RWD",
-  "AWD",
-  "4WD",
-  "2WD",
+export const DRIVE_OPTIONS = ["2WD", "4WD"]
+
+export const COLOR_OPTIONS = [
+  "Black",
+  "White",
+  "Silver",
+  "Gray",
+  "Red",
+  "Blue",
+  "Green",
+  "Brown",
+  "Beige",
+  "Gold",
+  "Yellow",
+  "Orange",
+  "Pearl White",
+  "Other",
 ]
 
 export const EQUIPMENT_OPTIONS = [
