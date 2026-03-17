@@ -1,0 +1,12 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/release-assignments",
+      "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/cron/stock-listings-auto-delete",
+      "schedule": "0 0 * * *"
+    }
+  ]
+}

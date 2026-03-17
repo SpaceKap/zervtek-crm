@@ -50,16 +50,6 @@ export const EQUIPMENT_OPTIONS = [
 /** Auction score options (label only, no descriptions in UI) */
 export const SCORE_OPTIONS = ["S/6", "5", "4.5", "4", "3.5", "RA", "3", "R", "2"]
 
-/** Auto-deletion presets. "Never" = null (cron does not delete). */
-export const AUTO_DELETE_OPTIONS: { label: string; value: number | null }[] = [
-  { label: "Never", value: null },
-  { label: "14 Days", value: 14 },
-  { label: "1 month", value: 30 },
-  { label: "3 months", value: 90 },
-  { label: "6 months", value: 180 },
-  { label: "1 year", value: 365 },
-]
-
 /** Format number with commas (e.g. 1234567 -> "1,234,567") */
 export function formatNumberWithCommas(value: number | string | null | undefined): string {
   if (value === null || value === undefined || value === "") return ""

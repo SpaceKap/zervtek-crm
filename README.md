@@ -122,24 +122,19 @@ POST http://your-domain.com/api/webhooks/n8n
 
 ## Scheduled Jobs
 
+A `vercel.json` at the project root configures Vercel Cron to run these endpoints daily at midnight (UTC).
+
 ### Auto-release Expired Assignments
 
-Set up a cron job to call:
-```
-GET http://your-domain.com/api/cron/release-assignments
-```
+- **Endpoint:** `GET /api/cron/release-assignments`
+- **Purpose:** Releases inquiries that have been assigned for more than 30 days without conversion.
 
-This should run daily to release inquiries that have been assigned for more than 30 days without conversion.
+### Stock Listings Auto-Delete
 
-Example cron configuration (using Vercel Cron or external service):
-```json
-{
-  "crons": [{
-    "path": "/api/cron/release-assignments",
-    "schedule": "0 0 * * *"
-  }]
-}
-```
+- **Endpoint:** `GET /api/cron/stock-listings-auto-delete`
+- **Purpose:** Deletes stock listings whose auto-deletion date has passed. Each listing has an optional `autoDeleteAfterDays` (14, 30, 90, 180, or 365). When `createdAt + autoDeleteAfterDays` days have passed, the listing is deleted.
+
+If you use an external cron instead of Vercel Cron, call both URLs daily. To protect the endpoints, set `CRON_SECRET` and send `Authorization: Bearer <CRON_SECRET>`.
 
 ## User Roles
 
