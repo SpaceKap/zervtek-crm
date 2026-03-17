@@ -71,9 +71,11 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Get all vehicles
+    // Get all vehicles (capped to avoid unbounded response)
+    const SHIPPING_KANBAN_MAX_VEHICLES = 500
     const vehicles = await prisma.vehicle.findMany({
       where,
+      take: SHIPPING_KANBAN_MAX_VEHICLES,
       include: {
         customer: {
           select: {

@@ -7,6 +7,8 @@ import { UserRole } from "@prisma/client"
 import { getCached, invalidateCachePattern, cacheKeyFromSearchParams } from "@/lib/cache"
 
 const CUSTOMERS_LIST_TTL = 90
+const CUSTOMERS_DEFAULT_TAKE = 100
+const CUSTOMERS_MAX_TAKE = 200
 
 export async function GET(request: NextRequest) {
   try {
@@ -21,6 +23,10 @@ export async function GET(request: NextRequest) {
       cacheKey,
       async () => {
         const search = searchParams.get("search")
+        const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10))
+        const requestedTake = parseInt(searchParams.get("limit") || String(CUSTOMERS_DEFAULT_TAKE), 10)
+        const take = Math.min(CUSTOMERS_MAX_TAKE, Math.max(1, isNaN(requestedTake) ? CUSTOMERS_DEFAULT_TAKE : requestedTake))
+        const skip = (page - 1) * take
         const searchWhere = search
           ? {
               OR: [
@@ -59,6 +65,8 @@ export async function GET(request: NextRequest) {
         return prisma.customer.findMany({
           where,
           orderBy: { name: "asc" },
+          take,
+          skip,
           include: {
             assignedTo: {
               select: {

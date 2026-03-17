@@ -251,8 +251,10 @@ export async function GET(request: NextRequest) {
         vehicleId: vehicleId || { not: null },
         costInvoice: { isNot: null },
       }
+      const COST_ITEMS_INVOICES_TAKE = 200
       const invoicesWithCostItems = await prisma.invoice.findMany({
         where: costItemsInvoiceWhere,
+        take: COST_ITEMS_INVOICES_TAKE,
         include: {
           vehicle: { select: { id: true, vin: true, make: true, model: true, year: true } },
           customer: { select: { id: true, name: true, email: true } },
@@ -396,8 +398,10 @@ export async function GET(request: NextRequest) {
         invoiceWhere.vehicleId = vehicleId
       }
 
+      const INCOMING_INVOICES_TAKE = 500
       const invoices = await prisma.invoice.findMany({
         where: invoiceWhere,
+        take: INCOMING_INVOICES_TAKE,
         include: {
           customer: {
             select: {
@@ -423,7 +427,6 @@ export async function GET(request: NextRequest) {
           },
         },
         orderBy: { issueDate: "desc" },
-        take: 500,
       })
 
       // Calculate payment status for each invoice (include tax in total)

@@ -128,9 +128,11 @@ export async function GET(request: NextRequest) {
     }
     // ADMIN can see all (no filter)
 
-    // Add pagination
-    const page = parseInt(searchParams.get("page") || "1")
-    const limit = parseInt(searchParams.get("limit") || "50")
+    // Add pagination (cap limit to avoid unbounded responses)
+    const INVOICES_MAX_LIMIT = 200
+    const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10))
+    const requestedLimit = parseInt(searchParams.get("limit") || "50", 10)
+    const limit = Math.min(INVOICES_MAX_LIMIT, Math.max(1, isNaN(requestedLimit) ? 50 : requestedLimit))
     const skip = (page - 1) * limit
 
     const invoices = await prisma.invoice.findMany({

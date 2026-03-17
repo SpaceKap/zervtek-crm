@@ -7,6 +7,8 @@ import { canViewAllInquiries } from "@/lib/permissions"
 import { getCached, invalidateCachePattern, cacheKeyFromSearchParams } from "@/lib/cache"
 
 const INQUIRIES_LIST_TTL = 60
+const INQUIRIES_DEFAULT_TAKE = 100
+const INQUIRIES_MAX_TAKE = 200
 
 export async function GET(request: NextRequest) {
   try {
@@ -25,6 +27,10 @@ export async function GET(request: NextRequest) {
         const assignedToMe = searchParams.get("assignedToMe") === "true"
         const userId = searchParams.get("userId")
         const unassignedOnly = searchParams.get("unassignedOnly") === "true"
+        const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10))
+        const requestedTake = parseInt(searchParams.get("limit") || String(INQUIRIES_DEFAULT_TAKE), 10)
+        const take = Math.min(INQUIRIES_MAX_TAKE, Math.max(1, isNaN(requestedTake) ? INQUIRIES_DEFAULT_TAKE : requestedTake))
+        const skip = (page - 1) * take
 
         const canViewAll = canViewAllInquiries(session.user.role)
 
@@ -150,6 +156,8 @@ export async function GET(request: NextRequest) {
           orderBy: {
             createdAt: "desc",
           },
+          take,
+          skip,
         })
 
         if (process.env.NODE_ENV === "development") {

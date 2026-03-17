@@ -232,6 +232,7 @@ model Account {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
+  @@index([userId])
   @@schema("inquiry_pooler")
 }
 
@@ -242,6 +243,7 @@ model Session {
   expires      DateTime
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([userId])
   @@schema("inquiry_pooler")
 }
 
@@ -1052,6 +1054,7 @@ model DepositPaymentLink {
   @@index([status])
   @@index([expiresAt])
   @@index([paypalInvoiceId])
+  @@index([paypalInvoiceId, status])
   @@schema("inquiry_pooler")
 }
 
@@ -1116,5 +1119,6 @@ model AuditLog {
   @@index([action])
   @@index([createdAt])
   @@index([entityType, entityId])
+  @@index([vehicleId])
   @@schema("inquiry_pooler")
 }
