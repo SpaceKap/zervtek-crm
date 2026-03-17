@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,16 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  STOCK_LISTING_YEARS,
+  FUEL_OPTIONS,
+  TRANSMISSION_OPTIONS,
+  DRIVE_OPTIONS,
+  EQUIPMENT_OPTIONS,
+  formatNumberWithCommas,
+  parseFormattedNumber,
+} from "@/lib/stock-listing-constants";
 
 const STATUS_OPTIONS = ["Available", "Reserved", "Sold"];
 const MAX_PHOTOS = 10;
@@ -29,6 +39,7 @@ interface Listing {
   grade: string | null;
   year: number | null;
   mileage: number | null;
+  mileageVerified: boolean | null;
   transmission: string | null;
   extColor: string | null;
   fuel: string | null;
@@ -44,6 +55,11 @@ interface Listing {
   tag: string;
 }
 
+function parseEquipmentList(s: string | null | undefined): string[] {
+  if (!s || !s.trim()) return [];
+  return s.split(",").map((t) => t.trim()).filter(Boolean);
+}
+
 export default function EditStockListingPage() {
   const router = useRouter();
   const params = useParams();
@@ -52,6 +68,7 @@ export default function EditStockListingPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [generatingDesc, setGeneratingDesc] = useState(false);
   const [catalog, setCatalog] = useState<{ makes: string[]; modelsByMake: Record<string, string[]> }>({
     makes: [],
     modelsByMake: {},
@@ -59,13 +76,14 @@ export default function EditStockListingPage() {
   const [form, setForm] = useState({
     stockId: "",
     status: "Available",
-    fobPrice: "",
+    fobPriceDisplay: "",
     currency: "JPY",
     brand: "",
     model: "",
     grade: "",
     year: "",
-    mileage: "",
+    mileageDisplay: "",
+    mileageVerified: false,
     transmission: "",
     extColor: "",
     fuel: "",
@@ -73,13 +91,14 @@ export default function EditStockListingPage() {
     doors: "",
     engine: "",
     score: "",
-    equipment: "",
+    equipmentTags: [] as string[],
     seoTitle: "",
     metaDescription: "",
     description: "",
     tag: "Stock Listing",
   });
   const [photoUrls, setPhotoUrls] = useState<string[]>([]);
+  const [dragOver, setDragOver] = useState(false);
 
   useEffect(() => {
     fetch("/api/stock-listings/catalog")
@@ -102,13 +121,14 @@ export default function EditStockListingPage() {
         setForm({
           stockId: d.stockId,
           status: d.status,
-          fobPrice: d.fobPrice?.toString() ?? "",
+          fobPriceDisplay: d.fobPrice != null ? formatNumberWithCommas(d.fobPrice.toString()) : "",
           currency: d.currency ?? "JPY",
           brand: d.brand ?? "",
           model: d.model ?? "",
           grade: d.grade ?? "",
           year: d.year != null ? String(d.year) : "",
-          mileage: d.mileage != null ? String(d.mileage) : "",
+          mileageDisplay: d.mileage != null ? formatNumberWithCommas(d.mileage) : "",
+          mileageVerified: d.mileageVerified ?? false,
           transmission: d.transmission ?? "",
           extColor: d.extColor ?? "",
           fuel: d.fuel ?? "",
@@ -116,7 +136,7 @@ export default function EditStockListingPage() {
           doors: d.doors != null ? String(d.doors) : "",
           engine: d.engine ?? "",
           score: d.score ?? "",
-          equipment: d.equipment ?? "",
+          equipmentTags: parseEquipmentList(d.equipment),
           seoTitle: d.seoTitle ?? "",
           metaDescription: d.metaDescription ?? "",
           description: d.description ?? "",
@@ -130,33 +150,61 @@ export default function EditStockListingPage() {
 
   const models = form.brand ? catalog.modelsByMake[form.brand] || [] : [];
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
-    const remaining = MAX_PHOTOS - photoUrls.length;
-    if (remaining <= 0) return;
-    setUploading(true);
-    try {
-      const toUpload = Array.from(files).slice(0, remaining);
-      for (const file of toUpload) {
-        const fd = new FormData();
-        fd.append("file", file);
-        fd.append("context", "stock-listing");
-        const res = await fetch("/api/upload", { method: "POST", body: fd });
-        if (!res.ok) throw new Error("Upload failed");
-        const data = await res.json();
-        setPhotoUrls((prev) => [...prev, data.url]);
+  const uploadFiles = useCallback(
+    async (files: FileList | null) => {
+      if (!files || files.length === 0) return;
+      const remaining = MAX_PHOTOS - photoUrls.length;
+      if (remaining <= 0) return;
+      setUploading(true);
+      try {
+        const toUpload = Array.from(files).slice(0, remaining);
+        for (const file of toUpload) {
+          const fd = new FormData();
+          fd.append("file", file);
+          fd.append("context", "stock-listing");
+          const res = await fetch("/api/upload", { method: "POST", body: fd });
+          if (!res.ok) throw new Error("Upload failed");
+          const data = await res.json();
+          setPhotoUrls((prev) => [...prev, data.url]);
+        }
+      } catch (err) {
+        alert("Failed to upload one or more photos");
+      } finally {
+        setUploading(false);
+        if (fileInputRef.current) fileInputRef.current.value = "";
       }
-    } catch (err) {
-      alert("Failed to upload one or more photos");
-    } finally {
-      setUploading(false);
-      if (fileInputRef.current) fileInputRef.current.value = "";
-    }
+    },
+    [photoUrls.length]
+  );
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    uploadFiles(e.target.files);
   };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(false);
+    uploadFiles(e.dataTransfer.files);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(true);
+  };
+
+  const handleDragLeave = () => setDragOver(false);
 
   const removePhoto = (index: number) => {
     setPhotoUrls((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const toggleEquipment = (tag: string) => {
+    setForm((p) => ({
+      ...p,
+      equipmentTags: p.equipmentTags.includes(tag)
+        ? p.equipmentTags.filter((t) => t !== tag)
+        : [...p.equipmentTags, tag],
+    }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -165,8 +213,8 @@ export default function EditStockListingPage() {
       alert("Stock ID is required");
       return;
     }
-    const fob = parseFloat(form.fobPrice);
-    if (isNaN(fob) || fob < 0) {
+    const fob = parseFormattedNumber(form.fobPriceDisplay);
+    if (fob === null || fob < 0) {
       alert("FOB Price must be a valid number");
       return;
     }
@@ -184,7 +232,8 @@ export default function EditStockListingPage() {
           model: form.model || null,
           grade: form.grade || null,
           year: form.year ? parseInt(form.year, 10) : null,
-          mileage: form.mileage ? parseInt(form.mileage, 10) : null,
+          mileage: form.mileageDisplay ? parseFormattedNumber(form.mileageDisplay) ?? null : null,
+          mileageVerified: form.mileageVerified,
           transmission: form.transmission || null,
           extColor: form.extColor || null,
           fuel: form.fuel || null,
@@ -192,7 +241,7 @@ export default function EditStockListingPage() {
           doors: form.doors ? parseInt(form.doors, 10) : null,
           engine: form.engine || null,
           score: form.score || null,
-          equipment: form.equipment || null,
+          equipment: form.equipmentTags.length ? form.equipmentTags.join(", ") : null,
           photoUrls,
           seoTitle: form.seoTitle || null,
           metaDescription: form.metaDescription || null,
@@ -215,6 +264,42 @@ export default function EditStockListingPage() {
       alert("Failed to update stock listing");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleGenerateDescription = async () => {
+    setGeneratingDesc(true);
+    try {
+      const res = await fetch("/api/stock-listings/generate-description", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          brand: form.brand || undefined,
+          model: form.model || undefined,
+          grade: form.grade || undefined,
+          year: form.year ? parseInt(form.year, 10) : null,
+          mileage: form.mileageDisplay ? parseFormattedNumber(form.mileageDisplay) ?? null : null,
+          transmission: form.transmission || undefined,
+          extColor: form.extColor || undefined,
+          fuel: form.fuel || undefined,
+          drive: form.drive || undefined,
+          doors: form.doors ? parseInt(form.doors, 10) : null,
+          engine: form.engine || undefined,
+          score: form.score || undefined,
+          equipment: form.equipmentTags.length ? form.equipmentTags.join(", ") : undefined,
+        }),
+      });
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        alert(j.error?.message || "Could not generate description");
+        return;
+      }
+      const json = await res.json();
+      setForm((p) => ({ ...p, description: json.data?.description ?? "" }));
+    } catch (err) {
+      alert("Failed to generate description");
+    } finally {
+      setGeneratingDesc(false);
     }
   };
 
@@ -246,12 +331,11 @@ export default function EditStockListingPage() {
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <Label>Stock ID *</Label>
+                <Label>Stock ID</Label>
                 <Input
                   value={form.stockId}
                   onChange={(e) => setForm((p) => ({ ...p, stockId: e.target.value }))}
-                  placeholder="e.g. 972596870"
-                  required
+                  placeholder="Z-..."
                 />
               </div>
               <div>
@@ -273,11 +357,14 @@ export default function EditStockListingPage() {
               <div>
                 <Label>FOB Price (¥)</Label>
                 <Input
-                  type="number"
-                  min={0}
-                  value={form.fobPrice}
-                  onChange={(e) => setForm((p) => ({ ...p, fobPrice: e.target.value }))}
-                  placeholder="230000"
+                  value={form.fobPriceDisplay}
+                  onChange={(e) => {
+                    const raw = e.target.value.replace(/,/g, "");
+                    if (raw === "" || /^\d+$/.test(raw)) {
+                      setForm((p) => ({ ...p, fobPriceDisplay: raw === "" ? "" : formatNumberWithCommas(raw) }));
+                    }
+                  }}
+                  placeholder="1,230,000"
                 />
               </div>
             </div>
@@ -333,32 +420,57 @@ export default function EditStockListingPage() {
               </div>
               <div>
                 <Label>Year</Label>
-                <Input
-                  type="number"
-                  min={1990}
-                  max={2030}
+                <Select
                   value={form.year}
-                  onChange={(e) => setForm((p) => ({ ...p, year: e.target.value }))}
-                  placeholder="2009"
-                />
+                  onValueChange={(v) => setForm((p) => ({ ...p, year: v }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select year" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {STOCK_LISTING_YEARS.map((y) => (
+                      <SelectItem key={y} value={String(y)}>{y}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
-              <div>
-                <Label>Mileage (km)</Label>
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Label className="mb-0">Mileage (km)</Label>
+                  <label className="flex items-center gap-2 text-sm">
+                    <Checkbox
+                      checked={form.mileageVerified}
+                      onCheckedChange={(v) => setForm((p) => ({ ...p, mileageVerified: !!v }))}
+                    />
+                    Mileage Verified
+                  </label>
+                </div>
                 <Input
-                  type="number"
-                  min={0}
-                  value={form.mileage}
-                  onChange={(e) => setForm((p) => ({ ...p, mileage: e.target.value }))}
-                  placeholder="186000"
+                  value={form.mileageDisplay}
+                  onChange={(e) => {
+                    const raw = e.target.value.replace(/,/g, "");
+                    if (raw === "" || /^\d+$/.test(raw)) {
+                      setForm((p) => ({ ...p, mileageDisplay: raw === "" ? "" : formatNumberWithCommas(raw) }));
+                    }
+                  }}
+                  placeholder="186,000"
                 />
               </div>
               <div>
                 <Label>Transmission</Label>
-                <Input
+                <Select
                   value={form.transmission}
-                  onChange={(e) => setForm((p) => ({ ...p, transmission: e.target.value }))}
-                  placeholder="FAT"
-                />
+                  onValueChange={(v) => setForm((p) => ({ ...p, transmission: v }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {TRANSMISSION_OPTIONS.map((t) => (
+                      <SelectItem key={t} value={t}>{t}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div>
                 <Label>Ext. color</Label>
@@ -370,19 +482,35 @@ export default function EditStockListingPage() {
               </div>
               <div>
                 <Label>Fuel</Label>
-                <Input
+                <Select
                   value={form.fuel}
-                  onChange={(e) => setForm((p) => ({ ...p, fuel: e.target.value }))}
-                  placeholder="gasoline"
-                />
+                  onValueChange={(v) => setForm((p) => ({ ...p, fuel: v }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {FUEL_OPTIONS.map((f) => (
+                      <SelectItem key={f} value={f}>{f}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div>
                 <Label>Drive</Label>
-                <Input
+                <Select
                   value={form.drive}
-                  onChange={(e) => setForm((p) => ({ ...p, drive: e.target.value }))}
-                  placeholder="2WD"
-                />
+                  onValueChange={(v) => setForm((p) => ({ ...p, drive: v }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {DRIVE_OPTIONS.map((d) => (
+                      <SelectItem key={d} value={d}>{d}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div>
                 <Label>Doors</Label>
@@ -413,11 +541,22 @@ export default function EditStockListingPage() {
             </div>
             <div>
               <Label>Equipment</Label>
-              <Input
-                value={form.equipment}
-                onChange={(e) => setForm((p) => ({ ...p, equipment: e.target.value }))}
-                placeholder="AC PS SR"
-              />
+              <div className="flex flex-wrap gap-2 mt-2">
+                {EQUIPMENT_OPTIONS.map((tag) => (
+                  <button
+                    key={tag}
+                    type="button"
+                    onClick={() => toggleEquipment(tag)}
+                    className={`px-3 py-1.5 rounded-full text-sm border transition-colors ${
+                      form.equipmentTags.includes(tag)
+                        ? "bg-primary text-primary-foreground border-primary"
+                        : "bg-muted/50 border-input hover:bg-muted"
+                    }`}
+                  >
+                    {tag}
+                  </button>
+                ))}
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -425,6 +564,7 @@ export default function EditStockListingPage() {
         <Card>
           <CardHeader>
             <CardTitle>Photos (up to {MAX_PHOTOS})</CardTitle>
+            <p className="text-sm text-muted-foreground">Drag and drop or click to upload.</p>
           </CardHeader>
           <CardContent className="space-y-4">
             <input
@@ -435,29 +575,39 @@ export default function EditStockListingPage() {
               className="hidden"
               onChange={handleFileChange}
             />
-            <div className="flex flex-wrap gap-3">
-              {photoUrls.map((url, i) => (
-                <div key={url} className="relative">
-                  <img src={url} alt="" className="h-24 w-32 object-cover rounded border" />
+            <div
+              onDrop={handleDrop}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              className={`border-2 border-dashed rounded-lg p-4 transition-colors ${
+                dragOver ? "border-primary bg-primary/5" : "border-muted-foreground/25"
+              }`}
+            >
+              <div className="flex flex-wrap gap-3">
+                {photoUrls.map((url, i) => (
+                  <div key={url} className="relative">
+                    <img src={url} alt="" className="h-24 w-32 object-cover rounded border" />
+                    <button
+                      type="button"
+                      onClick={() => removePhoto(i)}
+                      className="absolute -top-2 -right-2 rounded-full bg-red-500 text-white w-6 h-6 flex items-center justify-center text-sm"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+                {photoUrls.length < MAX_PHOTOS && (
                   <button
                     type="button"
-                    onClick={() => removePhoto(i)}
-                    className="absolute -top-2 -right-2 rounded-full bg-red-500 text-white w-6 h-6 flex items-center justify-center text-sm"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploading}
+                    className="h-24 w-32 border border-dashed rounded flex flex-col items-center justify-center text-muted-foreground hover:bg-muted gap-1 text-center"
                   >
-                    ×
+                    <span className="material-symbols-outlined text-2xl block">add_photo_alternate</span>
+                    <span className="block">{uploading ? "Uploading…" : "Upload"}</span>
                   </button>
-                </div>
-              ))}
-              {photoUrls.length < MAX_PHOTOS && (
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={uploading}
-                  className="h-24 w-32 border border-dashed rounded flex items-center justify-center text-muted-foreground hover:bg-muted"
-                >
-                  {uploading ? "Uploading…" : "+ Add"}
-                </button>
-              )}
+                )}
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -465,6 +615,7 @@ export default function EditStockListingPage() {
         <Card>
           <CardHeader>
             <CardTitle>SEO</CardTitle>
+            <p className="text-sm text-muted-foreground">www.zervtek.com. Description can be generated with AI.</p>
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
@@ -482,12 +633,23 @@ export default function EditStockListingPage() {
               />
             </div>
             <div>
-              <Label>Description</Label>
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <Label>Description</Label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleGenerateDescription}
+                  disabled={generatingDesc}
+                >
+                  {generatingDesc ? "Generating…" : "Generate with AI"}
+                </Button>
+              </div>
               <textarea
                 value={form.description}
                 onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
-                className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                rows={3}
+                className="flex min-h-[100px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                rows={4}
               />
             </div>
           </CardContent>

@@ -2,20 +2,20 @@ import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
-import { generateStockListingSeo } from "@/lib/stock-listing-seo"
 import { Prisma } from "@prisma/client"
 import { z } from "zod"
 
 const updateBodySchema = z.object({
   stockId: z.string().min(1).optional(),
   status: z.string().optional(),
-  fobPrice: z.number().or(z.string().transform((s) => parseFloat(s))).optional(),
+  fobPrice: z.number().or(z.string().transform((s) => parseFloat(String(s).replace(/,/g, "")))).optional(),
   currency: z.string().optional(),
   brand: z.string().optional().nullable(),
   model: z.string().optional().nullable(),
   grade: z.string().optional().nullable(),
   year: z.number().int().optional().nullable(),
   mileage: z.number().int().optional().nullable(),
+  mileageVerified: z.boolean().optional().nullable(),
   transmission: z.string().optional().nullable(),
   extColor: z.string().optional().nullable(),
   fuel: z.string().optional().nullable(),
@@ -23,7 +23,9 @@ const updateBodySchema = z.object({
   doors: z.number().int().optional().nullable(),
   engine: z.string().optional().nullable(),
   score: z.string().optional().nullable(),
-  equipment: z.string().optional().nullable(),
+  equipment: z.union([z.string(), z.array(z.string())]).optional().transform((v) =>
+    Array.isArray(v) ? v.join(", ") : v ?? undefined
+  ),
   photoUrls: z.array(z.string()).max(10).optional(),
   seoTitle: z.string().optional().nullable(),
   metaDescription: z.string().optional().nullable(),
@@ -31,8 +33,13 @@ const updateBodySchema = z.object({
   tag: z.string().optional(),
 })
 
+/** True if the param looks like a stockId (e.g. Z00000003) rather than a cuid. */
+function isStockIdParam(param: string): boolean {
+  return /^Z\d+$/.test(param)
+}
+
 /**
- * GET /api/stock-listings/:id — Public. Single listing.
+ * GET /api/stock-listings/:id — Public. Single listing by record id or by stockId (e.g. Z00000003).
  */
 export async function GET(
   _request: NextRequest,
@@ -40,8 +47,8 @@ export async function GET(
 ) {
   try {
     const { id } = await params
-    const listing = await prisma.stockListing.findUnique({
-      where: { id },
+    const listing = await prisma.stockListing.findFirst({
+      where: isStockIdParam(id) ? { stockId: id } : { id },
     })
     if (!listing) {
       return NextResponse.json(
@@ -76,7 +83,9 @@ export async function PATCH(
     }
 
     const { id } = await params
-    const existing = await prisma.stockListing.findUnique({ where: { id } })
+    const existing = await prisma.stockListing.findFirst({
+      where: isStockIdParam(id) ? { stockId: id } : { id },
+    })
     if (!existing) {
       return NextResponse.json(
         { error: { code: "not_found", message: "Stock listing not found" } },
@@ -110,6 +119,7 @@ export async function PATCH(
     if (data.grade !== undefined) update.grade = data.grade
     if (data.year !== undefined) update.year = data.year
     if (data.mileage !== undefined) update.mileage = data.mileage
+    if (data.mileageVerified !== undefined) update.mileageVerified = data.mileageVerified
     if (data.transmission !== undefined) update.transmission = data.transmission
     if (data.extColor !== undefined) update.extColor = data.extColor
     if (data.fuel !== undefined) update.fuel = data.fuel
@@ -125,7 +135,7 @@ export async function PATCH(
     if (data.tag !== undefined) update.tag = data.tag
 
     const listing = await prisma.stockListing.update({
-      where: { id },
+      where: { id: existing.id },
       data: update,
     })
     return NextResponse.json({ data: listing })
@@ -145,7 +155,7 @@ export async function PATCH(
 }
 
 /**
- * DELETE /api/stock-listings/:id — Delete (auth required).
+ * DELETE /api/stock-listings/:id — Delete (auth required). :id can be record id or stockId.
  */
 export async function DELETE(
   _request: NextRequest,
@@ -161,7 +171,16 @@ export async function DELETE(
     }
 
     const { id } = await params
-    await prisma.stockListing.delete({ where: { id } })
+    const existing = await prisma.stockListing.findFirst({
+      where: isStockIdParam(id) ? { stockId: id } : { id },
+    })
+    if (!existing) {
+      return NextResponse.json(
+        { error: { code: "not_found", message: "Stock listing not found" } },
+        { status: 404 }
+      )
+    }
+    await prisma.stockListing.delete({ where: { id: existing.id } })
     return new NextResponse(null, { status: 204 })
   } catch (error) {
     if (error && typeof error === "object" && "code" in error && error.code === "P2025") {

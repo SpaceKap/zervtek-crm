@@ -104,3 +104,80 @@ export async function generateStockListingSeo(specs: StockListingSpecs): Promise
     return null
   }
 }
+
+type DescriptionSpecs = {
+  brand?: string
+  model?: string
+  grade?: string
+  year?: number | null
+  mileage?: number | null
+  transmission?: string
+  extColor?: string
+  fuel?: string
+  drive?: string
+  doors?: number | null
+  engine?: string
+  score?: string
+  equipment?: string
+}
+
+/**
+ * Generate only the body description using OpenAI. Used when user clicks "Generate description".
+ * Returns null if OPENAI_API_KEY is missing or the request fails.
+ */
+export async function generateStockListingDescription(
+  specs: DescriptionSpecs
+): Promise<string | null> {
+  const key = process.env.OPENAI_API_KEY
+  if (!key) return null
+
+  const parts = [
+    specs.brand && `Brand: ${specs.brand}`,
+    specs.model && `Model: ${specs.model}`,
+    specs.grade && `Grade: ${specs.grade}`,
+    specs.year && `Year: ${specs.year}`,
+    specs.mileage != null && `Mileage: ${specs.mileage} km`,
+    specs.transmission && `Transmission: ${specs.transmission}`,
+    specs.extColor && `Exterior: ${specs.extColor}`,
+    specs.fuel && `Fuel: ${specs.fuel}`,
+    specs.drive && `Drive: ${specs.drive}`,
+    specs.doors != null && `Doors: ${specs.doors}`,
+    specs.engine && `Engine: ${specs.engine}`,
+    specs.score && `Score: ${specs.score}`,
+    specs.equipment && `Equipment: ${specs.equipment}`,
+  ].filter(Boolean)
+  const specText = parts.join("\n")
+
+  try {
+    const res = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${key}`,
+      },
+      body: JSON.stringify({
+        model: "gpt-4o-mini",
+        messages: [
+          {
+            role: "system",
+            content: `You are a copywriter for a used car export website. Given vehicle specifications, write a short paragraph (2-4 sentences) for the page body describing the vehicle and its condition, suitable for buyers. Be factual and professional.`,
+          },
+          { role: "user", content: specText },
+        ],
+      }),
+    })
+
+    if (!res.ok) {
+      const err = await res.text()
+      console.warn("OpenAI description request failed:", res.status, err)
+      return null
+    }
+
+    const data = (await res.json()) as { choices?: { message?: { content?: string } }[] }
+    const content = data.choices?.[0]?.message?.content
+    return content ? String(content).slice(0, 2000) : null
+  } catch (err) {
+    console.warn("OpenAI description generation error:", err)
+    return null
+  }
+}

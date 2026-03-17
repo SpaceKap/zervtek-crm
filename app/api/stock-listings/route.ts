@@ -1,24 +1,34 @@
+import { randomBytes } from "crypto"
 import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
-import { generateStockListingSeo } from "@/lib/stock-listing-seo"
+import { generateStaticSeo } from "@/lib/stock-listing-seo-static"
 import { Prisma } from "@prisma/client"
 import { z } from "zod"
 
 const PER_PAGE_MAX = 50
 const DEFAULT_PER_PAGE = 20
 
+/** Generate stock ID: Z followed by 8 digits (time-based + random). */
+function generateStockId(): string {
+  const t = Date.now() % 1000000
+  const r = randomBytes(1)[0]! % 100
+  const num = t * 100 + r
+  return `Z${num.toString().padStart(8, "0")}`
+}
+
 const createBodySchema = z.object({
-  stockId: z.string().min(1),
+  stockId: z.string().optional(),
   status: z.string().optional().default("Available"),
-  fobPrice: z.number().or(z.string().transform((s) => parseFloat(s))),
+  fobPrice: z.number().or(z.string().transform((s) => parseFloat(String(s).replace(/,/g, "")))),
   currency: z.string().optional().default("JPY"),
   brand: z.string().optional(),
   model: z.string().optional(),
   grade: z.string().optional(),
   year: z.number().int().optional().nullable(),
   mileage: z.number().int().optional().nullable(),
+  mileageVerified: z.boolean().optional().nullable(),
   transmission: z.string().optional(),
   extColor: z.string().optional(),
   fuel: z.string().optional(),
@@ -26,7 +36,9 @@ const createBodySchema = z.object({
   doors: z.number().int().optional().nullable(),
   engine: z.string().optional(),
   score: z.string().optional(),
-  equipment: z.string().optional(),
+  equipment: z.union([z.string(), z.array(z.string())]).optional().transform((v) =>
+    Array.isArray(v) ? v.join(", ") : v
+  ),
   photoUrls: z.array(z.string()).max(10).optional().default([]),
   seoTitle: z.string().optional(),
   metaDescription: z.string().optional(),
@@ -117,39 +129,27 @@ export async function POST(request: NextRequest) {
     }
 
     const data = parsed.data
+    const stockId = (data.stockId ?? "").trim() || generateStockId()
     let seoTitle = data.seoTitle ?? null
     let metaDescription = data.metaDescription ?? null
-    let description = data.description ?? null
+    const description = data.description ?? null
 
-    if ((!seoTitle || !metaDescription || !description) && process.env.OPENAI_API_KEY) {
-      const generated = await generateStockListingSeo({
-        stockId: data.stockId,
-        status: data.status,
-        fobPrice: data.fobPrice,
+    if (!seoTitle || !metaDescription) {
+      const staticSeo = generateStaticSeo({
+        stockId,
         brand: data.brand,
         model: data.model,
-        grade: data.grade,
         year: data.year ?? undefined,
-        mileage: data.mileage ?? undefined,
-        transmission: data.transmission,
-        extColor: data.extColor,
-        fuel: data.fuel,
-        drive: data.drive,
-        doors: data.doors ?? undefined,
-        engine: data.engine,
-        score: data.score,
-        equipment: data.equipment,
       })
-      if (generated) {
-        seoTitle = seoTitle ?? generated.seoTitle
-        metaDescription = metaDescription ?? generated.metaDescription
-        description = description ?? generated.description
+      if (staticSeo) {
+        seoTitle = seoTitle ?? staticSeo.seoTitle
+        metaDescription = metaDescription ?? staticSeo.metaDescription
       }
     }
 
     const listing = await prisma.stockListing.create({
       data: {
-        stockId: data.stockId,
+        stockId,
         status: data.status,
         fobPrice: data.fobPrice,
         currency: data.currency,
@@ -158,6 +158,7 @@ export async function POST(request: NextRequest) {
         grade: data.grade ?? null,
         year: data.year ?? null,
         mileage: data.mileage ?? null,
+        mileageVerified: data.mileageVerified ?? false,
         transmission: data.transmission ?? null,
         extColor: data.extColor ?? null,
         fuel: data.fuel ?? null,
