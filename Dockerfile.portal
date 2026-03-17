@@ -18,7 +18,7 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV DATABASE_URL="postgresql://placeholder:placeholder@localhost:5432/placeholder"
-RUN npx prisma generate
+RUN npx prisma generate --schema=packages/db/prisma/schema.prisma
 RUN npm run build:portal
 
 # Stage 3: Runner

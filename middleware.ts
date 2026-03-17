@@ -1,5 +1,5 @@
 import { withAuth } from "next-auth/middleware"
-import { NextRequest, NextResponse } from "next/server"
+import { NextFetchEvent, NextRequest, NextResponse } from "next/server"
 import { stockListingsCorsHeaders } from "@/lib/cors-stock-listings"
 
 const authMiddleware = withAuth(
@@ -14,7 +14,7 @@ const authMiddleware = withAuth(
   }
 )
 
-export default function middleware(req: NextRequest) {
+export default function middleware(req: NextRequest, event: NextFetchEvent) {
   // CORS for stock-listings API so www.zervtek.com can call crm.zervtek.com
   if (req.nextUrl.pathname.startsWith("/api/stock-listings")) {
     if (req.method === "OPTIONS") {
@@ -29,7 +29,7 @@ export default function middleware(req: NextRequest) {
     })
     return res
   }
-  return authMiddleware(req)
+  return authMiddleware(req as Parameters<typeof authMiddleware>[0], event)
 }
 
 export const config = {

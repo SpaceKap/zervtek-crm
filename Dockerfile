@@ -19,8 +19,8 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Generate Prisma Client (with OpenSSL present, Prisma will pick openssl-3.0.x on Alpine)
-RUN npx prisma generate
+# Generate Prisma Client from packages/db schema (includes StockListing and all models)
+RUN npx prisma generate --schema=packages/db/prisma/schema.prisma
 
 # Build Next.js application
 # Set a placeholder DATABASE_URL for build time (Prisma Client needs it during build)
