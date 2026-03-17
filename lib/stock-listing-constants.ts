@@ -50,6 +50,16 @@ export const EQUIPMENT_OPTIONS = [
 /** Auction score options (label only, no descriptions in UI) */
 export const SCORE_OPTIONS = ["S/6", "5", "4.5", "4", "3.5", "RA", "3", "R", "2"]
 
+/** Auto-deletion presets. "Never" = null (cron does not delete). */
+export const AUTO_DELETE_OPTIONS: { label: string; value: number | null }[] = [
+  { label: "Never", value: null },
+  { label: "14 Days", value: 14 },
+  { label: "1 month", value: 30 },
+  { label: "3 months", value: 90 },
+  { label: "6 months", value: 180 },
+  { label: "1 year", value: 365 },
+]
+
 /** Format number with commas (e.g. 1234567 -> "1,234,567") */
 export function formatNumberWithCommas(value: number | string | null | undefined): string {
   if (value === null || value === undefined || value === "") return ""
@@ -89,22 +99,24 @@ function simpleHash(str: string): number {
   return Math.abs(h)
 }
 
-/** Client-side static SEO for preview/fill. Title: Import {year} {MAKE} {MODEL} from Japan | ZervTek */
+/** Client-side static SEO. Title uses UPPERCASE make/model; meta description uses normal casing. */
 export function generateStaticSeoClient(params: {
   brand?: string | null
   model?: string | null
   year?: number | null
   seed?: string
 }): { seoTitle: string; metaDescription: string } | null {
-  const make = (params.brand || "Car").trim().toUpperCase()
-  const model = (params.model || "Model").trim().toUpperCase()
+  const makeUpper = (params.brand || "Car").trim().toUpperCase()
+  const modelUpper = (params.model || "Model").trim().toUpperCase()
+  const makeMeta = (params.brand || "Car").trim()
+  const modelMeta = (params.model || "Model").trim()
   const year = params.year ?? CURRENT_YEAR
-  const seed = `${params.seed ?? ""}-${make}-${model}-${year}`
+  const seed = `${params.seed ?? ""}-${makeUpper}-${modelUpper}-${year}`
   const index = simpleHash(seed) % Math.min(TITLE_TEMPLATES.length, META_TEMPLATES.length)
   const titleFn = TITLE_TEMPLATES[index]!
   const metaFn = META_TEMPLATES[index]!
   return {
-    seoTitle: titleFn(make, model, year).slice(0, 70),
-    metaDescription: metaFn(make, model, year).slice(0, 160),
+    seoTitle: titleFn(makeUpper, modelUpper, year).slice(0, 70),
+    metaDescription: metaFn(makeMeta, modelMeta, year).slice(0, 160),
   }
 }

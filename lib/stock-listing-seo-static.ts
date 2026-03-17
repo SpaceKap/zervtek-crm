@@ -36,15 +36,17 @@ export function generateStaticSeo(params: {
   model?: string | null
   year?: number | null
 }): { seoTitle: string; metaDescription: string } | null {
-  const make = (params.brand || "Car").trim().toUpperCase()
-  const model = (params.model || "Model").trim().toUpperCase()
+  const makeUpper = (params.brand || "Car").trim().toUpperCase()
+  const modelUpper = (params.model || "Model").trim().toUpperCase()
+  const makeMeta = (params.brand || "Car").trim()
+  const modelMeta = (params.model || "Model").trim()
   const year = params.year ?? new Date().getFullYear()
-  const seed = `${params.stockId ?? ""}-${make}-${model}-${year}`
+  const seed = `${params.stockId ?? ""}-${makeUpper}-${modelUpper}-${year}`
   const index = simpleHash(seed) % Math.min(TITLE_TEMPLATES.length, META_TEMPLATES.length)
   const titleFn = TITLE_TEMPLATES[index]!
   const metaFn = META_TEMPLATES[index]!
   return {
-    seoTitle: titleFn(make, model, year).slice(0, 70),
-    metaDescription: metaFn(make, model, year).slice(0, 160),
+    seoTitle: titleFn(makeUpper, modelUpper, year).slice(0, 70),
+    metaDescription: metaFn(makeMeta, modelMeta, year).slice(0, 160),
   }
 }

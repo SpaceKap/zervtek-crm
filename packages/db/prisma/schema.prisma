@@ -1149,10 +1149,11 @@ model StockListing {
   seoTitle         String?  @db.Text
   metaDescription  String?  @db.Text
   description      String?  @db.Text
-  tag              String   @default("Stock Listing")
-  createdById      String?
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  tag                String   @default("Stock Listing")
+  autoDeleteAfterDays Int?     // null = Never; 14, 30, 90, 180, 365 – cron deletes after this many days
+  createdById        String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 
   createdBy User? @relation(fields: [createdById], references: [id], onDelete: SetNull)
 
