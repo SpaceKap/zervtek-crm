@@ -109,7 +109,8 @@ const sourceColors: Record<InquirySource, string> = {
     "bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-200",
   HERO_INQUIRY: "bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-200",
   INQUIRY_FORM: "bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-200",
-  REFERRAL: "bg-violet-100 text-violet-800 dark:bg-violet-900 dark:text-violet-200",
+  REFERRAL:
+    "bg-violet-100 text-violet-800 dark:bg-violet-900 dark:text-violet-200",
   WEB: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200", // Legacy support
   CONTACT_US_INQUIRY_FORM:
     "bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200", // Legacy support
@@ -163,7 +164,11 @@ export function InquiryCard({
   const canDelete = currentUserEmail === "avi@zervtek.com";
   const metadata = (inquiry.metadata as any) || {};
   const [copiedId, setCopiedId] = useState<string | null>(null);
-  const handleCopyField = async (e: React.MouseEvent, text: string, fieldId: string) => {
+  const handleCopyField = async (
+    e: React.MouseEvent,
+    text: string,
+    fieldId: string,
+  ) => {
     e.stopPropagation();
     try {
       await navigator.clipboard.writeText(text);
@@ -198,11 +203,11 @@ export function InquiryCard({
   const notes = metadata.notes || "";
   const hasNotes = notes && notes.trim().length > 0;
   const previouslyTriedBy = metadata.previouslyTriedBy || null;
-  
+
   // Message expansion state
   const [isMessageExpanded, setIsMessageExpanded] = useState(false);
   const [showMessageDialog, setShowMessageDialog] = useState(false);
-  
+
   // Check if message is long enough to need truncation
   const messageLength = inquiry.message?.length || 0;
   const shouldTruncate = messageLength > 100; // Approximate 2 lines
@@ -213,7 +218,8 @@ export function InquiryCard({
   // Contact details (email, phone) are visible when the card is in the sales pipeline so staff can contact leads
   const isAssignedToCurrentUser = inquiry.assignedToId === currentUserId;
   const showContactInfo = isInFunnel;
-  const canEditCountry = isInFunnel && (isAssignedToCurrentUser || isManager || isAdmin);
+  const canEditCountry =
+    isInFunnel && (isAssignedToCurrentUser || isManager || isAdmin);
 
   // Country edit modal state
   const [showCountryEditDialog, setShowCountryEditDialog] = useState(false);
@@ -326,445 +332,463 @@ export function InquiryCard({
               : "opacity-75"
         }`}
       >
-      <CardContent className="p-3 flex flex-col flex-1 min-h-0">
-        {/* Header Section */}
-        <div className="flex flex-col space-y-3 flex-shrink-0">
-          {/* Badges + Title Row */}
-          <div className="flex flex-col gap-2">
-            <div className="flex flex-wrap items-center gap-1.5">
-              {!hideStatusBadge && (
-                <span
-                  className={`text-xs font-medium px-2 py-0.5 rounded border ${
-                    statusColors[inquiry.status]
-                  }`}
-                >
-                  {statusLabels[inquiry.status]}
-                </span>
-              )}
-              {!hideSourceBadge && (
-                <span className="inline-flex items-center gap-1.5">
-                  {inquiry.assignedAt &&
-                    inquiry.assignedToId &&
-                    Date.now() - new Date(inquiry.assignedAt).getTime() < 24 * 60 * 60 * 1000 && (
-                      <span
-                        className="size-2 rounded-full bg-green-500 shrink-0"
-                        title="Newly assigned (last 24h)"
-                        aria-hidden
-                      />
-                    )}
+        <CardContent className="p-3 flex flex-col flex-1 min-h-0">
+          {/* Header Section */}
+          <div className="flex flex-col space-y-3 flex-shrink-0">
+            {/* Badges + Title Row */}
+            <div className="flex flex-col gap-2">
+              <div className="flex flex-wrap items-center gap-1.5">
+                {!hideStatusBadge && (
                   <span
-                    className={`text-xs px-2 py-0.5 rounded ${
-                      sourceColors[inquiry.source]
+                    className={`text-xs font-medium px-2 py-0.5 rounded border ${
+                      statusColors[inquiry.status]
                     }`}
                   >
-                    {sourceLabels[inquiry.source]}
+                    {statusLabels[inquiry.status]}
                   </span>
-                </span>
-              )}
-              {previouslyTriedBy && (
-                <span className="text-xs font-medium px-2 py-0.5 rounded border bg-amber-50 text-amber-700 border-amber-300 dark:bg-amber-900/20 dark:text-amber-300 dark:border-amber-700">
-                  Previously tried: {previouslyTriedBy.userName}
-                </span>
-              )}
-            </div>
-            <h3
-              className={`font-semibold text-sm text-gray-900 dark:text-white line-clamp-2 leading-snug flex-1 ${
-                isClickable ? "cursor-pointer" : "cursor-not-allowed"
-              }`}
-            >
-              <span className="inline-flex items-center gap-1">
-                {inquiry.customerName ||
-                  (showContactInfo ? inquiry.email : "Unknown Customer") ||
-                  "Unknown Customer"}
-                <CopyIcon
-                  text={
-                    inquiry.customerName || (showContactInfo && inquiry.email) || ""
-                  }
-                  fieldId="name"
-                />
-              </span>
-            </h3>
-          </div>
-        </div>
-
-        {/* Content Section */}
-        {!isClosedWon ? (
-          <div className="flex flex-col space-y-2.5 flex-1 min-h-[60px] mt-1">
-            {/* Country */}
-            {(country || canEditCountry) && (
-              <div className="text-xs text-gray-600 dark:text-[#A1A1A1] flex items-center gap-1">
-                <span className="font-medium text-gray-700 dark:text-[#D0D0D0]">
-                  Country:
-                </span>{" "}
-                <span>{country || "Not set"}</span>
-                {country && <CopyIcon text={country} fieldId="country" />}
-                {canEditCountry && onCountryUpdated && (
-                  <button
-                    type="button"
-                    onClick={openCountryEdit}
-                    className="ml-0.5 inline-flex shrink-0 p-0.5 rounded hover:bg-gray-200 dark:hover:bg-[#2C2C2C] text-gray-400 dark:text-[#A1A1A1] hover:text-primary dark:hover:text-[#D4AF37] transition-colors"
-                    title="Edit country"
-                    aria-label="Edit country"
-                  >
+                )}
+                {!hideSourceBadge && (
+                  <span className="inline-flex items-center gap-1.5">
+                    {inquiry.assignedAt &&
+                      inquiry.assignedToId &&
+                      Date.now() - new Date(inquiry.assignedAt).getTime() <
+                        24 * 60 * 60 * 1000 && (
+                        <span
+                          className="size-2 rounded-full bg-green-500 shrink-0"
+                          title="Newly assigned (last 24h)"
+                          aria-hidden
+                        />
+                      )}
                     <span
-                      className="material-symbols-outlined select-none block leading-none"
-                      style={{ fontSize: 12 }}
+                      className={`text-xs px-2 py-0.5 rounded ${
+                        sourceColors[inquiry.source]
+                      }`}
                     >
-                      edit
+                      {sourceLabels[inquiry.source]}
                     </span>
-                  </button>
+                  </span>
+                )}
+                {previouslyTriedBy && (
+                  <span className="text-xs font-medium px-2 py-0.5 rounded border bg-amber-50 text-amber-700 border-amber-300 dark:bg-amber-900/20 dark:text-amber-300 dark:border-amber-700">
+                    Previously tried: {previouslyTriedBy.userName}
+                  </span>
                 )}
               </div>
-            )}
+              <h3
+                className={`font-semibold text-sm text-gray-900 dark:text-white line-clamp-2 leading-snug flex-1 ${
+                  isClickable ? "cursor-pointer" : "cursor-not-allowed"
+                }`}
+              >
+                <span className="inline-flex items-center gap-1">
+                  {inquiry.customerName ||
+                    (showContactInfo ? inquiry.email : "Unknown Customer") ||
+                    "Unknown Customer"}
+                  <CopyIcon
+                    text={
+                      inquiry.customerName ||
+                      (showContactInfo && inquiry.email) ||
+                      ""
+                    }
+                    fieldId="name"
+                  />
+                </span>
+              </h3>
+            </div>
+          </div>
 
-            {/* Description */}
-            {lookingFor && (
-              <div className="text-xs text-gray-600 dark:text-[#A1A1A1] flex items-start gap-1">
-                <span className="font-medium text-gray-700 dark:text-[#D0D0D0]">
-                  Looking for:
-                </span>{" "}
-                <span className="line-clamp-2 leading-tight flex-1">{lookingFor}</span>
-                <CopyIcon text={lookingFor} fieldId="lookingFor" />
-              </div>
-            )}
-
-            {inquiry.message && (
-              <div className="text-xs text-gray-600 dark:text-[#A1A1A1]">
-                <span className="font-medium text-gray-700 dark:text-[#D0D0D0]">
-                  Message:
-                </span>{" "}
-                <div className="mt-0.5 flex items-start gap-1">
-                  <span
-                    className={`leading-tight flex-1 ${
-                      shouldTruncate && !isMessageExpanded
-                        ? "line-clamp-2"
-                        : ""
-                    }`}
-                  >
-                    {inquiry.message}
-                  </span>
-                  <CopyIcon text={inquiry.message} fieldId="message" />
-                  {shouldTruncate && (
+          {/* Content Section */}
+          {!isClosedWon ? (
+            <div className="flex flex-col space-y-2.5 flex-1 min-h-[60px] mt-1">
+              {/* Country */}
+              {(country || canEditCountry) && (
+                <div className="text-xs text-gray-600 dark:text-[#A1A1A1] flex items-center gap-1">
+                  <span className="font-medium text-gray-700 dark:text-[#D0D0D0]">
+                    Country:
+                  </span>{" "}
+                  <span>{country || "Not set"}</span>
+                  {country && <CopyIcon text={country} fieldId="country" />}
+                  {canEditCountry && onCountryUpdated && (
                     <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setShowMessageDialog(true);
-                      }}
-                      className="ml-1 text-blue-600 dark:text-blue-400 hover:underline font-medium text-xs"
+                      type="button"
+                      onClick={openCountryEdit}
+                      className="ml-0.5 inline-flex shrink-0 p-0.5 rounded hover:bg-gray-200 dark:hover:bg-[#2C2C2C] text-gray-400 dark:text-[#A1A1A1] hover:text-primary dark:hover:text-[#D4AF37] transition-colors"
+                      title="Edit country"
+                      aria-label="Edit country"
                     >
-                      Read more
+                      <span
+                        className="material-symbols-outlined select-none block leading-none"
+                        style={{ fontSize: 12 }}
+                      >
+                        edit
+                      </span>
                     </button>
                   )}
                 </div>
-              </div>
-            )}
+              )}
 
-            {/* Contact Info - visible in sales pipeline so staff can contact leads */}
-            {showContactInfo && (inquiry.email || inquiry.phone) && (
-              <div className="space-y-1.5 text-xs text-gray-600 dark:text-[#A1A1A1] pt-2 mt-2 border-t border-gray-100 dark:border-[#2C2C2C]">
-                {inquiry.email && (
-                  <div className="flex items-center gap-1.5">
-                    <span className="material-symbols-outlined text-sm flex-shrink-0">
-                      email
-                    </span>
-                    <span className="line-clamp-1 flex-1">{inquiry.email}</span>
-                    <CopyIcon text={inquiry.email} fieldId="email" />
-                  </div>
-                )}
-                {inquiry.phone && (
-                  <div className="flex items-center gap-1.5">
-                    <span className="material-symbols-outlined text-sm flex-shrink-0">
-                      phone
-                    </span>
-                    <span className="flex-1">{inquiry.phone}</span>
-                    <CopyIcon text={inquiry.phone} fieldId="phone" />
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        ) : (
-          <div className="flex flex-col space-y-1 flex-1 min-h-[20px] mt-1">
-            {/* Minimal info for CLOSED_WON */}
-            <div className="text-xs text-gray-500 dark:text-[#A1A1A1] italic">
-              Closed Won
-            </div>
-          </div>
-        )}
+              {/* Description */}
+              {lookingFor && (
+                <div className="text-xs text-gray-600 dark:text-[#A1A1A1] flex items-start gap-1">
+                  <span className="font-medium text-gray-700 dark:text-[#D0D0D0]">
+                    Looking for:
+                  </span>{" "}
+                  <span className="line-clamp-2 leading-tight flex-1">
+                    {lookingFor}
+                  </span>
+                  <CopyIcon text={lookingFor} fieldId="lookingFor" />
+                </div>
+              )}
 
-        {/* Footer */}
-        <div className="flex items-center justify-between gap-2 pt-3 mt-auto border-t border-gray-100 dark:border-[#2C2C2C] flex-shrink-0">
-          <div className="flex items-center gap-2 min-w-0">
-            {inquiry.assignedTo ? (
-              inquiry.assignedTo.image ? (
-                <img
-                  src={inquiry.assignedTo.image}
-                  alt={inquiry.assignedTo.name || inquiry.assignedTo.email}
-                  className="w-5 h-5 rounded-full flex-shrink-0"
-                />
-              ) : (
-                <div className="w-5 h-5 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 dark:from-[#D4AF37] dark:to-[#FFD700] flex items-center justify-center text-white text-[10px] font-medium flex-shrink-0">
-                  {getInitials(
-                    inquiry.assignedTo.name,
-                    inquiry.assignedTo.email,
+              {inquiry.message && (
+                <div className="text-xs text-gray-600 dark:text-[#A1A1A1]">
+                  <span className="font-medium text-gray-700 dark:text-[#D0D0D0]">
+                    Message:
+                  </span>{" "}
+                  <div className="mt-0.5 flex items-start gap-1">
+                    <span
+                      className={`leading-tight flex-1 ${
+                        shouldTruncate && !isMessageExpanded
+                          ? "line-clamp-2"
+                          : ""
+                      }`}
+                    >
+                      {inquiry.message}
+                    </span>
+                    <CopyIcon text={inquiry.message} fieldId="message" />
+                    {shouldTruncate && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setShowMessageDialog(true);
+                        }}
+                        className="ml-1 text-blue-600 dark:text-blue-400 hover:underline font-medium text-xs"
+                      >
+                        Read more
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Contact Info - visible in sales pipeline so staff can contact leads */}
+              {showContactInfo && (inquiry.email || inquiry.phone) && (
+                <div className="space-y-1.5 text-xs text-gray-600 dark:text-[#A1A1A1] pt-2 mt-2 border-t border-gray-100 dark:border-[#2C2C2C]">
+                  {inquiry.email && (
+                    <div className="flex items-center gap-1.5">
+                      <span className="material-symbols-outlined text-sm flex-shrink-0">
+                        email
+                      </span>
+                      <span className="line-clamp-1 flex-1">
+                        {inquiry.email}
+                      </span>
+                      <CopyIcon text={inquiry.email} fieldId="email" />
+                    </div>
+                  )}
+                  {inquiry.phone && (
+                    <div className="flex items-center gap-1.5">
+                      <span className="material-symbols-outlined text-sm flex-shrink-0">
+                        phone
+                      </span>
+                      <span className="flex-1">{inquiry.phone}</span>
+                      <CopyIcon text={inquiry.phone} fieldId="phone" />
+                    </div>
                   )}
                 </div>
-              )
-            ) : (
-              <div className="w-5 h-5 rounded-full bg-gray-200 dark:bg-[#2C2C2C] flex items-center justify-center flex-shrink-0">
-                <span className="material-symbols-outlined text-xs text-gray-400 dark:text-[#A1A1A1]">
-                  person
-                </span>
+              )}
+            </div>
+          ) : (
+            <div className="flex flex-col space-y-1 flex-1 min-h-[20px] mt-1">
+              {/* Minimal info for CLOSED_WON */}
+              <div className="text-xs text-gray-500 dark:text-[#A1A1A1] italic">
+                Closed Won
               </div>
-            )}
-            <span className="text-[11px] text-gray-500 dark:text-[#A1A1A1] truncate">
-              {format(new Date(inquiry.createdAt), "dd MMM yyyy")}
-            </span>
+            </div>
+          )}
+
+          {/* Footer */}
+          <div className="flex items-center justify-between gap-2 pt-3 mt-auto border-t border-gray-100 dark:border-[#2C2C2C] flex-shrink-0">
+            <div className="flex items-center gap-2 min-w-0">
+              {inquiry.assignedTo ? (
+                inquiry.assignedTo.image ? (
+                  <img
+                    src={inquiry.assignedTo.image}
+                    alt={inquiry.assignedTo.name || inquiry.assignedTo.email}
+                    className="w-5 h-5 rounded-full flex-shrink-0"
+                  />
+                ) : (
+                  <div className="w-5 h-5 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 dark:from-[#D4AF37] dark:to-[#FFD700] flex items-center justify-center text-white text-[10px] font-medium flex-shrink-0">
+                    {getInitials(
+                      inquiry.assignedTo.name,
+                      inquiry.assignedTo.email,
+                    )}
+                  </div>
+                )
+              ) : (
+                <div className="w-5 h-5 rounded-full bg-gray-200 dark:bg-[#2C2C2C] flex items-center justify-center flex-shrink-0">
+                  <span className="material-symbols-outlined text-xs text-gray-400 dark:text-[#A1A1A1]">
+                    person
+                  </span>
+                </div>
+              )}
+              <span className="text-[11px] text-gray-500 dark:text-[#A1A1A1] truncate">
+                {format(new Date(inquiry.createdAt), "dd MMM yyyy")}
+              </span>
+            </div>
+            <div className="flex items-center gap-1 flex-shrink-0">
+              {showNotesButton && onNotes && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onNotes(inquiry.id);
+                  }}
+                  className={`flex items-center justify-center p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-[#2C2C2C] transition-colors ${
+                    hasNotes
+                      ? "text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20"
+                      : "text-gray-500 dark:text-[#A1A1A1]"
+                  }`}
+                  title={hasNotes ? "Edit notes" : "Add notes"}
+                >
+                  <span className="material-symbols-outlined text-base">
+                    {hasNotes ? "note" : "note_add"}
+                  </span>
+                </button>
+              )}
+              {showAssignButton && onAssign && !inquiry.assignedToId && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onAssign(inquiry.id);
+                  }}
+                  className="flex items-center justify-center p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-[#2C2C2C] transition-colors text-gray-500 dark:text-[#A1A1A1]"
+                  title="Assign to myself"
+                >
+                  <span className="material-symbols-outlined text-base">
+                    person_add
+                  </span>
+                </button>
+              )}
+              {showAssignToButton && onAssignTo && (isManager || isAdmin) && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onAssignTo(inquiry.id);
+                  }}
+                  className="flex items-center justify-center p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-[#2C2C2C] transition-colors text-gray-500 dark:text-[#A1A1A1]"
+                  title="Assign to a team member"
+                >
+                  <span className="material-symbols-outlined text-base">
+                    group_add
+                  </span>
+                </button>
+              )}
+              {canMerge && onStartMerge && !externalMergeSourceId && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onStartMerge(inquiry.id);
+                  }}
+                  className="flex items-center justify-center p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-[#2C2C2C] transition-colors text-gray-500 dark:text-[#A1A1A1]"
+                  title="Merge into another lead"
+                >
+                  <span className="material-symbols-outlined text-base">
+                    merge
+                  </span>
+                </button>
+              )}
+              {canMerge &&
+                externalMergeSourceId === inquiry.id &&
+                onCancelMerge && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onCancelMerge();
+                    }}
+                    className="h-7 px-2 text-xs shrink-0"
+                    title="Cancel merge"
+                  >
+                    Cancel
+                  </Button>
+                )}
+              {canMerge &&
+                externalMergeSourceId &&
+                externalMergeSourceId !== inquiry.id &&
+                onMergeInto && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onMergeInto(inquiry.id);
+                    }}
+                    className="h-7 px-2 text-xs shrink-0 gap-1"
+                    title="Merge selected lead into this one"
+                  >
+                    <span className="material-symbols-outlined text-sm">
+                      merge
+                    </span>
+                    Merge into this
+                  </Button>
+                )}
+              {showReleaseButton && onRelease && inquiry.assignedToId ? (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onRelease(inquiry.id);
+                  }}
+                  onMouseDown={(e) => e.stopPropagation()}
+                  className="h-7 px-2 text-xs flex items-center gap-1 shrink-0"
+                  title="Release to pool"
+                >
+                  <span className="material-symbols-outlined text-sm">
+                    person_remove
+                  </span>
+                  Release
+                </Button>
+              ) : null}
+              {canDelete && showDeleteButton && onDelete && (
+                <button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onDelete(inquiry.id);
+                  }}
+                  onMouseDown={(e) => e.stopPropagation()}
+                  className="flex items-center justify-center p-1.5 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 transition-colors"
+                  title="Delete inquiry"
+                >
+                  <span className="material-symbols-outlined text-base">
+                    delete
+                  </span>
+                </button>
+              )}
+            </div>
           </div>
-          <div className="flex items-center gap-1 flex-shrink-0">
-            {showNotesButton && onNotes && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onNotes(inquiry.id);
-                }}
-                className={`flex items-center justify-center p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-[#2C2C2C] transition-colors ${
-                  hasNotes
-                    ? "text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20"
-                    : "text-gray-500 dark:text-[#A1A1A1]"
-                }`}
-                title={hasNotes ? "Edit notes" : "Add notes"}
-              >
-                <span className="material-symbols-outlined text-base">
-                  {hasNotes ? "note" : "note_add"}
-                </span>
-              </button>
-            )}
-            {showAssignButton && onAssign && !inquiry.assignedToId && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onAssign(inquiry.id);
-                }}
-                className="flex items-center justify-center p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-[#2C2C2C] transition-colors text-gray-500 dark:text-[#A1A1A1]"
-                title="Assign to myself"
-              >
-                <span className="material-symbols-outlined text-base">
-                  person_add
-                </span>
-              </button>
-            )}
-            {showAssignToButton && onAssignTo && (isManager || isAdmin) && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onAssignTo(inquiry.id);
-                }}
-                className="flex items-center justify-center p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-[#2C2C2C] transition-colors text-gray-500 dark:text-[#A1A1A1]"
-                title="Assign to a team member"
-              >
-                <span className="material-symbols-outlined text-base">
-                  group_add
-                </span>
-              </button>
-            )}
-            {canMerge && onStartMerge && !externalMergeSourceId && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onStartMerge(inquiry.id);
-                }}
-                className="flex items-center justify-center p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-[#2C2C2C] transition-colors text-gray-500 dark:text-[#A1A1A1]"
-                title="Merge into another lead"
-              >
-                <span className="material-symbols-outlined text-base">
-                  merge
-                </span>
-              </button>
-            )}
-            {canMerge && externalMergeSourceId === inquiry.id && onCancelMerge && (
+        </CardContent>
+
+        {/* Edit country Dialog */}
+        <Dialog
+          open={showCountryEditDialog}
+          onOpenChange={setShowCountryEditDialog}
+        >
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Edit country</DialogTitle>
+              <DialogDescription>
+                Set or change the customer country for this lead. This is used
+                for reporting and filtering.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-2">
+              <div className="grid gap-2">
+                <Label htmlFor="edit-country">Country / Region</Label>
+                <Select
+                  value={editCountryValue || "__none__"}
+                  onValueChange={(v) =>
+                    setEditCountryValue(v === "__none__" ? "" : v)
+                  }
+                >
+                  <SelectTrigger id="edit-country" className="w-full">
+                    <SelectValue placeholder="Select country" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">Not set</SelectItem>
+                    {COUNTRIES.map((c) => (
+                      <SelectItem key={c} value={c}>
+                        {c}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
               <Button
-                size="sm"
-                variant="ghost"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onCancelMerge();
-                }}
-                className="h-7 px-2 text-xs shrink-0"
-                title="Cancel merge"
+                variant="outline"
+                onClick={() => setShowCountryEditDialog(false)}
+                disabled={savingCountry}
               >
                 Cancel
               </Button>
-            )}
-            {canMerge && externalMergeSourceId && externalMergeSourceId !== inquiry.id && onMergeInto && (
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onMergeInto(inquiry.id);
-                }}
-                className="h-7 px-2 text-xs shrink-0 gap-1"
-                title="Merge selected lead into this one"
-              >
-                <span className="material-symbols-outlined text-sm">
-                  merge
-                </span>
-                Merge into this
+              <Button onClick={saveCountry} disabled={savingCountry}>
+                {savingCountry ? "Saving…" : "Save"}
               </Button>
-            )}
-            {showReleaseButton && onRelease && inquiry.assignedToId ? (
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  onRelease(inquiry.id);
-                }}
-                onMouseDown={(e) => e.stopPropagation()}
-                className="h-7 px-2 text-xs flex items-center gap-1 shrink-0"
-                title="Release to pool"
-              >
-                <span className="material-symbols-outlined text-sm">
-                  person_remove
-                </span>
-                Release
-              </Button>
-            ) : null}
-            {canDelete && showDeleteButton && onDelete && (
-              <button
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  onDelete(inquiry.id);
-                }}
-                onMouseDown={(e) => e.stopPropagation()}
-                className="flex items-center justify-center p-1.5 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 transition-colors"
-                title="Delete inquiry"
-              >
-                <span className="material-symbols-outlined text-base">
-                  delete
-                </span>
-              </button>
-            )}
-          </div>
-        </div>
-      </CardContent>
+            </div>
+          </DialogContent>
+        </Dialog>
 
-      {/* Edit country Dialog */}
-      <Dialog open={showCountryEditDialog} onOpenChange={setShowCountryEditDialog}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Edit country</DialogTitle>
-            <DialogDescription>
-              Set or change the customer country for this lead. This is used for reporting and filtering.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 py-2">
-            <div className="grid gap-2">
-              <Label htmlFor="edit-country">Country / Region</Label>
-              <Select
-                value={editCountryValue || "__none__"}
-                onValueChange={(v) => setEditCountryValue(v === "__none__" ? "" : v)}
+        {/* Message Dialog */}
+        <Dialog open={showMessageDialog} onOpenChange={setShowMessageDialog}>
+          <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col p-0">
+            <DialogClose
+              onClose={() => setShowMessageDialog(false)}
+              className="absolute right-4 top-4 z-10"
+            />
+            <DialogHeader className="flex-shrink-0 px-6 pt-6 pb-4 border-b border-gray-200 dark:border-[#2C2C2C]">
+              <DialogTitle className="text-xl font-semibold text-gray-900 dark:text-white mb-3">
+                Message
+              </DialogTitle>
+              <DialogDescription className="space-y-2">
+                {inquiry.customerName && (
+                  <div className="flex items-center gap-2">
+                    <span className="material-symbols-outlined text-base text-gray-500 dark:text-gray-400">
+                      person
+                    </span>
+                    <span className="font-medium text-gray-700 dark:text-gray-300">
+                      {inquiry.customerName}
+                    </span>
+                  </div>
+                )}
+                {showContactInfo && inquiry.email && (
+                  <div className="flex items-center gap-2">
+                    <span className="material-symbols-outlined text-base text-gray-500 dark:text-gray-400">
+                      email
+                    </span>
+                    <span className="text-sm text-gray-600 dark:text-gray-400">
+                      {inquiry.email}
+                    </span>
+                  </div>
+                )}
+                {showContactInfo && inquiry.phone && (
+                  <div className="flex items-center gap-2">
+                    <span className="material-symbols-outlined text-base text-gray-500 dark:text-gray-400">
+                      phone
+                    </span>
+                    <span className="text-sm text-gray-600 dark:text-gray-400">
+                      {inquiry.phone}
+                    </span>
+                  </div>
+                )}
+                {!inquiry.customerName && !inquiry.email && (
+                  <span className="text-sm text-gray-500 dark:text-gray-400">
+                    Unknown Customer
+                  </span>
+                )}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex-1 overflow-y-auto px-6 py-6">
+              <div className="bg-gray-50 dark:bg-[#1E1E1E] rounded-lg p-5 border border-gray-200 dark:border-[#2C2C2C]">
+                <p className="text-sm leading-relaxed text-gray-800 dark:text-gray-200 whitespace-pre-wrap break-words">
+                  {inquiry.message}
+                </p>
+              </div>
+            </div>
+            <div className="flex-shrink-0 px-6 py-4 border-t border-gray-200 dark:border-[#2C2C2C] flex justify-end">
+              <Button
+                onClick={() => setShowMessageDialog(false)}
+                variant="outline"
+                className="min-w-[100px]"
               >
-                <SelectTrigger id="edit-country" className="w-full">
-                  <SelectValue placeholder="Select country" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">Not set</SelectItem>
-                  {COUNTRIES.map((c) => (
-                    <SelectItem key={c} value={c}>
-                      {c}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                Close
+              </Button>
             </div>
-          </div>
-          <div className="flex justify-end gap-2 pt-2">
-            <Button
-              variant="outline"
-              onClick={() => setShowCountryEditDialog(false)}
-              disabled={savingCountry}
-            >
-              Cancel
-            </Button>
-            <Button onClick={saveCountry} disabled={savingCountry}>
-              {savingCountry ? "Saving…" : "Save"}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-      
-      {/* Message Dialog */}
-      <Dialog open={showMessageDialog} onOpenChange={setShowMessageDialog}>
-        <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col p-0">
-          <DialogClose
-            onClose={() => setShowMessageDialog(false)}
-            className="absolute right-4 top-4 z-10"
-          />
-          <DialogHeader className="flex-shrink-0 px-6 pt-6 pb-4 border-b border-gray-200 dark:border-[#2C2C2C]">
-            <DialogTitle className="text-xl font-semibold text-gray-900 dark:text-white mb-3">
-              Message
-            </DialogTitle>
-            <DialogDescription className="space-y-2">
-              {inquiry.customerName && (
-                <div className="flex items-center gap-2">
-                  <span className="material-symbols-outlined text-base text-gray-500 dark:text-gray-400">
-                    person
-                  </span>
-                  <span className="font-medium text-gray-700 dark:text-gray-300">
-                    {inquiry.customerName}
-                  </span>
-                </div>
-              )}
-              {showContactInfo && inquiry.email && (
-                <div className="flex items-center gap-2">
-                  <span className="material-symbols-outlined text-base text-gray-500 dark:text-gray-400">
-                    email
-                  </span>
-                  <span className="text-sm text-gray-600 dark:text-gray-400">
-                    {inquiry.email}
-                  </span>
-                </div>
-              )}
-              {showContactInfo && inquiry.phone && (
-                <div className="flex items-center gap-2">
-                  <span className="material-symbols-outlined text-base text-gray-500 dark:text-gray-400">
-                    phone
-                  </span>
-                  <span className="text-sm text-gray-600 dark:text-gray-400">
-                    {inquiry.phone}
-                  </span>
-                </div>
-              )}
-              {!inquiry.customerName && !inquiry.email && (
-                <span className="text-sm text-gray-500 dark:text-gray-400">
-                  Unknown Customer
-                </span>
-              )}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex-1 overflow-y-auto px-6 py-6">
-            <div className="bg-gray-50 dark:bg-[#1E1E1E] rounded-lg p-5 border border-gray-200 dark:border-[#2C2C2C]">
-              <p className="text-sm leading-relaxed text-gray-800 dark:text-gray-200 whitespace-pre-wrap break-words">
-                {inquiry.message}
-              </p>
-            </div>
-          </div>
-          <div className="flex-shrink-0 px-6 py-4 border-t border-gray-200 dark:border-[#2C2C2C] flex justify-end">
-            <Button
-              onClick={() => setShowMessageDialog(false)}
-              variant="outline"
-              className="min-w-[100px]"
-            >
-              Close
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-    </Card>
+          </DialogContent>
+        </Dialog>
+      </Card>
     </div>
   );
 }

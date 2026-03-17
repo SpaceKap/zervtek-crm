@@ -3,6 +3,7 @@ import { getToken } from "next-auth/jwt"
 import { writeFile, mkdir } from "fs/promises"
 import { join } from "path"
 import { existsSync } from "fs"
+import { compressImageForStockListing } from "@/lib/compress-image"
 
 export async function POST(request: NextRequest) {
   try {
@@ -35,16 +36,19 @@ export async function POST(request: NextRequest) {
       await mkdir(uploadsDir, { recursive: true })
     }
 
-    // Generate unique filename
     const timestamp = Date.now()
     const randomStr = Math.random().toString(36).substring(2, 15)
-    const extension = file.name.split(".").pop() || "bin"
+    let buffer: Uint8Array = Buffer.from(await file.arrayBuffer())
+    let extension = file.name.split(".").pop() || "bin"
+
+    if (context === "stock-listing" && file.type.startsWith("image/")) {
+      const compressed = await compressImageForStockListing(Buffer.from(buffer), file.type)
+      buffer = compressed.buffer
+      extension = compressed.extension
+    }
+
     const filename = `${timestamp}-${randomStr}.${extension}`
     const filepath = join(uploadsDir, filename)
-
-    // Convert file to buffer and save
-    const bytes = await file.arrayBuffer()
-    const buffer = Buffer.from(bytes)
     await writeFile(filepath, buffer)
 
     const fileUrl = `/uploads/${filename}`

@@ -13,6 +13,7 @@ interface DashboardNavProps {
 
 const navItems = [
   { href: "/dashboard", icon: "inbox", label: "Dashboard" },
+  { href: "/dashboard/stock-listings", icon: "directions_car", label: "Stock cars" },
   {
     href: "/dashboard/kanban",
     icon: "view_kanban",

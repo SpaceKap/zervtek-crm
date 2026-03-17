@@ -235,3 +235,34 @@ export async function getVehicleDimensionsByName(
   const volume = calculateVolumeFromLWH(closest.totalLWH);
   return { volume, lwh: closest.totalLWH };
 }
+
+/**
+ * Return unique makes (brands) and models per make for dropdowns (e.g. stock listing form).
+ */
+export async function getMakesAndModels(): Promise<{
+  makes: string[];
+  modelsByMake: Record<string, string[]>;
+}> {
+  const catalog = await loadCatalog();
+  const makeSet = new Set<string>();
+  const modelsByMake: Record<string, Set<string>> = {};
+
+  for (const entry of catalog) {
+    const make = entry.companyName?.trim() || "";
+    const model = entry.modelName?.trim() || "";
+    if (!make) continue;
+    makeSet.add(make);
+    if (!modelsByMake[make]) modelsByMake[make] = new Set<string>();
+    if (model) modelsByMake[make].add(model);
+  }
+
+  const makes = Array.from(makeSet).sort((a, b) => a.localeCompare(b));
+  const modelsByMakeSorted: Record<string, string[]> = {};
+  for (const make of makes) {
+    modelsByMakeSorted[make] = Array.from(modelsByMake[make] || []).sort((a, b) =>
+      a.localeCompare(b)
+    );
+  }
+
+  return { makes, modelsByMake: modelsByMakeSorted };
+}

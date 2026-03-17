@@ -275,48 +275,6 @@ export default async function InquiryDetailPage({
         </Card>
       )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle>History</CardTitle>
-          <CardDescription>Activity log for this inquiry</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {inquiry.history.length === 0 ? (
-              <p className="text-muted-foreground">No history available</p>
-            ) : (
-              inquiry.history.map((entry) => (
-                <div
-                  key={entry.id}
-                  className="flex items-start justify-between border-b pb-4"
-                >
-                  <div>
-                    <p className="font-medium">{entry.action}</p>
-                    {entry.previousStatus && entry.newStatus && (
-                      <p className="text-sm text-muted-foreground">
-                        {entry.previousStatus} → {entry.newStatus}
-                      </p>
-                    )}
-                    {entry.notes && (
-                      <p className="text-sm text-muted-foreground mt-1">
-                        {entry.notes}
-                      </p>
-                    )}
-                  </div>
-                  <div className="text-right text-sm text-muted-foreground">
-                    <p>{entry.user.name || entry.user.email}</p>
-                    <p>
-                      {formatDistanceToNow(new Date(entry.createdAt), {
-                        addSuffix: true,
-                      })}
-                    </p>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 }
