@@ -44,6 +44,9 @@ export const EQUIPMENT_OPTIONS = [
   "Turbo",
 ]
 
+/** Auction score options (label only, no descriptions in UI) */
+export const SCORE_OPTIONS = ["S/6", "5", "4.5", "4", "3.5", "RA", "3", "R", "2"]
+
 /** Format number with commas (e.g. 1234567 -> "1,234,567") */
 export function formatNumberWithCommas(value: number | string | null | undefined): string {
   if (value === null || value === undefined || value === "") return ""
@@ -61,34 +64,17 @@ export function parseFormattedNumber(value: string | null | undefined): number |
   return Number.isNaN(n) ? null : n
 }
 
-const SITE = "www.zervtek.com"
 const TITLE_TEMPLATES = [
   (make: string, model: string, year: number) =>
-    `${year} ${make} ${model} | Import from Japan | ${SITE}`,
-  (make: string, model: string, year: number) =>
-    `${make} ${model} ${year} - Japanese Used Cars | Zervtek`,
-  (make: string, model: string, year: number) =>
-    `${year} ${make} ${model} - Source from Japan | ${SITE}`,
-  (make: string, model: string, year: number) =>
-    `Buy ${year} ${make} ${model} from Japan | ${SITE}`,
-  (make: string, model: string, year: number) =>
-    `${make} ${model} (${year}) | Japan Export | Zervtek`,
-  (make: string, model: string, year: number) =>
-    `${year} ${make} ${model} | Reliable Japan Imports | ${SITE}`,
+    `Import ${year} ${make} ${model} from Japan | ZervTek`,
 ]
 const META_TEMPLATES = [
   (make: string, model: string, year: number) =>
-    `${year} ${make} ${model}. Import directly from Japan with Zervtek. Quality used cars at competitive prices. Visit ${SITE} for more stock.`,
+    `Import ${year} ${make} ${model} from Japan. ZervTek – quality used cars from Japan.`,
   (make: string, model: string, year: number) =>
-    `Source your ${year} ${make} ${model} from Japan. Zervtek simplifies the import process. Browse our inventory at ${SITE}.`,
+    `Source your ${year} ${make} ${model} from Japan. ZervTek simplifies the import process.`,
   (make: string, model: string, year: number) =>
-    `${make} ${model} ${year} available for export. Trust Zervtek for Japanese used car imports. ${SITE}`,
-  (make: string, model: string, year: number) =>
-    `Import ${year} ${make} ${model} from Japan. Transparent pricing, verified vehicles. ${SITE}`,
-  (make: string, model: string, year: number) =>
-    `${year} ${make} ${model} - Japanese used car export. Zervtek connects you with quality stock. Visit ${SITE}.`,
-  (make: string, model: string, year: number) =>
-    `Buy ${make} ${model} (${year}) from Japan. Easy import process with Zervtek. ${SITE}`,
+    `${make} ${model} ${year} available for export. Trust ZervTek for Japanese used car imports.`,
 ]
 
 function simpleHash(str: string): number {
@@ -100,15 +86,15 @@ function simpleHash(str: string): number {
   return Math.abs(h)
 }
 
-/** Client-side static SEO for preview/fill. Uses make, model, year with variety. */
+/** Client-side static SEO for preview/fill. Title: Import {year} {MAKE} {MODEL} from Japan | ZervTek */
 export function generateStaticSeoClient(params: {
   brand?: string | null
   model?: string | null
   year?: number | null
   seed?: string
 }): { seoTitle: string; metaDescription: string } | null {
-  const make = (params.brand || "Car").trim()
-  const model = (params.model || "Model").trim()
+  const make = (params.brand || "Car").trim().toUpperCase()
+  const model = (params.model || "Model").trim().toUpperCase()
   const year = params.year ?? CURRENT_YEAR
   const seed = `${params.seed ?? ""}-${make}-${model}-${year}`
   const index = simpleHash(seed) % Math.min(TITLE_TEMPLATES.length, META_TEMPLATES.length)

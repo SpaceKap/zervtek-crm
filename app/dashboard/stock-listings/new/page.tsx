@@ -21,6 +21,7 @@ import {
   TRANSMISSION_OPTIONS,
   DRIVE_OPTIONS,
   EQUIPMENT_OPTIONS,
+  SCORE_OPTIONS,
   formatNumberWithCommas,
   parseFormattedNumber,
   generateStaticSeoClient,
@@ -254,9 +255,6 @@ export default function NewStockListingPage() {
         </Link>
       </div>
       <h1 className="text-2xl font-bold">Add stock car</h1>
-      <p className="text-sm text-muted-foreground">
-        Stock ID will be auto-generated (Z-...). SEO title and meta description are generated from make, model and year (www.zervtek.com).
-      </p>
 
       <form onSubmit={handleSubmit} className="space-y-6">
         <Card>
@@ -464,11 +462,19 @@ export default function NewStockListingPage() {
               </div>
               <div>
                 <Label>Score</Label>
-                <Input
-                  value={form.score}
-                  onChange={(e) => setForm((p) => ({ ...p, score: e.target.value }))}
-                  placeholder="R"
-                />
+                <Select
+                  value={form.score || undefined}
+                  onValueChange={(v) => setForm((p) => ({ ...p, score: v }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {SCORE_OPTIONS.map((s) => (
+                      <SelectItem key={s} value={s}>{s}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
             <div>
@@ -548,7 +554,7 @@ export default function NewStockListingPage() {
           <CardHeader>
             <CardTitle>SEO</CardTitle>
             <p className="text-sm text-muted-foreground">
-              Title and meta are generated from make, model and year (www.zervtek.com). Edit if needed.
+              Title and meta are generated from make, model and year (Import … from Japan | ZervTek). Edit if needed.
             </p>
           </CardHeader>
           <CardContent className="space-y-4">

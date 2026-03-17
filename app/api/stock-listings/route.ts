@@ -51,6 +51,12 @@ const createBodySchema = z.object({
  */
 export async function GET(request: NextRequest) {
   try {
+    if (typeof prisma.stockListing === "undefined") {
+      return NextResponse.json(
+        { error: { code: "unavailable", message: "Stock listings not available. Run database migrations." } },
+        { status: 503 }
+      )
+    }
     const { searchParams } = new URL(request.url)
     const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10))
     const perPage = Math.min(
@@ -93,8 +99,11 @@ export async function GET(request: NextRequest) {
     })
   } catch (error) {
     console.error("Stock listings list error:", error)
+    const msg = error && typeof error === "object" && "message" in error && String((error as Error).message).includes("exist")
+      ? "Stock listings table may be missing. Run database migrations."
+      : "Failed to list stock listings"
     return NextResponse.json(
-      { error: { code: "internal_error", message: "Failed to list stock listings" } },
+      { error: { code: "internal_error", message: msg } },
       { status: 500 }
     )
   }
@@ -113,7 +122,15 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const body = await request.json()
+    let body: unknown
+    try {
+      body = await request.json()
+    } catch {
+      return NextResponse.json(
+        { error: { code: "bad_request", message: "Invalid JSON body" } },
+        { status: 400 }
+      )
+    }
     const parsed = createBodySchema.safeParse(body)
     if (!parsed.success) {
       return NextResponse.json(
@@ -188,8 +205,11 @@ export async function POST(request: NextRequest) {
       )
     }
     console.error("Stock listing create error:", error)
+    const msg = error && typeof error === "object" && "message" in error && String((error as Error).message).includes("exist")
+      ? "Stock listings table may be missing. Run database migrations."
+      : "Failed to create stock listing"
     return NextResponse.json(
-      { error: { code: "internal_error", message: "Failed to create stock listing" } },
+      { error: { code: "internal_error", message: msg } },
       { status: 500 }
     )
   }

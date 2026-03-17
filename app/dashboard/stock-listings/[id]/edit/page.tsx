@@ -21,6 +21,7 @@ import {
   TRANSMISSION_OPTIONS,
   DRIVE_OPTIONS,
   EQUIPMENT_OPTIONS,
+  SCORE_OPTIONS,
   formatNumberWithCommas,
   parseFormattedNumber,
 } from "@/lib/stock-listing-constants";
@@ -532,11 +533,19 @@ export default function EditStockListingPage() {
               </div>
               <div>
                 <Label>Score</Label>
-                <Input
-                  value={form.score}
-                  onChange={(e) => setForm((p) => ({ ...p, score: e.target.value }))}
-                  placeholder="R"
-                />
+                <Select
+                  value={form.score || undefined}
+                  onValueChange={(v) => setForm((p) => ({ ...p, score: v }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {SCORE_OPTIONS.map((s) => (
+                      <SelectItem key={s} value={s}>{s}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
             <div>
@@ -615,7 +624,7 @@ export default function EditStockListingPage() {
         <Card>
           <CardHeader>
             <CardTitle>SEO</CardTitle>
-            <p className="text-sm text-muted-foreground">www.zervtek.com. Description can be generated with AI.</p>
+            <p className="text-sm text-muted-foreground">Description can be generated with AI.</p>
           </CardHeader>
           <CardContent className="space-y-4">
             <div>

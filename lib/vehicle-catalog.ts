@@ -239,6 +239,14 @@ export async function getVehicleDimensionsByName(
 /**
  * Return unique makes (brands) and models per make for dropdowns (e.g. stock listing form).
  */
+/** Title case for display: MAZDA -> Mazda, AUTOZAM AZ-1 -> Autozam Az-1 */
+function toTitleCase(s: string): string {
+  return s
+    .split(/\s+/)
+    .map((w) => (w.length === 0 ? w : w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()))
+    .join(" ");
+}
+
 export async function getMakesAndModels(): Promise<{
   makes: string[];
   modelsByMake: Record<string, string[]>;
@@ -248,9 +256,11 @@ export async function getMakesAndModels(): Promise<{
   const modelsByMake: Record<string, Set<string>> = {};
 
   for (const entry of catalog) {
-    const make = entry.companyName?.trim() || "";
-    const model = entry.modelName?.trim() || "";
-    if (!make) continue;
+    const makeRaw = entry.companyName?.trim() || "";
+    const modelRaw = entry.modelName?.trim() || "";
+    if (!makeRaw) continue;
+    const make = toTitleCase(makeRaw);
+    const model = modelRaw ? toTitleCase(modelRaw) : "";
     makeSet.add(make);
     if (!modelsByMake[make]) modelsByMake[make] = new Set<string>();
     if (model) modelsByMake[make].add(model);

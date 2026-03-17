@@ -1,39 +1,24 @@
 /**
  * Generate SEO title and meta description without AI.
- * Uses make, model, year + varied phrases about importing from Japan and www.zervtek.com.
- * Variety is achieved by hashing a seed (e.g. stockId + make + model) to pick different templates.
+ * Title format: Import {year} {MAKE} {MODEL} from Japan | ZervTek. No www.zervtek.com in title or description.
  */
-
-const SITE = "www.zervtek.com"
 
 const TITLE_TEMPLATES = [
   (make: string, model: string, year: number) =>
-    `${year} ${make} ${model} | Import from Japan | ${SITE}`,
+    `Import ${year} ${make} ${model} from Japan | ZervTek`,
   (make: string, model: string, year: number) =>
-    `${make} ${model} ${year} - Japanese Used Cars | Zervtek`,
+    `Import ${year} ${make} ${model} from Japan | ZervTek`,
   (make: string, model: string, year: number) =>
-    `${year} ${make} ${model} - Source from Japan | ${SITE}`,
-  (make: string, model: string, year: number) =>
-    `Buy ${year} ${make} ${model} from Japan | ${SITE}`,
-  (make: string, model: string, year: number) =>
-    `${make} ${model} (${year}) | Japan Export | Zervtek`,
-  (make: string, model: string, year: number) =>
-    `${year} ${make} ${model} | Reliable Japan Imports | ${SITE}`,
+    `Import ${year} ${make} ${model} from Japan | ZervTek`,
 ]
 
 const META_TEMPLATES = [
   (make: string, model: string, year: number) =>
-    `${year} ${make} ${model}. Import directly from Japan with Zervtek. Quality used cars at competitive prices. Visit ${SITE} for more stock.`,
+    `Import ${year} ${make} ${model} from Japan. ZervTek – quality used cars from Japan.`,
   (make: string, model: string, year: number) =>
-    `Source your ${year} ${make} ${model} from Japan. Zervtek simplifies the import process. Browse our inventory at ${SITE}.`,
+    `Source your ${year} ${make} ${model} from Japan. ZervTek simplifies the import process.`,
   (make: string, model: string, year: number) =>
-    `${make} ${model} ${year} available for export. Trust Zervtek for Japanese used car imports. ${SITE}`,
-  (make: string, model: string, year: number) =>
-    `Import ${year} ${make} ${model} from Japan. Transparent pricing, verified vehicles. ${SITE}`,
-  (make: string, model: string, year: number) =>
-    `${year} ${make} ${model} - Japanese used car export. Zervtek connects you with quality stock. Visit ${SITE}.`,
-  (make: string, model: string, year: number) =>
-    `Buy ${make} ${model} (${year}) from Japan. Easy import process with Zervtek. ${SITE}`,
+    `${make} ${model} ${year} available for export. Trust ZervTek for Japanese used car imports.`,
 ]
 
 function simpleHash(str: string): number {
@@ -51,8 +36,8 @@ export function generateStaticSeo(params: {
   model?: string | null
   year?: number | null
 }): { seoTitle: string; metaDescription: string } | null {
-  const make = (params.brand || "Car").trim()
-  const model = (params.model || "Model").trim()
+  const make = (params.brand || "Car").trim().toUpperCase()
+  const model = (params.model || "Model").trim().toUpperCase()
   const year = params.year ?? new Date().getFullYear()
   const seed = `${params.stockId ?? ""}-${make}-${model}-${year}`
   const index = simpleHash(seed) % Math.min(TITLE_TEMPLATES.length, META_TEMPLATES.length)
