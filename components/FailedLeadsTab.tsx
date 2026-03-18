@@ -119,11 +119,11 @@ export function FailedLeadsTab({ users = [] }: FailedLeadsTabProps) {
       CONTACT_US_INQUIRY_FORM: "Contact Us Inquiry Form",
       HERO_INQUIRY: "Hero Section Inquiry",
       INQUIRY_FORM: "Contact Form Inquiry",
-      META_LEAD: "Meta / Facebook Lead",
+      META_LEAD: "Meta Lead Form",
       REFERRAL: "Referral",
       hero_inquiry: "Hero Section Inquiry",
       inquiry_form: "Contact Form Inquiry",
-      meta_lead: "Meta / Facebook Lead",
+      meta_lead: "Meta Lead Form",
     };
     return sourceLabels[source] || source;
   };

@@ -57,7 +57,7 @@ const sourceLabelsShort: Record<string, string> = {
   CONTACT_US_INQUIRY_FORM: "Contact",
   HERO_INQUIRY: "Hero",
   INQUIRY_FORM: "Form",
-  META_LEAD: "Meta",
+  META_LEAD: "Meta Lead",
   REFERRAL: "Referral",
 };
 
