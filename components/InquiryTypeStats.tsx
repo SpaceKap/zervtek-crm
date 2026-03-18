@@ -65,6 +65,7 @@ const sourceLabels: Record<InquirySource, string> = {
   ONBOARDING_FORM: "Onboarding Form",
   HERO_INQUIRY: "Hero Section Inquiry",
   INQUIRY_FORM: "Contact Form Inquiry",
+  META_LEAD: "Meta / Facebook Lead",
   REFERRAL: "Referral",
   WEB: "Web", // Legacy support
   CONTACT_US_INQUIRY_FORM: "Contact Us Inquiry Form", // Legacy support
@@ -79,6 +80,7 @@ const sourceColors: Record<InquirySource, string> = {
   ONBOARDING_FORM: "bg-teal-500",
   HERO_INQUIRY: "bg-pink-500",
   INQUIRY_FORM: "bg-cyan-500",
+  META_LEAD: "bg-sky-500",
   REFERRAL: "bg-violet-500",
   WEB: "bg-purple-500", // Legacy support
   CONTACT_US_INQUIRY_FORM: "bg-indigo-500", // Legacy support
@@ -125,7 +127,10 @@ export function InquiryTypeStats({
 
   // Sync from URL when props change (e.g. after navigation)
   useEffect(() => {
-    if (syncDateToUrl && (urlStartDate !== undefined || urlEndDate !== undefined)) {
+    if (
+      syncDateToUrl &&
+      (urlStartDate !== undefined || urlEndDate !== undefined)
+    ) {
       setStartDate(urlStartDate ?? "");
       setEndDate(urlEndDate ?? "");
     }
@@ -187,9 +192,11 @@ export function InquiryTypeStats({
 
   const maxSourceCount = Math.max(...Object.values(stats.bySource), 1);
   const winRate =
-    stats.winRate ?? (stats.total > 0 ? (stats.byStatus.won / stats.total) * 100 : 0);
+    stats.winRate ??
+    (stats.total > 0 ? (stats.byStatus.won / stats.total) * 100 : 0);
   const lossRate =
-    stats.lossRate ?? (stats.total > 0 ? (stats.byStatus.lost / stats.total) * 100 : 0);
+    stats.lossRate ??
+    (stats.total > 0 ? (stats.byStatus.lost / stats.total) * 100 : 0);
   const otherRate =
     stats.total > 0 ? (stats.byStatus.other / stats.total) * 100 : 0;
 
@@ -525,7 +532,12 @@ export function InquiryTypeStats({
                 Distribution of inquiries by source type • Total: {stats.total}
                 {stats.bestSource != null && stats.worstSource != null && (
                   <span className="block mt-1 text-xs">
-                    Best conversion: {sourceLabels[stats.bestSource as InquirySource] ?? stats.bestSource} • Worst: {sourceLabels[stats.worstSource as InquirySource] ?? stats.worstSource}
+                    Best conversion:{" "}
+                    {sourceLabels[stats.bestSource as InquirySource] ??
+                      stats.bestSource}{" "}
+                    • Worst:{" "}
+                    {sourceLabels[stats.worstSource as InquirySource] ??
+                      stats.worstSource}
                   </span>
                 )}
               </CardDescription>
@@ -557,14 +569,17 @@ export function InquiryTypeStats({
                           : 0}
                         %
                       </span>
-                      {stats.bySourceEnhanced && (() => {
-                        const enh = stats.bySourceEnhanced.find((e) => e.source === source);
-                        return enh ? (
-                          <span className="text-xs text-green-600 dark:text-green-400 font-medium">
-                            {enh.conversionRate.toFixed(1)}% conv.
-                          </span>
-                        ) : null;
-                      })()}
+                      {stats.bySourceEnhanced &&
+                        (() => {
+                          const enh = stats.bySourceEnhanced.find(
+                            (e) => e.source === source,
+                          );
+                          return enh ? (
+                            <span className="text-xs text-green-600 dark:text-green-400 font-medium">
+                              {enh.conversionRate.toFixed(1)}% conv.
+                            </span>
+                          ) : null;
+                        })()}
                     </div>
                   </div>
                   <div className="h-2.5 bg-gray-100 dark:bg-[#2C2C2C] rounded-full overflow-hidden">
@@ -677,7 +692,8 @@ export function InquiryTypeStats({
               Stats by Country
             </CardTitle>
             <CardDescription className="mt-1">
-              Lead volume and conversion by country • &quot;Other&quot; = no or unidentifiable country
+              Lead volume and conversion by country • &quot;Other&quot; = no or
+              unidentifiable country
             </CardDescription>
           </CardHeader>
           <CardContent>

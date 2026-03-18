@@ -89,6 +89,7 @@ export default async function InquiryDetailPage({
     EMAIL: "bg-blue-100 text-blue-800",
     WEB: "bg-purple-100 text-purple-800",
     CHATBOT: "bg-orange-100 text-orange-800",
+    META_LEAD: "bg-sky-100 text-sky-800",
   };
 
   const sourceLabels: Record<string, string> = {
@@ -96,6 +97,7 @@ export default async function InquiryDetailPage({
     EMAIL: "Email",
     WEB: "Web",
     CHATBOT: "Chatbot",
+    META_LEAD: "Meta / Facebook Lead",
   };
 
   const metadata = (inquiry.metadata as any) || {};

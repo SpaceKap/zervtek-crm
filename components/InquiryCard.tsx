@@ -109,6 +109,7 @@ const sourceColors: Record<InquirySource, string> = {
     "bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-200",
   HERO_INQUIRY: "bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-200",
   INQUIRY_FORM: "bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-200",
+  META_LEAD: "bg-sky-100 text-sky-800 dark:bg-sky-900 dark:text-sky-200",
   REFERRAL:
     "bg-violet-100 text-violet-800 dark:bg-violet-900 dark:text-violet-200",
   WEB: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200", // Legacy support
@@ -125,6 +126,7 @@ const sourceLabels: Record<InquirySource, string> = {
   ONBOARDING_FORM: "Onboarding Form",
   HERO_INQUIRY: "Hero Section Inquiry",
   INQUIRY_FORM: "Contact Form Inquiry",
+  META_LEAD: "Meta / Facebook Lead",
   REFERRAL: "Referral",
   WEB: "Web", // Legacy support
   CONTACT_US_INQUIRY_FORM: "Contact Us Inquiry Form", // Legacy support

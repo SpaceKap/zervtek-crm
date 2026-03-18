@@ -119,9 +119,11 @@ export function FailedLeadsTab({ users = [] }: FailedLeadsTabProps) {
       CONTACT_US_INQUIRY_FORM: "Contact Us Inquiry Form",
       HERO_INQUIRY: "Hero Section Inquiry",
       INQUIRY_FORM: "Contact Form Inquiry",
+      META_LEAD: "Meta / Facebook Lead",
       REFERRAL: "Referral",
       hero_inquiry: "Hero Section Inquiry",
       inquiry_form: "Contact Form Inquiry",
+      meta_lead: "Meta / Facebook Lead",
     };
     return sourceLabels[source] || source;
   };
@@ -160,7 +162,7 @@ export function FailedLeadsTab({ users = [] }: FailedLeadsTabProps) {
         ).toFixed(1)
       : "0";
   const secondAttemptCount = failedLeads.filter(
-    (l) => (l.attemptCount || 0) >= 2
+    (l) => (l.attemptCount || 0) >= 2,
   ).length;
   const bySource = failedLeads.reduce<Record<string, number>>((acc, l) => {
     const s = l.source || "Unknown";
@@ -231,7 +233,8 @@ export function FailedLeadsTab({ users = [] }: FailedLeadsTabProps) {
                   {getSourceLabel(sourceEntries[0][0])}
                 </p>
                 <p className="text-sm text-muted-foreground mt-1">
-                  {sourceEntries[0][1]} lead{sourceEntries[0][1] !== 1 ? "s" : ""}
+                  {sourceEntries[0][1]} lead
+                  {sourceEntries[0][1] !== 1 ? "s" : ""}
                 </p>
               </>
             ) : (
@@ -248,7 +251,9 @@ export function FailedLeadsTab({ users = [] }: FailedLeadsTabProps) {
             <CardTitle className="text-base text-gray-900 dark:text-white">
               Failed leads by source
             </CardTitle>
-            <CardDescription>Count per source in current filter</CardDescription>
+            <CardDescription>
+              Count per source in current filter
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="flex flex-wrap gap-3">
@@ -276,7 +281,8 @@ export function FailedLeadsTab({ users = [] }: FailedLeadsTabProps) {
             Failed Leads
           </CardTitle>
           <CardDescription>
-            Inquiries moved to trash from the pipeline (archived with full details)
+            Inquiries moved to trash from the pipeline (archived with full
+            details)
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -322,7 +328,10 @@ export function FailedLeadsTab({ users = [] }: FailedLeadsTabProps) {
             )}
             <div className="space-y-2">
               <Label className="text-sm">Previously tried by</Label>
-              <Select value={previouslyTriedById} onValueChange={setPreviouslyTriedById}>
+              <Select
+                value={previouslyTriedById}
+                onValueChange={setPreviouslyTriedById}
+              >
                 <SelectTrigger className="w-[200px]">
                   <SelectValue placeholder="All" />
                 </SelectTrigger>

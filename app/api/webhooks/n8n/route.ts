@@ -133,6 +133,7 @@ function normalizeSource(source: string): InquirySource {
   if (normalized === "hero_inquiry" || normalized === "hero inquiry" || normalized === "heroinquiry") return InquirySource.HERO_INQUIRY
   if (normalized === "inquiry_form" || normalized === "inquiry form" || normalized === "inquiryform") return InquirySource.INQUIRY_FORM
   if (normalized === "referral") return InquirySource.REFERRAL
+  if (normalized === "meta_lead" || normalized === "meta" || normalized === "facebook_lead" || normalized === "facebook") return InquirySource.META_LEAD
   // Default to INQUIRY_FORM if unknown (most common form type)
   return InquirySource.INQUIRY_FORM
 }
@@ -145,10 +146,93 @@ export async function POST(request: NextRequest) {
     //   return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     // }
 
-    const body: any = await request.json()
+    const rawBody: any = await request.json()
     
     // Log received body for debugging
-    console.log("Received webhook payload:", JSON.stringify(body, null, 2))
+    console.log("Received webhook payload:", JSON.stringify(rawBody, null, 2))
+
+    // Batch: accept array of leads (e.g. from Meta/Google Sheets) and process each
+    const items: any[] = Array.isArray(rawBody) ? rawBody : [rawBody]
+    if (items.length === 0) {
+      return NextResponse.json({ error: "Empty payload" }, { status: 400 })
+    }
+    for (const item of items) {
+      if (!item.source) item.source = "meta_lead"
+    }
+    if (items.length > 1) {
+      const results: { success: boolean; inquiryId?: string; error?: string }[] = []
+      for (const body of items) {
+        try {
+          const normalizedSource = normalizeSource(body.source)
+          const lookingFor = body.lookingFor || body["what_are_you_looking_to_purchase_&_import?"] || ""
+          const metadata: any = {
+            ...(body.metadata || {}),
+            ...(lookingFor ? { lookingFor } : {}),
+            ...(body.id ? { metaLeadId: body.id } : {}),
+            ...(body.created_time ? { metaCreatedTime: body.created_time } : {}),
+            ...(body.campaign_name ? { campaignName: body.campaign_name } : {}),
+            ...(body.adset_name ? { adsetName: body.adset_name } : {}),
+            ...(body.form_name ? { formName: body.form_name } : {}),
+            ...(body.platform ? { platform: body.platform } : {}),
+            ...(body.country ? { country: body.country } : {}),
+          }
+          let phone: string | null = body.phone || body.phone_number || null
+          if (phone && typeof phone === "string" && phone.startsWith("p:")) phone = phone.slice(2).trim() || null
+          const email = body.email || null
+          const country = body.country || null
+    const customerName = body.customerName || body.name || body.full_name || null
+    // "What are you looking to purchase & import?" → show in CRM message box
+    const message = body.message ?? body["what_are_you_looking_to_purchase_&_import?"] ?? body.lookingFor ?? null
+          const sourceId = body.sourceId ?? body.id ?? (email ? `contactus-${email}-${Date.now()}` : null)
+          if (sourceId) {
+            const existing = await prisma.inquiry.findFirst({
+              where: { source: normalizedSource, sourceId },
+            })
+            if (existing) {
+              results.push({ success: false, error: "Inquiry already exists", inquiryId: existing.id })
+              continue
+            }
+          }
+          const inquiry = await prisma.inquiry.create({
+            data: {
+              source: normalizedSource,
+              sourceId,
+              customerName,
+              email,
+              phone,
+              message,
+              metadata,
+              status: InquiryStatus.NEW,
+            },
+          })
+          try {
+            const systemUser = await prisma.user.findFirst({ where: { role: "MANAGER" }, select: { id: true } })
+            if (systemUser) {
+              await prisma.inquiryHistory.create({
+                data: {
+                  inquiryId: inquiry.id,
+                  userId: systemUser.id,
+                  action: "CREATED_VIA_WEBHOOK",
+                  newStatus: InquiryStatus.NEW,
+                  notes: `Created from ${normalizedSource} via n8n webhook (batch)`,
+                },
+              })
+            }
+          } catch (_) {}
+          await invalidateCachePattern("inquiries:list:")
+          await invalidateCachePattern("kanban:")
+          results.push({ success: true, inquiryId: inquiry.id })
+        } catch (err) {
+          results.push({
+            success: false,
+            error: err instanceof Error ? err.message : "Unknown error",
+          })
+        }
+      }
+      return NextResponse.json({ success: true, batch: true, results }, { status: 200 })
+    }
+
+    const body = items[0]!
 
     // Validate required fields - check for empty string too
     if (!body.source || (typeof body.source === 'string' && body.source.trim() === '')) {
@@ -168,7 +252,7 @@ export async function POST(request: NextRequest) {
     console.log("Normalized source:", normalizedSource)
 
     // Handle different form structures and build lookingFor field
-    let lookingFor = body.lookingFor || ""
+    let lookingFor = body.lookingFor || body["what_are_you_looking_to_purchase_&_import?"] || ""
     
     // inquiry_form: has vehicles array
     if (body.vehicles && Array.isArray(body.vehicles)) {
@@ -215,6 +299,13 @@ export async function POST(request: NextRequest) {
       ...(body.callingCode ? { callingCode: body.callingCode } : {}),
       // Set lookingFor if we built it
       ...(lookingFor ? { lookingFor } : {}),
+      // Meta Lead Ads / Facebook form fields (for sourceId and display)
+      ...(body.id ? { metaLeadId: body.id } : {}),
+      ...(body.created_time ? { metaCreatedTime: body.created_time } : {}),
+      ...(body.campaign_name ? { campaignName: body.campaign_name } : {}),
+      ...(body.adset_name ? { adsetName: body.adset_name } : {}),
+      ...(body.form_name ? { formName: body.form_name } : {}),
+      ...(body.platform ? { platform: body.platform } : {}),
     }
     
     // Ensure country from metadata is also included if not at top level
@@ -245,12 +336,13 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Extract phone, email, country, and customerName - prioritize top level, fallback to metadata
-    const phone = body.phone || body.metadata?.phone || null
+    // Extract phone, email, country, and customerName - prioritize top level, fallback to metadata / Meta form fields
+    let phone = body.phone || body.metadata?.phone || body.phone_number || null
+    if (phone && typeof phone === "string" && phone.startsWith("p:")) phone = phone.slice(2).trim() || null
     const email = body.email || body.metadata?.email || null
     const country = body.country || body.metadata?.country || body.destination || null
-    const customerName = body.customerName || body.name || null
-    const message = body.message || body.metadata?.message || null
+    const customerName = body.customerName || body.name || body.full_name || null
+    const message = body.message || body.metadata?.message || body["what_are_you_looking_to_purchase_&_import?"] || body.lookingFor || null
 
     // WhatsApp deduplication: if same number sends multiple messages within a month, update existing card instead of creating new
     const normalizePhone = (p: string | null) =>
@@ -387,7 +479,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Generate sourceId if not provided (for duplicate detection)
-    let sourceId = body.sourceId
+    let sourceId = body.sourceId ?? body.id ?? null
     if (!sourceId && email) {
       const timestamp = Date.now()
       sourceId = `contactus-${email}-${timestamp}`

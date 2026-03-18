@@ -57,6 +57,7 @@ const sourceLabelsShort: Record<string, string> = {
   CONTACT_US_INQUIRY_FORM: "Contact",
   HERO_INQUIRY: "Hero",
   INQUIRY_FORM: "Form",
+  META_LEAD: "Meta",
   REFERRAL: "Referral",
 };
 
@@ -256,7 +257,9 @@ export default async function StatsPage({
         <TabsContent value="sales" className="mt-6 space-y-8">
           {hasDateFilter && (
             <p className="text-sm text-muted-foreground">
-              All metrics below (aggregate, inquiry types, and team performance) are filtered by date range. Set dates in the Date Range Filter card and click Apply.
+              All metrics below (aggregate, inquiry types, and team performance)
+              are filtered by date range. Set dates in the Date Range Filter
+              card and click Apply.
             </p>
           )}
           {/* Enhanced Aggregate Stats */}
@@ -418,7 +421,9 @@ export default async function StatsPage({
                   const statusEntries = Object.entries(stats.inquiriesByStatus)
                     .filter(([_, count]) => count > 0)
                     .sort((a, b) => b[1] - a[1]);
-                  const sourceEntries = Object.entries(stats.inquiriesBySource || {})
+                  const sourceEntries = Object.entries(
+                    stats.inquiriesBySource || {},
+                  )
                     .filter(([_, count]) => count > 0)
                     .sort((a, b) => b[1] - a[1]);
 
