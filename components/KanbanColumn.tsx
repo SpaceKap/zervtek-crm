@@ -24,11 +24,14 @@ interface Inquiry {
   } | null;
 }
 
+export type KanbanInquirySection = { label: string; inquiries: Inquiry[] };
+
 interface KanbanColumnProps {
   id: string;
   title: string;
   color?: string | null;
-  inquiries: Inquiry[];
+  /** Grouped rows within the column; use `[{ label: "", inquiries }]` for a flat list. */
+  inquirySections: KanbanInquirySection[];
   onView?: (id: string) => void;
   onCreateInquiry?: (status: InquiryStatus) => void;
   status: InquiryStatus;
@@ -52,7 +55,7 @@ export const KanbanColumn = memo(function KanbanColumn({
   id,
   title,
   color,
-  inquiries,
+  inquirySections,
   onView,
   onCreateInquiry,
   status,
@@ -70,6 +73,10 @@ export const KanbanColumn = memo(function KanbanColumn({
   mergeMode = false,
   onEnterMergeMode,
 }: KanbanColumnProps) {
+  const totalInquiries = inquirySections.reduce(
+    (n, s) => n + s.inquiries.length,
+    0,
+  );
   const { setNodeRef, isOver } = useDroppable({
     id: id,
   });
@@ -105,7 +112,7 @@ export const KanbanColumn = memo(function KanbanColumn({
             {title}
           </h3>
           <span className="flex items-center justify-center w-5 h-5 rounded-full bg-gray-100 dark:bg-[#2C2C2C] text-xs font-medium text-gray-600 dark:text-[#A1A1A1]">
-            {inquiries.length}
+            {totalInquiries}
           </span>
         </div>
         <div className="flex items-center gap-1">
@@ -134,43 +141,52 @@ export const KanbanColumn = memo(function KanbanColumn({
         ref={setNodeRef}
         className="flex-1 p-2 space-y-2 overflow-y-auto overflow-x-hidden min-h-[180px] transition-colors duration-200 scrollbar-modern-vertical"
       >
-        {inquiries.map((inquiry) =>
-          mergeMode ? (
-            <MergeModeCard
-              key={inquiry.id}
-              inquiry={inquiry}
-              onView={onView}
-              onRelease={onRelease}
-              onNotes={onNotes}
-              onAssignTo={onAssignTo}
-              onDelete={onDelete}
-              onCountryUpdated={onCountryUpdated}
-              currentUserId={currentUserId}
-              currentUserEmail={currentUserEmail}
-              isManager={isManager}
-              isAdmin={isAdmin}
-            />
-          ) : (
-            <SortableInquiryCard
-              key={inquiry.id}
-              inquiry={inquiry}
-              onView={onView}
-              onRelease={onRelease}
-              onNotes={onNotes}
-              onAssignTo={onAssignTo}
-              onDelete={onDelete}
-              onCountryUpdated={onCountryUpdated}
-              currentUserId={currentUserId}
-              currentUserEmail={currentUserEmail}
-              isManager={isManager}
-              isAdmin={isAdmin}
-              isMergeTarget={mergeTargetId === inquiry.id}
-              mergeHoldProgress={mergeHoldProgress}
-              onEnterMergeMode={onEnterMergeMode}
-            />
-          )
-        )}
-        {inquiries.length === 0 && (
+        {inquirySections.map((section, sectionIdx) => (
+          <div key={`${section.label || "flat"}-${sectionIdx}`} className="space-y-2">
+            {section.label ? (
+              <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground px-1 pt-1 border-b border-border/40 pb-1 mb-0.5">
+                {section.label}
+              </div>
+            ) : null}
+            {section.inquiries.map((inquiry) =>
+              mergeMode ? (
+                <MergeModeCard
+                  key={inquiry.id}
+                  inquiry={inquiry}
+                  onView={onView}
+                  onRelease={onRelease}
+                  onNotes={onNotes}
+                  onAssignTo={onAssignTo}
+                  onDelete={onDelete}
+                  onCountryUpdated={onCountryUpdated}
+                  currentUserId={currentUserId}
+                  currentUserEmail={currentUserEmail}
+                  isManager={isManager}
+                  isAdmin={isAdmin}
+                />
+              ) : (
+                <SortableInquiryCard
+                  key={inquiry.id}
+                  inquiry={inquiry}
+                  onView={onView}
+                  onRelease={onRelease}
+                  onNotes={onNotes}
+                  onAssignTo={onAssignTo}
+                  onDelete={onDelete}
+                  onCountryUpdated={onCountryUpdated}
+                  currentUserId={currentUserId}
+                  currentUserEmail={currentUserEmail}
+                  isManager={isManager}
+                  isAdmin={isAdmin}
+                  isMergeTarget={mergeTargetId === inquiry.id}
+                  mergeHoldProgress={mergeHoldProgress}
+                  onEnterMergeMode={onEnterMergeMode}
+                />
+              ),
+            )}
+          </div>
+        ))}
+        {totalInquiries === 0 && (
           <button
             onClick={(e) => {
               e.stopPropagation();

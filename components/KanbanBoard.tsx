@@ -1,10 +1,17 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import {
+  useState,
+  useEffect,
+  useCallback,
+  useMemo,
+  useRef,
+  Suspense,
+} from "react";
 import { Button } from "@/components/ui/button";
 import { KanbanColumn } from "./KanbanColumn";
 import { InquiryStatus, InquirySource } from "@prisma/client";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { AddInquiryDialog } from "./AddInquiryDialog";
 import { NotesDialog } from "./NotesDialog";
 import { ReleaseConfirmationDialog } from "./ReleaseConfirmationDialog";
@@ -25,6 +32,12 @@ import {
   SortableContext,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
+import {
+  buildInquirySections,
+  parsePipelineGroup,
+  parsePipelineSort,
+  parsePipelineSourcesFilter,
+} from "@/lib/kanban-pipeline-view";
 
 interface Inquiry {
   id: string;
@@ -33,6 +46,7 @@ interface Inquiry {
   email: string | null;
   phone: string | null;
   message: string | null;
+  lookingFor?: string | null;
   status: InquiryStatus;
   assignedToId: string | null;
   createdAt: Date;
@@ -55,7 +69,10 @@ interface Stage {
 }
 
 interface KanbanBoardProps {
+  /** When `filterControlledByParent`, drives the API filter (ManagerView). Otherwise read from URL. */
   userId?: string;
+  /** If true, ignore URL `userId` and use `userId` prop only (embedded manager pipeline). */
+  filterControlledByParent?: boolean;
   isManager?: boolean;
   isAdmin?: boolean;
   users?: Array<{ id: string; name: string | null; email: string }>;
@@ -65,15 +82,36 @@ interface KanbanBoardProps {
 }
 
 function inquiryMatchesSearch(inquiry: Inquiry, q: string): boolean {
-  const lower = q.toLowerCase().trim();
-  if (!lower) return true;
+  const raw = q.trim();
+  if (!raw) return true;
+
+  const meta = (inquiry.metadata as Record<string, unknown> | null) ?? {};
+  const country =
+    typeof meta.country === "string"
+      ? meta.country.trim()
+      : meta.country != null
+        ? String(meta.country).trim()
+        : "";
+
   const fields = [
     inquiry.customerName,
     inquiry.email,
     inquiry.phone,
     inquiry.message,
+    inquiry.lookingFor,
+    country || null,
   ].filter(Boolean) as string[];
-  return fields.some((f) => f.toLowerCase().includes(lower));
+
+  // "United States/Canada" or "US | CA" → match if any segment hits any field (OR).
+  const orTerms = raw
+    .split(/\s*[/|]\s*/)
+    .map((t) => t.trim().toLowerCase())
+    .filter(Boolean);
+  if (orTerms.length === 0) return true;
+
+  return orTerms.some((term) =>
+    fields.some((f) => f.toLowerCase().includes(term)),
+  );
 }
 
 function TrashDropZone() {
@@ -175,8 +213,9 @@ function DndMonitorHandler({
   return null;
 }
 
-export function KanbanBoard({
-  userId,
+function KanbanBoardInner({
+  userId: userIdProp,
+  filterControlledByParent = false,
   isManager = false,
   isAdmin = false,
   users = [],
@@ -185,11 +224,15 @@ export function KanbanBoard({
   searchQuery: searchQueryProp,
 }: KanbanBoardProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const userIdFromUrl = searchParams.get("userId")?.trim() || undefined;
+  const kanbanUserIdFilter = filterControlledByParent
+    ? userIdProp || undefined
+    : userIdFromUrl;
   const pipelineSearch = usePipelineSearch();
   const searchQuery = pipelineSearch?.searchQuery ?? searchQueryProp ?? undefined;
   const [stages, setStages] = useState<Stage[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filterUserId, setFilterUserId] = useState<string | undefined>(userId);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogStatus, setDialogStatus] = useState<InquiryStatus | undefined>(
     undefined,
@@ -224,34 +267,11 @@ export function KanbanBoard({
     }),
   );
 
-  // Update filter when userId prop changes
-  useEffect(() => {
-    setFilterUserId(userId);
-  }, [userId]);
-
-  // Also check URL params on mount and when they change
-  useEffect(() => {
-    const updateFromUrl = () => {
-      const params = new URLSearchParams(window.location.search);
-      const urlUserId = params.get("userId");
-      if (urlUserId) {
-        setFilterUserId(urlUserId);
-      } else if (!userId) {
-        setFilterUserId(undefined);
-      }
-    };
-
-    updateFromUrl();
-    // Listen for popstate events (back/forward navigation)
-    window.addEventListener("popstate", updateFromUrl);
-    return () => window.removeEventListener("popstate", updateFromUrl);
-  }, [userId]);
-
   const fetchBoard = useCallback(async () => {
     try {
       setLoading(true);
-      const url = filterUserId
-        ? `/api/kanban?userId=${filterUserId}`
+      const url = kanbanUserIdFilter
+        ? `/api/kanban?userId=${encodeURIComponent(kanbanUserIdFilter)}`
         : "/api/kanban";
       if (process.env.NODE_ENV === "development") {
         console.log("[KanbanBoard] Fetching board from:", url);
@@ -279,7 +299,7 @@ export function KanbanBoard({
     } finally {
       setLoading(false);
     }
-  }, [filterUserId]);
+  }, [kanbanUserIdFilter]);
 
   useEffect(() => {
     fetchBoard();
@@ -391,10 +411,6 @@ export function KanbanBoard({
   }, []);
 
   const canMergeInquiries = isManager || isAdmin;
-  const inquiryIdsSet = useMemo(
-    () => new Set(stages.flatMap((s) => s.inquiries.map((i) => i.id))),
-    [stages]
-  );
 
   const filteredStages = useMemo(() => {
     const q = searchQuery?.trim();
@@ -406,6 +422,64 @@ export function KanbanBoard({
       ),
     }));
   }, [stages, searchQuery]);
+
+  const kbs = searchParams.get("kbs");
+  const kbg = searchParams.get("kbg");
+  const kbh = searchParams.get("kbh");
+  const kbf = searchParams.get("kbf");
+
+  const displayStages = useMemo(() => {
+    if (filterControlledByParent) {
+      return filteredStages.map((stage) => ({
+        ...stage,
+        inquirySections: buildInquirySections(
+          stage.inquiries,
+          "newest",
+          "none",
+        ),
+      }));
+    }
+    const sortMode = parsePipelineSort(kbs);
+    const groupMode = parsePipelineGroup(kbg);
+    const hideEmpty = kbh === "1";
+    const sourceFilter = parsePipelineSourcesFilter(kbf);
+
+    let rows = filteredStages.map((stage) => {
+      let inquiries = stage.inquiries;
+      if (sourceFilter) {
+        inquiries = inquiries.filter((i) => sourceFilter.has(i.source));
+      }
+      const inquirySections = buildInquirySections(
+        inquiries,
+        sortMode,
+        groupMode,
+      );
+      return { ...stage, inquirySections };
+    });
+    if (hideEmpty) {
+      rows = rows.filter((s) =>
+        s.inquirySections.some((sec) => sec.inquiries.length > 0),
+      );
+    }
+    return rows;
+  }, [
+    filteredStages,
+    filterControlledByParent,
+    kbs,
+    kbg,
+    kbh,
+    kbf,
+  ]);
+
+  const inquiryIdsSet = useMemo(
+    () =>
+      new Set(
+        displayStages.flatMap((s) =>
+          s.inquirySections.flatMap((sec) => sec.inquiries.map((i) => i.id)),
+        ),
+      ),
+    [displayStages],
+  );
 
   const handleDragStart = (event: DragStartEvent) => {
     setActiveId(event.active.id as string);
@@ -628,8 +702,8 @@ export function KanbanBoard({
     );
   }
 
-  const allInquiryIds = filteredStages.flatMap((stage) =>
-    stage.inquiries.map((inq) => inq.id),
+  const allInquiryIds = displayStages.flatMap((stage) =>
+    stage.inquirySections.flatMap((sec) => sec.inquiries.map((inq) => inq.id)),
   );
 
   return (
@@ -682,13 +756,13 @@ export function KanbanBoard({
             items={mergeMode ? [] : allInquiryIds}
             strategy={verticalListSortingStrategy}
           >
-            {filteredStages.map((stage) => (
+            {displayStages.map((stage) => (
               <KanbanColumn
                 key={stage.id}
                 id={stage.id}
                 title={stage.name}
                 color={stage.color}
-                inquiries={stage.inquiries}
+                inquirySections={stage.inquirySections}
                 onView={handleView}
                 onCreateInquiry={handleCreateInquiry}
                 status={stage.status}
@@ -789,5 +863,21 @@ export function KanbanBoard({
         />
       )}
     </DndContext>
+  );
+}
+
+export function KanbanBoard(props: KanbanBoardProps) {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-[200px] items-center justify-center rounded-lg">
+          <p className="text-sm text-gray-500 dark:text-[#A1A1A1]">
+            Loading kanban board...
+          </p>
+        </div>
+      }
+    >
+      <KanbanBoardInner {...props} />
+    </Suspense>
   );
 }

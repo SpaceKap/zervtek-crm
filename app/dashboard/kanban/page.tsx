@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { UserRole } from "@prisma/client";
 import { KanbanBoardFilter } from "@/components/KanbanBoardFilter";
+import { PipelineKanbanToolbar } from "@/components/PipelineKanbanToolbar";
 import { KanbanSearch } from "@/components/KanbanSearch";
 import { PipelineSearchProvider } from "@/components/PipelineSearchContext";
 import { Suspense } from "react";
@@ -80,20 +81,9 @@ export default async function KanbanPage(
                 />
               </Suspense>
             )}
-            <button className="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-700 dark:text-white hover:bg-gray-100 dark:hover:bg-[#2C2C2C] rounded transition-colors">
-              <span className="material-symbols-outlined text-lg">tune</span>
-              <span>Filter</span>
-            </button>
-            <button className="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-700 dark:text-white hover:bg-gray-100 dark:hover:bg-[#2C2C2C] rounded transition-colors">
-              <span className="material-symbols-outlined text-lg">
-                view_module
-              </span>
-              <span>Group by</span>
-            </button>
-            <button className="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-700 dark:text-white hover:bg-gray-100 dark:hover:bg-[#2C2C2C] rounded transition-colors">
-              <span className="material-symbols-outlined text-lg">sort</span>
-              <span>Sort</span>
-            </button>
+            <Suspense fallback={<div className="flex gap-2 h-10 w-[200px]" />}>
+              <PipelineKanbanToolbar />
+            </Suspense>
             <button className="p-1.5 text-gray-700 dark:text-white hover:bg-gray-100 dark:hover:bg-[#2C2C2C] rounded transition-colors">
               <span className="material-symbols-outlined text-lg">
                 more_vert
@@ -105,7 +95,6 @@ export default async function KanbanPage(
         {/* Kanban Board - Full Width */}
         <div className="flex-1 bg-gray-50 dark:bg-[#121212] rounded-lg p-4 overflow-hidden">
           <KanbanBoard
-            userId={searchParams.userId}
             isManager={isManager}
             isAdmin={isAdmin}
             users={users}

@@ -15,11 +15,11 @@ export function KanbanSearch() {
       </span>
       <Input
         type="search"
-        placeholder="Search inquiries..."
+        placeholder="Search name, email, country…"
         value={searchQuery}
         onChange={(e) => setSearchQuery(e.target.value)}
         className="pl-9 h-10 bg-background"
-        aria-label="Search inquiries by name, email, or phone"
+        aria-label="Search inquiries by name, email, phone, message, country, or looking for. Use slash or pipe for OR, e.g. United States / Canada"
       />
       {searchQuery && (
         <button

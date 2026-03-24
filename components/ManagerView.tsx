@@ -74,6 +74,7 @@ export function ManagerView({
             </TabsList>
             <TabsContent value="kanban" className="mt-4">
               <KanbanBoard
+                filterControlledByParent
                 userId={
                   selectedUserId === "all"
                     ? undefined

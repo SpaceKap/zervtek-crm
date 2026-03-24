@@ -114,6 +114,7 @@ export async function GET(request: NextRequest) {
         email: true,
         phone: true,
         message: true,
+        lookingFor: true,
         status: true,
         assignedToId: true,
         assignedAt: true,
