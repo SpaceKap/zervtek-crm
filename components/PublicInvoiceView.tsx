@@ -143,7 +143,7 @@ export function PublicInvoiceView({
     const obj =
       typeof address === "string" ? safeJsonParse<Record<string, string>>(address) : address;
     if (!obj || typeof obj !== "object") return [];
-    const lines = [];
+    const lines: string[] = [];
     if (obj.street) lines.push(obj.street);
     if (obj.city || obj.state || obj.zip) {
       const cityStateZip = [obj.city, obj.state, obj.zip]
@@ -156,7 +156,7 @@ export function PublicInvoiceView({
   };
 
   const formatCustomerAddress = (address: any) => {
-    const lines = [];
+    const lines: string[] = [];
     if (address) {
       const addr =
         typeof address === "string"
