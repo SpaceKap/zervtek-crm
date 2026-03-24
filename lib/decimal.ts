@@ -1,6 +1,14 @@
 import { Decimal } from "@prisma/client/runtime/library";
 
 /**
+ * True for Prisma Decimal / decimal.js values.
+ * Prefer `Decimal.isDecimal` over `instanceof` when multiple bundle copies exist.
+ */
+function isDecimalValue(value: unknown): value is Decimal {
+  return value != null && Decimal.isDecimal(value);
+}
+
+/**
  * Converts a Prisma Decimal to a number
  */
 export function decimalToNumber(value: Decimal | null | undefined): number | null {
@@ -16,8 +24,11 @@ export function convertDecimalsToNumbers<T>(obj: T): T {
     return obj;
   }
 
-  // Check if it's a Decimal instance
-  if (obj instanceof Decimal) {
+  if (typeof obj === "bigint") {
+    return Number(obj) as T;
+  }
+
+  if (isDecimalValue(obj)) {
     return parseFloat(obj.toString()) as T;
   }
 
@@ -35,7 +46,9 @@ export function convertDecimalsToNumbers<T>(obj: T): T {
   if (typeof obj === "object") {
     const converted: any = {};
     for (const [key, value] of Object.entries(obj)) {
-      if (value instanceof Decimal) {
+      if (typeof value === "bigint") {
+        converted[key] = Number(value);
+      } else if (isDecimalValue(value)) {
         converted[key] = parseFloat(value.toString());
       } else if (Array.isArray(value)) {
         converted[key] = value.map(convertDecimalsToNumbers);

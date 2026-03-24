@@ -166,10 +166,20 @@ export default async function InvoiceDetailPage(props: {
   const canDelete = canDeleteInvoice(user.role);
   const isEditMode = resolvedSearchParams?.edit === "true";
 
-  // Serialize for Client Components (Prisma Decimals are not serializable)
+  // Serialize for Client Components (Prisma Decimals / Dates must be JSON-safe for RSC)
   const serializedInvoice = convertDecimalsToNumbers(invoice);
   const serializedAdditionalVehicles =
     convertDecimalsToNumbers(additionalVehicles);
+  const serializedCompanyInfo = companyInfo
+    ? convertDecimalsToNumbers(companyInfo)
+    : undefined;
+
+  const serializableUser = {
+    id: user.id,
+    name: user.name ?? null,
+    email: user.email ?? null,
+    role: user.role,
+  };
 
   // If in edit mode, show InvoiceForm
   if (isEditMode) {
@@ -180,12 +190,12 @@ export default async function InvoiceDetailPage(props: {
     <div className="min-h-screen">
       <InvoiceDetail
         invoice={serializedInvoice}
-        currentUser={user}
+        currentUser={serializableUser}
         canApprove={canApprove}
         canFinalize={canFinalize}
         canDelete={canDelete}
         additionalVehicles={serializedAdditionalVehicles}
-        companyInfo={companyInfo ?? undefined}
+        companyInfo={serializedCompanyInfo}
       />
     </div>
   );

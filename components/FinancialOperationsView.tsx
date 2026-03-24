@@ -146,6 +146,14 @@ interface Vendor {
   email: string | null;
 }
 
+/** Coerce API amounts without letting NaN propagate into summary totals. */
+function parseAmountSafe(value: unknown): number {
+  if (value == null) return 0;
+  if (typeof value === "number") return Number.isFinite(value) ? value : 0;
+  const n = parseFloat(String(value).replace(/,/g, ""));
+  return Number.isFinite(n) ? n : 0;
+}
+
 export function FinancialOperationsView({
   currentUser,
 }: FinancialOperationsViewProps) {
@@ -736,12 +744,12 @@ export function FinancialOperationsView({
   );
 
   const incomingTotal = incomingTransactions.reduce(
-    (sum, t) => sum + parseFloat(t.amount),
+    (sum, t) => sum + parseAmountSafe(t.amount),
     0,
   );
 
   const outgoingTotal = outgoingTransactions.reduce(
-    (sum, t) => sum + parseFloat(t.amount),
+    (sum, t) => sum + parseAmountSafe(t.amount),
     0,
   );
 
@@ -774,11 +782,11 @@ export function FinancialOperationsView({
   }).length;
 
   const transactionTotal = transactions.reduce(
-    (sum, t) => sum + parseFloat(t.amount),
+    (sum, t) => sum + parseAmountSafe(t.amount),
     0,
   );
 
-  const costTotal = costs.reduce((sum, c) => sum + parseFloat(c.amount), 0);
+  const costTotal = costs.reduce((sum, c) => sum + parseAmountSafe(c.amount), 0);
 
   // Apply date presets
   const applyDatePreset = (preset: string) => {
