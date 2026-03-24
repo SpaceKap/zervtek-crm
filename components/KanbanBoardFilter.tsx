@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useRouter, useSearchParams } from "next/navigation"
+import { usePathname, useRouter, useSearchParams } from "next/navigation"
 
 interface User {
   id: string
@@ -16,6 +16,7 @@ interface KanbanBoardFilterProps {
 
 export function KanbanBoardFilter({ currentUserId, users }: KanbanBoardFilterProps) {
   const router = useRouter()
+  const pathname = usePathname()
   const searchParams = useSearchParams()
   const [currentFilter, setCurrentFilter] = useState<string>("all")
 
@@ -33,7 +34,8 @@ export function KanbanBoardFilter({ currentUserId, users }: KanbanBoardFilterPro
     } else {
       params.set("userId", value)
     }
-    router.push(`/dashboard/kanban?${params.toString()}`)
+    const qs = params.toString()
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false })
   }
 
   return (

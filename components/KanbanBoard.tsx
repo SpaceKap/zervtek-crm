@@ -16,7 +16,10 @@ import { AddInquiryDialog } from "./AddInquiryDialog";
 import { NotesDialog } from "./NotesDialog";
 import { ReleaseConfirmationDialog } from "./ReleaseConfirmationDialog";
 import { AssignToDialog } from "./AssignToDialog";
-import { usePipelineSearch } from "./PipelineSearchContext";
+import {
+  usePipelineSearch,
+  usePipelineViewPreferences,
+} from "./PipelineSearchContext";
 import {
   DndContext,
   DragEndEvent,
@@ -230,6 +233,7 @@ function KanbanBoardInner({
     ? userIdProp || undefined
     : userIdFromUrl;
   const pipelineSearch = usePipelineSearch();
+  const pipelineView = usePipelineViewPreferences();
   const searchQuery = pipelineSearch?.searchQuery ?? searchQueryProp ?? undefined;
   const [stages, setStages] = useState<Stage[]>([]);
   const [loading, setLoading] = useState(true);
@@ -423,11 +427,6 @@ function KanbanBoardInner({
     }));
   }, [stages, searchQuery]);
 
-  const kbs = searchParams.get("kbs");
-  const kbg = searchParams.get("kbg");
-  const kbh = searchParams.get("kbh");
-  const kbf = searchParams.get("kbf");
-
   const displayStages = useMemo(() => {
     if (filterControlledByParent) {
       return filteredStages.map((stage) => ({
@@ -439,10 +438,22 @@ function KanbanBoardInner({
         ),
       }));
     }
-    const sortMode = parsePipelineSort(kbs);
-    const groupMode = parsePipelineGroup(kbg);
-    const hideEmpty = kbh === "1";
-    const sourceFilter = parsePipelineSourcesFilter(kbf);
+    const sortMode =
+      pipelineView != null
+        ? pipelineView.prefs.sortMode
+        : parsePipelineSort(searchParams.get("kbs"));
+    const groupMode =
+      pipelineView != null
+        ? pipelineView.prefs.groupMode
+        : parsePipelineGroup(searchParams.get("kbg"));
+    const hideEmpty =
+      pipelineView != null
+        ? pipelineView.prefs.hideEmpty
+        : searchParams.get("kbh") === "1";
+    const sourceFilter =
+      pipelineView != null
+        ? pipelineView.prefs.sourcesAllowlist
+        : parsePipelineSourcesFilter(searchParams.get("kbf"));
 
     let rows = filteredStages.map((stage) => {
       let inquiries = stage.inquiries;
@@ -465,10 +476,11 @@ function KanbanBoardInner({
   }, [
     filteredStages,
     filterControlledByParent,
-    kbs,
-    kbg,
-    kbh,
-    kbf,
+    pipelineView?.prefs.sortMode,
+    pipelineView?.prefs.groupMode,
+    pipelineView?.prefs.hideEmpty,
+    pipelineView?.prefs.sourcesAllowlist,
+    searchParams,
   ]);
 
   const inquiryIdsSet = useMemo(

@@ -38,6 +38,57 @@ export function parsePipelineSourcesFilter(
   return out.size > 0 ? out : null;
 }
 
+export const ALL_INQUIRY_SOURCES_SORTED = [...Object.values(InquirySource)].sort(
+  (a, b) => String(a).localeCompare(String(b)),
+);
+
+export type PipelineViewPrefs = {
+  sortMode: PipelineSortMode;
+  groupMode: PipelineGroupMode;
+  hideEmpty: boolean;
+  /** null = all sources */
+  sourcesAllowlist: Set<InquirySource> | null;
+};
+
+export function prefsFromSearchParams(sp: URLSearchParams): PipelineViewPrefs {
+  return {
+    sortMode: parsePipelineSort(sp.get("kbs")),
+    groupMode: parsePipelineGroup(sp.get("kbg")),
+    hideEmpty: sp.get("kbh") === "1",
+    sourcesAllowlist: parsePipelineSourcesFilter(sp.get("kbf")),
+  };
+}
+
+export function serializePipelineViewPrefs(p: PipelineViewPrefs): string {
+  const kbf =
+    p.sourcesAllowlist == null
+      ? "*"
+      : [...p.sourcesAllowlist]
+          .sort((a, b) => String(a).localeCompare(String(b)))
+          .join(",");
+  return `${p.sortMode}|${p.groupMode}|${p.hideEmpty ? "1" : ""}|${kbf}`;
+}
+
+export function applyPipelineViewPrefsToParams(
+  params: URLSearchParams,
+  p: PipelineViewPrefs,
+): void {
+  if (p.sortMode === "newest") params.delete("kbs");
+  else params.set("kbs", p.sortMode);
+  if (p.groupMode === "none") params.delete("kbg");
+  else params.set("kbg", p.groupMode);
+  if (!p.hideEmpty) params.delete("kbh");
+  else params.set("kbh", "1");
+  if (p.sourcesAllowlist == null) params.delete("kbf");
+  else
+    params.set(
+      "kbf",
+      [...p.sourcesAllowlist]
+        .sort((a, b) => String(a).localeCompare(String(b)))
+        .join(","),
+    );
+}
+
 function inquiryCreatedMs(inquiry: { createdAt: Date | string }): number {
   const d = inquiry.createdAt;
   return new Date(d as string).getTime();

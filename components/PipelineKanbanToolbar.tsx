@@ -1,17 +1,15 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useState } from "react";
 import { InquirySource } from "@prisma/client";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
+import { usePipelineViewPreferences } from "@/components/PipelineSearchContext";
 import {
-  parsePipelineGroup,
-  parsePipelineSort,
-  parsePipelineSourcesFilter,
+  ALL_INQUIRY_SOURCES_SORTED,
   type PipelineGroupMode,
   type PipelineSortMode,
 } from "@/lib/kanban-pipeline-view";
@@ -29,10 +27,6 @@ const GROUP_OPTIONS: { value: PipelineGroupMode; label: string }[] = [
   { value: "assignee", label: "Assignee" },
 ];
 
-const ALL_SOURCES = Object.values(InquirySource).sort((a, b) =>
-  String(a).localeCompare(String(b)),
-);
-
 function sourceCheckboxLabel(source: InquirySource): string {
   return source
     .split("_")
@@ -41,66 +35,30 @@ function sourceCheckboxLabel(source: InquirySource): string {
 }
 
 export function PipelineKanbanToolbar() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
+  const view = usePipelineViewPreferences();
   const [filterOpen, setFilterOpen] = useState(false);
   const [groupOpen, setGroupOpen] = useState(false);
   const [sortOpen, setSortOpen] = useState(false);
 
-  const sortMode = parsePipelineSort(searchParams.get("kbs"));
-  const groupMode = parsePipelineGroup(searchParams.get("kbg"));
-  const hideEmpty = searchParams.get("kbh") === "1";
-  const sourcesAllowlist = parsePipelineSourcesFilter(searchParams.get("kbf"));
+  if (!view) return null;
 
-  const selectedSources = useMemo(() => {
-    if (sourcesAllowlist == null) return new Set<InquirySource>(ALL_SOURCES);
-    return sourcesAllowlist;
-  }, [sourcesAllowlist]);
+  const {
+    prefs,
+    setSortMode,
+    setGroupMode,
+    setHideEmpty,
+    toggleSource,
+  } = view;
 
-  const pushParams = (updates: Record<string, string | null | undefined>) => {
-    const p = new URLSearchParams(searchParams.toString());
-    for (const [k, v] of Object.entries(updates)) {
-      if (v == null || v === "") p.delete(k);
-      else p.set(k, v);
-    }
-    const qs = p.toString();
-    router.push(qs ? `/dashboard/kanban?${qs}` : "/dashboard/kanban");
-  };
-
-  const setSort = (value: PipelineSortMode) => {
-    pushParams({ kbs: value === "newest" ? null : value });
-    setSortOpen(false);
-  };
-
-  const setGroup = (value: PipelineGroupMode) => {
-    pushParams({ kbg: value === "none" ? null : value });
-    setGroupOpen(false);
-  };
-
-  const setHideEmpty = (checked: boolean) => {
-    pushParams({ kbh: checked ? "1" : null });
-  };
-
-  const toggleSource = (source: InquirySource, checked: boolean) => {
-    const next = new Set(selectedSources);
-    if (checked) next.add(source);
-    else next.delete(source);
-    if (next.size === ALL_SOURCES.length) {
-      pushParams({ kbf: null });
-      return;
-    }
-    if (next.size === 0) {
-      return;
-    }
-    pushParams({
-      kbf: Array.from(next).sort((a, b) => String(a).localeCompare(String(b))).join(","),
-    });
-  };
+  const selectedSources =
+    prefs.sourcesAllowlist == null
+      ? new Set<InquirySource>(ALL_INQUIRY_SOURCES_SORTED)
+      : prefs.sourcesAllowlist;
 
   const sortSummary =
-    SORT_OPTIONS.find((o) => o.value === sortMode)?.label ?? "Sort";
+    SORT_OPTIONS.find((o) => o.value === prefs.sortMode)?.label ?? "Sort";
   const groupSummary =
-    GROUP_OPTIONS.find((o) => o.value === groupMode)?.label ?? "Group";
+    GROUP_OPTIONS.find((o) => o.value === prefs.groupMode)?.label ?? "Group";
 
   return (
     <>
@@ -110,7 +68,7 @@ export function PipelineKanbanToolbar() {
             type="button"
             className={cn(
               "flex items-center gap-2 px-3 py-1.5 text-sm rounded transition-colors",
-              hideEmpty || sourcesAllowlist != null
+              prefs.hideEmpty || prefs.sourcesAllowlist != null
                 ? "text-primary dark:text-[#D4AF37] bg-primary/10 dark:bg-primary/15"
                 : "text-gray-700 dark:text-white hover:bg-gray-100 dark:hover:bg-[#2C2C2C]",
             )}
@@ -126,7 +84,7 @@ export function PipelineKanbanToolbar() {
               <div className="flex items-center space-x-2">
                 <Checkbox
                   id="kb-hide-empty"
-                  checked={hideEmpty}
+                  checked={prefs.hideEmpty}
                   onCheckedChange={(v) => setHideEmpty(v === true)}
                 />
                 <Label htmlFor="kb-hide-empty" className="text-sm font-normal cursor-pointer">
@@ -140,7 +98,7 @@ export function PipelineKanbanToolbar() {
                 Uncheck to hide leads from that source. At least one must stay on.
               </p>
               <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
-                {ALL_SOURCES.map((src) => (
+                {ALL_INQUIRY_SOURCES_SORTED.map((src) => (
                   <div key={src} className="flex items-center space-x-2">
                     <Checkbox
                       id={`kb-src-${src}`}
@@ -168,7 +126,7 @@ export function PipelineKanbanToolbar() {
             type="button"
             className={cn(
               "flex items-center gap-2 px-3 py-1.5 text-sm rounded transition-colors",
-              groupMode !== "none"
+              prefs.groupMode !== "none"
                 ? "text-primary dark:text-[#D4AF37] bg-primary/10 dark:bg-primary/15"
                 : "text-gray-700 dark:text-white hover:bg-gray-100 dark:hover:bg-[#2C2C2C]",
             )}
@@ -184,9 +142,12 @@ export function PipelineKanbanToolbar() {
               <Button
                 key={opt.value}
                 type="button"
-                variant={groupMode === opt.value ? "secondary" : "ghost"}
+                variant={prefs.groupMode === opt.value ? "secondary" : "ghost"}
                 className="justify-start font-normal"
-                onClick={() => setGroup(opt.value)}
+                onClick={() => {
+                  setGroupMode(opt.value);
+                  setGroupOpen(false);
+                }}
               >
                 {opt.label}
               </Button>
@@ -204,7 +165,7 @@ export function PipelineKanbanToolbar() {
             type="button"
             className={cn(
               "flex items-center gap-2 px-3 py-1.5 text-sm rounded transition-colors",
-              sortMode !== "newest"
+              prefs.sortMode !== "newest"
                 ? "text-primary dark:text-[#D4AF37] bg-primary/10 dark:bg-primary/15"
                 : "text-gray-700 dark:text-white hover:bg-gray-100 dark:hover:bg-[#2C2C2C]",
             )}
@@ -219,9 +180,12 @@ export function PipelineKanbanToolbar() {
               <Button
                 key={opt.value}
                 type="button"
-                variant={sortMode === opt.value ? "secondary" : "ghost"}
+                variant={prefs.sortMode === opt.value ? "secondary" : "ghost"}
                 className="justify-start font-normal"
-                onClick={() => setSort(opt.value)}
+                onClick={() => {
+                  setSortMode(opt.value);
+                  setSortOpen(false);
+                }}
               >
                 {opt.label}
               </Button>
