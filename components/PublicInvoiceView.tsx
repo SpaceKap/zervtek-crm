@@ -7,7 +7,7 @@ import {
   getDiscountTotal,
   getDepositTotal,
 } from "@/lib/charge-utils";
-import { format } from "date-fns";
+import { format, isValid } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -43,6 +43,27 @@ const paymentStatusLabels: Record<PaymentStatus, string> = {
   CANCELLED: "Cancelled",
 };
 
+function safeJsonParse<T>(raw: unknown): T | null {
+  if (raw == null || raw === "") return null;
+  if (typeof raw !== "string") return raw as T;
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    return null;
+  }
+}
+
+function safeFormatDate(
+  value: unknown,
+  dateFormat: string,
+  fallback = "—",
+): string {
+  if (value == null || value === "") return fallback;
+  const d =
+    value instanceof Date ? value : new Date(value as string | number);
+  return isValid(d) ? format(d, dateFormat) : fallback;
+}
+
 export function PublicInvoiceView({
   invoice,
   companyInfo,
@@ -53,12 +74,13 @@ export function PublicInvoiceView({
 }: PublicInvoiceViewProps) {
   const [copiedField, setCopiedField] = useState<string | null>(null);
 
-  // Parse bank details if they're strings (JSON)
+  // Parse bank details if they're strings (JSON); invalid JSON must not crash the page
+  const bankDetails1Raw = companyInfo?.bankDetails1;
   const bankDetails1 =
-    companyInfo?.bankDetails1 &&
-    (typeof companyInfo.bankDetails1 === "string"
-      ? JSON.parse(companyInfo.bankDetails1)
-      : companyInfo.bankDetails1);
+    bankDetails1Raw &&
+    (typeof bankDetails1Raw === "string"
+      ? safeJsonParse<Record<string, string>>(bankDetails1Raw)
+      : bankDetails1Raw);
 
   const handleCopy = async (text: string, fieldId: string) => {
     try {
@@ -118,22 +140,29 @@ export function PublicInvoiceView({
 
   const formatCompanyAddress = (address: any) => {
     if (!address) return [];
+    const obj =
+      typeof address === "string" ? safeJsonParse<Record<string, string>>(address) : address;
+    if (!obj || typeof obj !== "object") return [];
     const lines = [];
-    if (address.street) lines.push(address.street);
-    if (address.city || address.state || address.zip) {
-      const cityStateZip = [address.city, address.state, address.zip]
+    if (obj.street) lines.push(obj.street);
+    if (obj.city || obj.state || obj.zip) {
+      const cityStateZip = [obj.city, obj.state, obj.zip]
         .filter(Boolean)
         .join(", ");
       if (cityStateZip) lines.push(cityStateZip);
     }
-    if (address.country) lines.push(address.country);
+    if (obj.country) lines.push(obj.country);
     return lines;
   };
 
   const formatCustomerAddress = (address: any) => {
     const lines = [];
     if (address) {
-      const addr = typeof address === "string" ? JSON.parse(address) : address;
+      const addr =
+        typeof address === "string"
+          ? safeJsonParse<Record<string, string>>(address)
+          : address;
+      if (!addr || typeof addr !== "object") return lines;
       if (addr.street) lines.push(addr.street);
       if (addr.apartment) lines.push(addr.apartment);
       if (addr.city || addr.state || addr.zip) {
@@ -153,12 +182,12 @@ export function PublicInvoiceView({
   const customer = invoice?.customer;
   const billingAddress = customer?.billingAddress
     ? typeof customer.billingAddress === "string"
-      ? JSON.parse(customer.billingAddress)
+      ? safeJsonParse(customer.billingAddress) ?? null
       : customer.billingAddress
     : null;
   const shippingAddress = customer?.shippingAddress
     ? typeof customer.shippingAddress === "string"
-      ? JSON.parse(customer.shippingAddress)
+      ? safeJsonParse(customer.shippingAddress) ?? null
       : customer.shippingAddress
     : null;
   const billingAddressLines = formatCustomerAddress(billingAddress);
@@ -328,7 +357,7 @@ export function PublicInvoiceView({
                     DATE
                   </span>
                   <span className="font-semibold text-gray-900 dark:text-white text-right">
-                    {format(new Date(invoice.issueDate), "yyyy/MM/dd")}
+                    {safeFormatDate(invoice.issueDate, "yyyy/MM/dd")}
                   </span>
                   <span className="font-semibold text-gray-700 dark:text-gray-300 uppercase whitespace-nowrap">
                     TERMS
@@ -339,16 +368,21 @@ export function PublicInvoiceView({
                           const issue =
                             typeof invoice.issueDate === "string"
                               ? new Date(invoice.issueDate)
-                              : invoice.issueDate;
+                              : invoice.issueDate instanceof Date
+                                ? invoice.issueDate
+                                : new Date(invoice.issueDate);
                           const due =
                             typeof invoice.dueDate === "string"
                               ? new Date(invoice.dueDate)
-                              : invoice.dueDate;
+                              : invoice.dueDate instanceof Date
+                                ? invoice.dueDate
+                                : new Date(invoice.dueDate);
+                          if (!isValid(issue) || !isValid(due)) return "Net 3";
                           const diffTime = due.getTime() - issue.getTime();
                           const diffDays = Math.ceil(
                             diffTime / (1000 * 60 * 60 * 24),
                           );
-                          return `Net ${diffDays}`;
+                          return `Net ${Number.isFinite(diffDays) ? diffDays : 3}`;
                         })()
                       : "Net 3"}
                   </span>
@@ -358,7 +392,7 @@ export function PublicInvoiceView({
                         DUE DATE
                       </span>
                       <span className="font-semibold text-gray-900 dark:text-white text-right">
-                        {format(new Date(invoice.dueDate), "yyyy/MM/dd")}
+                        {safeFormatDate(invoice.dueDate, "yyyy/MM/dd")}
                       </span>
                     </>
                   )}
@@ -390,7 +424,14 @@ export function PublicInvoiceView({
                 </thead>
                 <tbody>
                   {lineItemCharges.map((charge: any) => {
-                    const amount = parseFloat(charge.amount.toString());
+                    const raw = charge?.amount;
+                    const parsed =
+                      raw == null
+                        ? NaN
+                        : typeof raw === "number"
+                          ? raw
+                          : parseFloat(String(raw));
+                    const amount = Number.isFinite(parsed) ? parsed : 0;
                     const currencySymbol = "¥";
                     const formatted = `${currencySymbol}${amount.toLocaleString()}`;
                     return (
