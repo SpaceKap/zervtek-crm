@@ -26,6 +26,7 @@ import {
   DragOverlay,
   DragStartEvent,
   PointerSensor,
+  closestCorners,
   useSensor,
   useSensors,
   useDroppable,
@@ -82,6 +83,18 @@ interface KanbanBoardProps {
   currentUserId?: string;
   currentUserEmail?: string;
   searchQuery?: string | null;
+}
+
+/** Drop on column id or on any card in that column (over.id is often the card, not the stage). */
+function resolveTargetStageFromOver(
+  stages: Stage[],
+  overId: string,
+): Stage | null {
+  const asColumn = stages.find((s) => s.id === overId);
+  if (asColumn) return asColumn;
+  return (
+    stages.find((s) => s.inquiries.some((inq) => inq.id === overId)) ?? null
+  );
 }
 
 function inquiryMatchesSearch(inquiry: Inquiry, q: string): boolean {
@@ -563,10 +576,8 @@ function KanbanBoardInner({
       return;
     }
 
-    const targetStageId = over.id as string;
-
     // Trash zone - move to failed leads
-    if (targetStageId === "trash") {
+    if (targetIdStr === "trash") {
       setActiveId(null);
       try {
         const response = await fetch(
@@ -588,8 +599,7 @@ function KanbanBoardInner({
       return;
     }
 
-    // Find the target stage
-    const targetStage = stages.find((stage) => stage.id === targetStageId);
+    const targetStage = resolveTargetStageFromOver(stages, targetIdStr);
     if (!targetStage) {
       setActiveId(null);
       return;
@@ -721,6 +731,7 @@ function KanbanBoardInner({
   return (
     <DndContext
       sensors={sensors}
+      collisionDetection={closestCorners}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >

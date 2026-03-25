@@ -139,8 +139,9 @@ export const KanbanColumn = memo(function KanbanColumn({
       {/* Column Content */}
       <div
         ref={setNodeRef}
-        className="flex-1 p-2 space-y-2 overflow-y-auto overflow-x-hidden min-h-[180px] transition-colors duration-200 scrollbar-modern-vertical"
+        className="flex-1 flex flex-col p-2 pb-3 overflow-y-auto overflow-x-hidden min-h-[180px] transition-colors duration-200 scrollbar-modern-vertical"
       >
+        <div className="flex-1 space-y-2 min-h-0">
         {inquirySections.map((section, sectionIdx) => (
           <div key={`${section.label || "flat"}-${sectionIdx}`} className="space-y-2">
             {section.label ? (
@@ -186,6 +187,14 @@ export const KanbanColumn = memo(function KanbanColumn({
             )}
           </div>
         ))}
+        </div>
+        {/* Extra hit area below cards so drops work when the column is full */}
+        {totalInquiries > 0 && !mergeMode && (
+          <div
+            className="min-h-[min(140px,22dvh)] flex-shrink-0 rounded-md border border-dashed border-muted-foreground/15 bg-muted/20 dark:bg-muted/10 mt-1"
+            aria-hidden
+          />
+        )}
         {totalInquiries === 0 && (
           <button
             onClick={(e) => {
