@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma"
+import { prismaUserNotification } from "@/lib/prisma-user-notification"
 
 export const NOTIFICATION_TYPE_INQUIRY_ASSIGNED = "INQUIRY_ASSIGNED"
 
@@ -44,7 +44,7 @@ export async function createInquiryAssignedNotification(params: {
   const lf = truncateText(resolveLookingFor(lookingFor, metadata), 120)
   const body = lf ? `${lf} has been assigned to you.` : "An inquiry has been assigned to you."
 
-  await prisma.userNotification.create({
+  await prismaUserNotification().create({
     data: {
       userId: assigneeId,
       type: NOTIFICATION_TYPE_INQUIRY_ASSIGNED,

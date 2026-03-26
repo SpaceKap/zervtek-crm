@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
-import { prisma } from "@/lib/prisma"
+import { prismaUserNotification } from "@/lib/prisma-user-notification"
 
 const MAX_LIMIT = 100
 const DEFAULT_LIMIT = 30
@@ -25,8 +25,9 @@ export async function GET(request: NextRequest) {
       ...(unreadOnly ? { readAt: null } : {}),
     }
 
+    const un = prismaUserNotification()
     const [notifications, unreadCount] = await Promise.all([
-      prisma.userNotification.findMany({
+      un.findMany({
         where,
         orderBy: { createdAt: "desc" },
         take: limit,
@@ -42,7 +43,7 @@ export async function GET(request: NextRequest) {
           actorUserId: true,
         },
       }),
-      prisma.userNotification.count({
+      un.count({
         where: { userId, readAt: null },
       }),
     ])
@@ -68,8 +69,10 @@ export async function PATCH(request: NextRequest) {
     const userId = session.user.id
     const now = new Date()
 
+    const un = prismaUserNotification()
+
     if (markAllRead) {
-      await prisma.userNotification.updateMany({
+      await un.updateMany({
         where: { userId, readAt: null },
         data: { readAt: now },
       })
@@ -80,7 +83,7 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: "Provide markAllRead or ids" }, { status: 400 })
     }
 
-    await prisma.userNotification.updateMany({
+    await un.updateMany({
       where: { userId, id: { in: ids } },
       data: { readAt: now },
     })
