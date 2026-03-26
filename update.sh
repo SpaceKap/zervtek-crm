@@ -41,7 +41,17 @@ fi
 
 # Pull latest changes from Git
 echo -e "${YELLOW}📥 Pulling latest changes from Git...${NC}"
+PRE_PULL_COMMIT="$(git rev-parse HEAD 2>/dev/null || true)"
 git pull origin main --no-rebase || git pull origin master --no-rebase
+
+# If this script changed during pull, restart once so we execute the latest logic.
+if [ "${UPDATE_SCRIPT_RELOADED:-0}" = "0" ] && [ -n "$PRE_PULL_COMMIT" ]; then
+    if git diff --name-only "$PRE_PULL_COMMIT" HEAD | grep -q "^update.sh$"; then
+        echo -e "${YELLOW}🔁 update.sh changed during pull, reloading latest script...${NC}"
+        export UPDATE_SCRIPT_RELOADED=1
+        exec "$0" "$@"
+    fi
+fi
 
 echo -e "${GREEN}📌 Deploying commit: $(git rev-parse --short HEAD) - $(git log -1 --oneline)${NC}"
 
