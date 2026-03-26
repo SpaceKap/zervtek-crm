@@ -18,17 +18,18 @@ export function KanbanBoardFilter({ currentUserId, users }: KanbanBoardFilterPro
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
-  const [currentFilter, setCurrentFilter] = useState<string>("all")
+  const [currentFilter, setCurrentFilter] = useState<string>("me")
 
   useEffect(() => {
     const userId = searchParams.get("userId")
-    setCurrentFilter(userId || "all")
+    // Default for managers is userId=me (set by server redirect). "all" is explicit in URL.
+    setCurrentFilter(userId ?? "me")
   }, [searchParams])
 
   const handleFilterChange = (value: string) => {
     const params = new URLSearchParams(searchParams.toString())
     if (value === "all") {
-      params.delete("userId")
+      params.set("userId", "all")
     } else if (value === "me") {
       params.set("userId", "me")
     } else {

@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma"
 import { InquirySource, InquiryStatus, UserRole } from "@prisma/client"
 import { canViewAllInquiries } from "@/lib/permissions"
 import { getCached, invalidateCachePattern, cacheKeyFromSearchParams } from "@/lib/cache"
+import { createInquiryAssignedNotification } from "@/lib/user-notifications"
 
 const INQUIRIES_LIST_TTL = 60
 const INQUIRIES_DEFAULT_TAKE = 100
@@ -291,6 +292,17 @@ export async function POST(request: NextRequest) {
         newStatus: InquiryStatus.NEW,
       },
     })
+
+    if (assignedToId && assignedToId !== session.user.id) {
+      await createInquiryAssignedNotification({
+        assigneeId: assignedToId,
+        assignerId: session.user.id,
+        inquiryId: inquiry.id,
+        customerName: inquiry.customerName,
+        lookingFor: inquiry.lookingFor,
+        metadata: inquiry.metadata,
+      }).catch((err) => console.error("createInquiryAssignedNotification:", err))
+    }
 
     await invalidateCachePattern("inquiries:list:")
     await invalidateCachePattern("kanban:")
