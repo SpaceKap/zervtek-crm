@@ -235,6 +235,22 @@
     background: hsl(var(--muted-foreground) / 0.7);
     background-clip: padding-box;
   }
+
+  /* PWA-only heading scale for consistency with compact pages */
+  @media (display-mode: standalone), (display-mode: fullscreen) {
+    .pwa-title {
+      font-size: 1.5rem;
+      line-height: 2rem;
+    }
+  }
+
+  @media (display-mode: standalone) and (min-width: 640px),
+    (display-mode: fullscreen) and (min-width: 640px) {
+    .pwa-title {
+      font-size: 1.875rem;
+      line-height: 2.25rem;
+    }
+  }
 }
 
 @layer utilities {

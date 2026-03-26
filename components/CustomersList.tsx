@@ -30,6 +30,8 @@ import { Label } from "@/components/ui/label";
 import { CustomerForm } from "./CustomerForm";
 import { staffDisplayName } from "@/lib/staff-display";
 import Link from "next/link";
+import { useStandalonePwa } from "@/hooks/useStandalonePwa";
+import { cn } from "@/lib/utils";
 
 interface Customer {
   id: string;
@@ -51,6 +53,7 @@ interface StaffUser {
 }
 
 export function CustomersList() {
+  const isPwa = useStandalonePwa();
   const { data: session } = useSession();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
@@ -114,18 +117,25 @@ export function CustomersList() {
     <>
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
+          <div className={cn("flex items-center justify-between", isPwa && "gap-2")}>
             <div>
               <CardTitle>All Customers</CardTitle>
-              <CardDescription>
-                Search and manage customer information
-              </CardDescription>
+              {!isPwa && (
+                <CardDescription>
+                  Search and manage customer information
+                </CardDescription>
+              )}
             </div>
-            <Button onClick={handleCreate}>
-              <span className="material-symbols-outlined text-lg mr-2">
+            <Button
+              onClick={handleCreate}
+              size={isPwa ? "icon" : "default"}
+              className={cn(isPwa && "h-10 w-10 rounded-full")}
+              aria-label="Add customer"
+            >
+              <span className={cn("material-symbols-outlined text-lg", !isPwa && "mr-2")}>
                 add
               </span>
-              Add Customer
+              {!isPwa && "Add Customer"}
             </Button>
           </div>
         </CardHeader>
@@ -135,7 +145,7 @@ export function CustomersList() {
               placeholder="Search customers by name or email..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="max-w-md"
+              className={cn("max-w-md", isPwa && "max-w-none")}
             />
           </div>
 
@@ -148,7 +158,10 @@ export function CustomersList() {
               {customers.map((customer) => (
                 <div
                   key={customer.id}
-                  className="flex items-center justify-between gap-4 p-3 border rounded-lg hover:bg-accent"
+                  className={cn(
+                    "flex items-center justify-between gap-4 rounded-lg border p-3 hover:bg-accent",
+                    isPwa && "flex-col items-start gap-2",
+                  )}
                 >
                   <Link
                     href={`/dashboard/customers/${customer.id}`}
@@ -198,7 +211,7 @@ export function CustomersList() {
                       </>
                     )}
                   </div>
-                  <div className="flex items-center gap-2 shrink-0">
+                  <div className={cn("flex items-center gap-2 shrink-0", isPwa && "w-full justify-end")}>
                     {session?.user?.role === "ADMIN" && (
                       <Button
                         variant="outline"

@@ -1037,7 +1037,7 @@ export function FinancialOperationsView({
           className={cn(
             "mb-6 rounded-md bg-muted p-1 text-muted-foreground",
             isPwaStandalone
-              ? "grid w-full grid-cols-2 gap-1"
+              ? "sticky top-0 z-20 grid w-full grid-cols-2 gap-1 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80"
               : "flex h-10 flex-wrap items-center justify-start gap-1",
           )}
         >
@@ -1046,10 +1046,13 @@ export function FinancialOperationsView({
               value="transactions"
               className={
                 isPwaStandalone
-                  ? "w-full justify-center px-2 py-2.5 text-xs sm:text-sm"
+                  ? "w-full justify-center gap-1.5 px-2 py-2.5 text-xs sm:text-sm"
                   : "min-w-[120px] flex-1"
               }
             >
+              {isPwaStandalone && (
+                <span className="material-symbols-outlined text-base">receipt</span>
+              )}
               Transactions
             </TabsTrigger>
           )}
@@ -1058,10 +1061,13 @@ export function FinancialOperationsView({
               value="invoices"
               className={
                 isPwaStandalone
-                  ? "w-full justify-center px-2 py-2.5 text-xs sm:text-sm"
+                  ? "w-full justify-center gap-1.5 px-2 py-2.5 text-xs sm:text-sm"
                   : "min-w-[100px] flex-1"
               }
             >
+              {isPwaStandalone && (
+                <span className="material-symbols-outlined text-base">request_quote</span>
+              )}
               Invoices
             </TabsTrigger>
           )}
@@ -1070,10 +1076,13 @@ export function FinancialOperationsView({
               value="customers"
               className={
                 isPwaStandalone
-                  ? "w-full justify-center px-2 py-2.5 text-xs sm:text-sm"
+                  ? "w-full justify-center gap-1.5 px-2 py-2.5 text-xs sm:text-sm"
                   : "min-w-[100px] flex-1"
               }
             >
+              {isPwaStandalone && (
+                <span className="material-symbols-outlined text-base">groups</span>
+              )}
               Customers
             </TabsTrigger>
           )}
@@ -1082,10 +1091,13 @@ export function FinancialOperationsView({
               value="vehicles"
               className={
                 isPwaStandalone
-                  ? "w-full justify-center px-2 py-2.5 text-xs sm:text-sm"
+                  ? "w-full justify-center gap-1.5 px-2 py-2.5 text-xs sm:text-sm"
                   : "min-w-[100px] flex-1"
               }
             >
+              {isPwaStandalone && (
+                <span className="material-symbols-outlined text-base">directions_car</span>
+              )}
               Vehicles
             </TabsTrigger>
           )}
@@ -1095,39 +1107,64 @@ export function FinancialOperationsView({
           <TabsContent value="transactions" className="mt-6">
             <Card>
               <CardHeader className="pb-4">
-                <div className="flex flex-col gap-3 mb-4 sm:flex-row sm:items-center sm:justify-between">
+                <div
+                  className={cn(
+                    "mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between",
+                    isPwaStandalone && "gap-2",
+                  )}
+                >
                   <CardTitle className="flex-shrink-0">Transactions</CardTitle>
-                  <div className="flex items-center gap-2 flex-shrink-0 flex-wrap">
+                  <div
+                    className={cn(
+                      "flex items-center gap-2 flex-shrink-0 flex-wrap",
+                      isPwaStandalone && "justify-end",
+                    )}
+                  >
                     <Button
                       onClick={() => setTransactionDialogOpen(true)}
                       variant="outline"
-                      size="sm"
-                      className="inline-flex items-center gap-2"
+                      size={isPwaStandalone ? "icon" : "sm"}
+                      className={cn(
+                        "inline-flex items-center gap-2",
+                        isPwaStandalone && "h-10 w-10 rounded-full",
+                      )}
+                      aria-label="Add transaction"
                     >
                       <span className="material-symbols-outlined">add</span>
-                      Add Transaction
+                      {!isPwaStandalone && "Add Transaction"}
                     </Button>
                     <Link
                       href="/dashboard/general-costs"
                       className={buttonVariants({
                         variant: "outline",
-                        size: "sm",
-                        className: "inline-flex items-center gap-2",
+                        size: isPwaStandalone ? "icon" : "sm",
+                        className: cn(
+                          "inline-flex items-center gap-2",
+                          isPwaStandalone && "h-10 w-10 rounded-full",
+                        ),
                       })}
+                      aria-label="Recurring payments"
                     >
                       <span className="material-symbols-outlined">repeat</span>
-                      Recurring payments
+                      {!isPwaStandalone && "Recurring payments"}
                     </Link>
                   </div>
                 </div>
-                <div className="flex gap-2 border-b">
+                <div
+                  className={cn(
+                    "flex gap-2 border-b",
+                    isPwaStandalone && "overflow-x-auto scrollbar-hide",
+                  )}
+                >
                   <button
                     onClick={() => setTransactionTab("INCOMING")}
-                    className={`px-6 py-3 font-medium transition-colors relative ${
+                    className={cn(
+                      "relative font-medium transition-colors",
+                      isPwaStandalone ? "whitespace-nowrap px-4 py-2.5 text-sm" : "px-6 py-3",
                       transactionTab === "INCOMING"
                         ? "text-primary"
-                        : "text-muted-foreground hover:text-foreground"
-                    }`}
+                        : "text-muted-foreground hover:text-foreground",
+                    )}
                   >
                     Payments
                     {transactionTab === "INCOMING" && (
@@ -1136,11 +1173,13 @@ export function FinancialOperationsView({
                   </button>
                   <button
                     onClick={() => setTransactionTab("OUTGOING")}
-                    className={`px-6 py-3 font-medium transition-colors relative ${
+                    className={cn(
+                      "relative font-medium transition-colors",
+                      isPwaStandalone ? "whitespace-nowrap px-4 py-2.5 text-sm" : "px-6 py-3",
                       transactionTab === "OUTGOING"
                         ? "text-primary"
-                        : "text-muted-foreground hover:text-foreground"
-                    }`}
+                        : "text-muted-foreground hover:text-foreground",
+                    )}
                   >
                     Expenses
                     {transactionTab === "OUTGOING" && (

@@ -6,8 +6,9 @@ import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { format } from "date-fns";
+import { useStandalonePwa } from "@/hooks/useStandalonePwa";
+import { cn } from "@/lib/utils";
 
 interface Invoice {
   id: string;
@@ -54,6 +55,7 @@ interface InvoicesListProps {
 }
 
 export function InvoicesList({ refreshTrigger = 0 }: InvoicesListProps) {
+  const isPwa = useStandalonePwa();
   const searchParams = useSearchParams();
   const customerId = searchParams.get("customer");
   const [invoices, setInvoices] = useState<Invoice[]>([]);
@@ -109,12 +111,15 @@ export function InvoicesList({ refreshTrigger = 0 }: InvoicesListProps) {
   return (
     <Card>
       <CardContent className="p-6">
-        <div className="mb-6 flex items-center justify-between gap-4 flex-wrap">
-          <div className="flex items-center gap-4">
+        <div className={cn("mb-6 flex items-center justify-between gap-4 flex-wrap", isPwa && "gap-2")}>
+          <div className="flex items-center gap-2">
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="flex h-10 w-48 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              className={cn(
+                "flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+                isPwa ? "w-[calc(100vw-7rem)] max-w-[220px]" : "w-48",
+              )}
             >
               <option value="all">All Statuses</option>
               <option value="DRAFT">Draft</option>
@@ -124,11 +129,15 @@ export function InvoicesList({ refreshTrigger = 0 }: InvoicesListProps) {
             </select>
           </div>
           <Link href="/dashboard/invoices/new">
-            <Button>
-              <span className="material-symbols-outlined text-lg mr-2">
+            <Button
+              size={isPwa ? "icon" : "default"}
+              className={cn(isPwa && "h-10 w-10 rounded-full")}
+              aria-label="New invoice"
+            >
+              <span className={cn("material-symbols-outlined text-lg", !isPwa && "mr-2")}>
                 add
               </span>
-              New Invoice
+              {!isPwa && "New Invoice"}
             </Button>
           </Link>
         </div>
@@ -173,7 +182,12 @@ export function InvoicesList({ refreshTrigger = 0 }: InvoicesListProps) {
                   href={`/dashboard/invoices/${invoice.id}`}
                   className="block"
                 >
-                  <div className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent/50 hover:border-primary/20 transition-all cursor-pointer">
+                  <div
+                    className={cn(
+                      "flex items-center justify-between rounded-lg border p-4 transition-all cursor-pointer hover:bg-accent/50 hover:border-primary/20",
+                      isPwa && "flex-col items-start gap-3",
+                    )}
+                  >
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-3 mb-2">
                         <span className="font-semibold text-base">
@@ -214,7 +228,7 @@ export function InvoicesList({ refreshTrigger = 0 }: InvoicesListProps) {
                         </div>
                       </div>
                     </div>
-                    <div className="text-right ml-4 flex-shrink-0">
+                    <div className={cn("text-right ml-4 flex-shrink-0", isPwa && "ml-0 w-full text-left")}>
                       <div className="font-semibold text-lg">
                         ¥{total.toLocaleString()}
                       </div>

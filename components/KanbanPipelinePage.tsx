@@ -35,13 +35,13 @@ export function KanbanPipelinePage({
     <div
       className={cn(
         "flex w-full min-w-0 flex-col",
-        isPwa ? "min-h-0 flex-1" : "",
+        isPwa ? "h-full min-h-0 flex-1 overflow-hidden" : "",
       )}
     >
       <div
         className={cn(
           "flex min-h-0 w-full flex-col",
-          isPwa ? "min-h-0 flex-1" : "h-[calc(100dvh-7rem)] sm:h-[calc(100vh-8rem)]",
+          isPwa ? "h-full min-h-0 flex-1 overflow-hidden" : "h-[calc(100dvh-7rem)] sm:h-[calc(100vh-8rem)]",
         )}
       >
         <header className={cn("mb-4 shrink-0", isPwa && "mb-3 space-y-3")}>
@@ -110,7 +110,7 @@ export function KanbanPipelinePage({
         <div
           className={cn(
             "flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg bg-gray-50 p-4 dark:bg-[#121212]",
-            isPwa && "min-h-0",
+            isPwa && "h-full min-h-0",
           )}
         >
           <KanbanBoard

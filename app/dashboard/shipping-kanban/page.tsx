@@ -1,7 +1,5 @@
-import Link from "next/link";
 import { ShippingKanbanBoard } from "@/components/ShippingKanbanBoard";
-import { ShippingKanbanFilter } from "@/components/ShippingKanbanFilter";
-import { Button } from "@/components/ui/button";
+import { ShippingPipelineActions } from "@/components/ShippingPipelineActions";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
@@ -59,17 +57,11 @@ export default async function ShippingKanbanPage() {
               </h1>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            {canCreateInvoice(session.user.role) && (
-              <Link href="/dashboard/invoices/new">
-                <Button className="inline-flex items-center gap-2">
-                  <span className="material-symbols-outlined">add</span>
-                  Create Invoice
-                </Button>
-              </Link>
-            )}
-            {canFilter && <ShippingKanbanFilter users={users} />}
-          </div>
+          <ShippingPipelineActions
+            canCreateInvoice={canCreateInvoice(session.user.role)}
+            canFilter={canFilter}
+            users={users}
+          />
         </div>
       </div>
 

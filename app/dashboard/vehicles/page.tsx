@@ -3,6 +3,10 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ShippingStage } from "@prisma/client";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { useStandalonePwa } from "@/hooks/useStandalonePwa";
+import { cn } from "@/lib/utils";
 
 interface Vehicle {
   id: string;
@@ -33,6 +37,7 @@ interface Vehicle {
 }
 
 export default function VehiclesPage() {
+  const isPwa = useStandalonePwa();
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -95,29 +100,42 @@ export default function VehiclesPage() {
             </h1>
           </div>
         </div>
-        <Link
-          href="/dashboard/vehicles/new"
-          className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
-        >
-          <span className="material-symbols-outlined">add</span>
-          Add Vehicle
+        <Link href="/dashboard/vehicles/new">
+          <Button
+            className={cn(
+              "inline-flex items-center gap-2",
+              isPwa && "h-10 w-10 rounded-full p-0",
+            )}
+            aria-label="Add vehicle"
+          >
+            <span className="material-symbols-outlined">add</span>
+            {!isPwa && "Add Vehicle"}
+          </Button>
         </Link>
       </div>
 
-      <div className="bg-white dark:bg-[#1E1E1E] rounded-lg shadow p-6">
-        <div className="flex gap-4 mb-4 flex-wrap">
-          <input
+      <div className="bg-white dark:bg-[#1E1E1E] rounded-lg shadow p-4 sm:p-6">
+        <div
+          className={cn(
+            "mb-4 gap-3",
+            isPwa ? "grid grid-cols-1" : "flex flex-wrap gap-4",
+          )}
+        >
+          <Input
             type="text"
             placeholder="Search by VIN, make, or model..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && fetchVehicles()}
-            className="flex-1 min-w-[200px] px-4 py-2 border border-gray-300 dark:border-[#2C2C2C] rounded-lg bg-white dark:bg-[#1E1E1E] text-gray-900 dark:text-white"
+            className={cn(isPwa ? "w-full" : "min-w-[200px] flex-1")}
           />
           <select
             value={stageFilter}
             onChange={(e) => setStageFilter(e.target.value)}
-            className="px-4 py-2 border border-gray-300 dark:border-[#2C2C2C] rounded-lg bg-white dark:bg-[#1E1E1E] text-gray-900 dark:text-white"
+            className={cn(
+              "h-10 rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-900 dark:border-[#2C2C2C] dark:bg-[#1E1E1E] dark:text-white",
+              isPwa ? "w-full" : "",
+            )}
           >
             <option value="all">All Stages</option>
             {Object.entries(stageLabels).map(([value, label]) => (
@@ -126,12 +144,12 @@ export default function VehiclesPage() {
               </option>
             ))}
           </select>
-          <button
+          <Button
             onClick={fetchVehicles}
-            className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
+            className={cn(isPwa ? "w-full" : "px-4")}
           >
             Search
-          </button>
+          </Button>
         </div>
 
         {loading ? (
@@ -139,6 +157,69 @@ export default function VehiclesPage() {
         ) : vehicles.length === 0 ? (
           <div className="text-center py-8 text-gray-500">
             No vehicles found
+          </div>
+        ) : isPwa ? (
+          <div className="space-y-3">
+            {vehicles.map((vehicle) => {
+              const label =
+                [vehicle.year, vehicle.make, vehicle.model]
+                  .filter(Boolean)
+                  .join(" ") || "Vehicle";
+              return (
+                <div
+                  key={vehicle.id}
+                  className="rounded-lg border border-border/70 bg-background/60 p-3"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="truncate text-sm font-semibold text-foreground">
+                        {label}
+                      </div>
+                      <div className="truncate text-xs font-mono text-muted-foreground">
+                        {vehicle.vin}
+                      </div>
+                    </div>
+                    <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[11px] font-medium text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                      {vehicle.currentShippingStage
+                        ? stageLabels[vehicle.currentShippingStage]
+                        : "N/A"}
+                    </span>
+                  </div>
+                  <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-muted-foreground">
+                    <div>Customer: {vehicle.customer?.name || "N/A"}</div>
+                    <div>Yard: {vehicle.shippingStage?.yard?.name || "N/A"}</div>
+                    <div>Docs: {vehicle._count.documents}</div>
+                    <div>Costs: {vehicle._count.stageCosts}</div>
+                  </div>
+                  <div className="mt-3 flex items-center gap-2">
+                    {vehicle.invoices && vehicle.invoices.length > 0 ? (
+                      <Link
+                        href={`/dashboard/invoices/${vehicle.invoices[0].id}`}
+                        className="text-xs font-medium text-primary hover:underline"
+                      >
+                        {vehicle.invoices[0].invoiceNumber}
+                      </Link>
+                    ) : vehicle.customer ? (
+                      <Link
+                        href={`/dashboard/invoices/new?vehicleId=${vehicle.id}&customerId=${vehicle.customer.id}`}
+                        className="text-xs font-medium text-primary hover:underline"
+                      >
+                        Create invoice
+                      </Link>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">No invoice</span>
+                    )}
+                    <div className="ml-auto">
+                      <Link href={`/dashboard/vehicles/${vehicle.id}`}>
+                        <Button size="sm" variant="outline" className="h-8 px-2.5 text-xs">
+                          View
+                        </Button>
+                      </Link>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         ) : (
           <div className="overflow-x-auto">

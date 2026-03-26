@@ -233,7 +233,7 @@ export default async function StatsPage({
               </span>
             </div>
             <div>
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-white pwa-title">
                 Analytics Dashboard
               </h1>
             </div>
@@ -276,7 +276,7 @@ export default async function StatsPage({
               </CardHeader>
               <CardContent>
                 <div className="flex items-baseline gap-2">
-                  <span className="text-3xl font-bold text-gray-900 dark:text-white font-mono-numbers">
+                  <span className="text-3xl font-bold text-gray-900 dark:text-white pwa-title font-mono-numbers">
                     {aggregateStats.totalStaff}
                   </span>
                   <span className="text-sm text-gray-500 dark:text-[#A1A1A1]">
@@ -301,7 +301,7 @@ export default async function StatsPage({
               </CardHeader>
               <CardContent>
                 <div className="flex items-baseline gap-2">
-                  <span className="text-3xl font-bold text-gray-900 dark:text-white font-mono-numbers">
+                  <span className="text-3xl font-bold text-gray-900 dark:text-white pwa-title font-mono-numbers">
                     {aggregateStats.totalInquiries.toLocaleString()}
                   </span>
                   <span className="text-sm text-gray-500 dark:text-[#A1A1A1]">
@@ -329,7 +329,7 @@ export default async function StatsPage({
               </CardHeader>
               <CardContent>
                 <div className="flex items-baseline gap-2">
-                  <span className="text-3xl font-bold text-gray-900 dark:text-white font-mono-numbers">
+                  <span className="text-3xl font-bold text-gray-900 dark:text-white pwa-title font-mono-numbers">
                     {aggregateStats.totalConverted.toLocaleString()}
                   </span>
                   <span className="text-sm text-gray-500 dark:text-[#A1A1A1]">
@@ -362,7 +362,7 @@ export default async function StatsPage({
               </CardHeader>
               <CardContent>
                 <div className="flex items-baseline gap-1">
-                  <span className="text-3xl font-bold text-gray-900 dark:text-white font-mono-numbers">
+                  <span className="text-3xl font-bold text-gray-900 dark:text-white pwa-title font-mono-numbers">
                     {aggregateConversionRate}
                   </span>
                   <span className="text-lg text-gray-500 dark:text-[#A1A1A1]">

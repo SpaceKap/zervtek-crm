@@ -21,7 +21,7 @@ export default async function CompanyInfoPage() {
           </span>
         </div>
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white pwa-title">
             Company Information
           </h1>
         </div>

@@ -772,7 +772,7 @@ function KanbanBoardInner({
           </Button>
         </div>
       )}
-      <div className="relative h-full">
+      <div className="relative h-full min-h-0">
         {loading && stages.length > 0 && (
           <div className="absolute inset-0 z-10 flex items-center justify-center bg-gray-50/70 dark:bg-[#121212]/70 rounded-lg">
             <div className="flex items-center gap-2 px-3 py-2 bg-white dark:bg-[#1E1E1E] rounded-lg shadow-md">
@@ -783,7 +783,7 @@ function KanbanBoardInner({
             </div>
           </div>
         )}
-        <div className="flex gap-4 h-full overflow-x-auto overflow-y-hidden pb-4 scrollbar-modern-horizontal">
+        <div className="flex h-full min-h-0 gap-4 overflow-x-auto overflow-y-hidden pb-3 scrollbar-modern-horizontal">
           <SortableContext
             items={mergeMode ? [] : allInquiryIds}
             strategy={verticalListSortingStrategy}

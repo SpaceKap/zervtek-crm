@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Quick update script for VPS
-# Pulls latest, rebuilds inquiry-pooler (CRM) and customer-portal, restarts both.
+# Pulls latest, rebuilds inquiry-pooler (CRM), and restarts it.
 # Use for code-only changes. For DB schema or full rebuilds, use deploy.sh instead.
 
 set -e  # Exit on error
@@ -45,22 +45,16 @@ git pull origin main --no-rebase || git pull origin master --no-rebase
 
 echo -e "${GREEN}📌 Deploying commit: $(git rev-parse --short HEAD) - $(git log -1 --oneline)${NC}"
 
-# Rebuild application and customer-portal containers
+# Rebuild inquiry-pooler container
 echo -e "${YELLOW}🔨 Rebuilding application container...${NC}"
 $DOCKER_COMPOSE build $NO_CACHE inquiry-pooler
 
-echo -e "${YELLOW}🔨 Rebuilding customer-portal container...${NC}"
-$DOCKER_COMPOSE build $NO_CACHE customer-portal
-
-# Restart application and customer-portal containers
+# Restart inquiry-pooler container
 echo -e "${YELLOW}🔄 Restarting application container...${NC}"
 $DOCKER_COMPOSE up -d inquiry-pooler
 
-echo -e "${YELLOW}🔄 Restarting customer-portal container...${NC}"
-$DOCKER_COMPOSE up -d customer-portal
-
-# Wait a bit for containers to start
-echo -e "${YELLOW}⏳ Waiting for containers to start...${NC}"
+# Wait a bit for container to start
+echo -e "${YELLOW}⏳ Waiting for container to start...${NC}"
 sleep 5
 
 # Check if containers are running
@@ -72,25 +66,17 @@ else
     echo -e "${RED}❌ inquiry-pooler is not running!${NC}"
     FAILED=1
 fi
-if $DOCKER_COMPOSE ps customer-portal | grep -q "Up"; then
-    echo -e "${GREEN}✅ customer-portal is running${NC}"
-else
-    echo -e "${RED}❌ customer-portal is not running!${NC}"
-    FAILED=1
-fi
-
 if [ $FAILED -eq 1 ]; then
     echo -e "${RED}❌ Error: One or more containers are not running!${NC}"
     echo -e "${YELLOW}💡 Tip: If this fails, try running ./deploy.sh for a full rebuild${NC}"
-    $DOCKER_COMPOSE ps inquiry-pooler customer-portal
+    $DOCKER_COMPOSE ps inquiry-pooler
     exit 1
 fi
 
 echo -e "${GREEN}✅ Quick update completed successfully!${NC}"
 echo -e "${GREEN}📊 Container status:${NC}"
-$DOCKER_COMPOSE ps inquiry-pooler customer-portal
+$DOCKER_COMPOSE ps inquiry-pooler
 
 echo -e "${GREEN}✨ CRM is now running at https://crm.zervtek.com${NC}"
-echo -e "${GREEN}✨ Customer portal has been updated${NC}"
 echo -e "${YELLOW}ℹ️  Note: This script skips database migrations. Use ./deploy.sh if schema changes are needed.${NC}"
 echo -e "${YELLOW}ℹ️  If UI changes don't appear: run ./update.sh --no-cache and hard-refresh the browser (Ctrl+Shift+R).${NC}"

@@ -21,7 +21,7 @@ export default async function ChargeTypesPage() {
           </span>
         </div>
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white pwa-title">
             Charge Types
           </h1>
         </div>
