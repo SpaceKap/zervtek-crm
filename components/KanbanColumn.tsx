@@ -156,7 +156,7 @@ export const KanbanColumn = memo(function KanbanColumn({
       <div
         ref={setNodeRef}
         className={cn(
-          "flex min-h-[180px] flex-1 flex-col overflow-x-hidden overflow-y-auto transition-colors duration-200 scrollbar-modern-vertical",
+          "flex min-h-[180px] flex-1 flex-col overflow-x-hidden overflow-y-auto overscroll-contain transition-colors duration-200 scrollbar-modern-vertical",
           isPwa ? "p-1.5 pb-2.5" : "p-2 pb-3",
         )}
       >

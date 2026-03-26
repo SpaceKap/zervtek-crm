@@ -44,6 +44,7 @@ import {
   parsePipelineSourcesFilter,
 } from "@/lib/kanban-pipeline-view";
 import { useStandalonePwa } from "@/hooks/useStandalonePwa";
+import { cn } from "@/lib/utils";
 
 interface Inquiry {
   id: string;
@@ -785,7 +786,12 @@ function KanbanBoardInner({
             </div>
           </div>
         )}
-        <div className="flex h-full min-h-0 gap-3 overflow-x-auto overflow-y-hidden pb-2 scrollbar-modern-horizontal">
+        <div
+          className={cn(
+            "flex h-full min-h-0 gap-3 overflow-x-auto overflow-y-hidden scrollbar-modern-horizontal",
+            isPwaStandalone ? "pb-0" : "pb-2",
+          )}
+        >
           <SortableContext
             items={mergeMode ? [] : allInquiryIds}
             strategy={verticalListSortingStrategy}
