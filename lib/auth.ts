@@ -11,6 +11,12 @@ const _authOptions = {
         GoogleProvider({
             clientId: process.env.GOOGLE_CLIENT_ID!,
             clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+            // Always show Google’s account picker (helps Android / multiple accounts on one device).
+            authorization: {
+                params: {
+                    prompt: "select_account",
+                },
+            },
         }),
     ],
     jwt: {
@@ -97,6 +103,7 @@ const _authOptions = {
     },
     pages: {
         signIn: "/login",
+        error: "/auth/error",
     },
     debug: process.env.NODE_ENV === "development",
 } as NextAuthOptions
