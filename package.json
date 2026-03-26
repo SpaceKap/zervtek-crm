@@ -10,6 +10,7 @@
     "dev": "next dev -H 0.0.0.0",
     "clean": "rm -rf .next node_modules/.cache",
     "typecheck": "tsc --noEmit",
+    "prebuild": "prisma generate --schema=packages/db/prisma/schema.prisma",
     "build": "next build",
     "postbuild": "cp -R public .next/standalone 2>/dev/null || true; cp -R .next/static .next/standalone/.next/ 2>/dev/null || true",
     "start": "next start",

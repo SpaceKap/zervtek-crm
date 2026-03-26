@@ -2,11 +2,15 @@
 
 # Stage 1: Dependencies
 FROM node:20-alpine AS deps
-RUN apk add --no-cache libc6-compat
+# OpenSSL needed so Prisma can resolve linux-musl engine during generate (prepare / postinstall)
+RUN apk add --no-cache libc6-compat openssl
 WORKDIR /app
 
-# Copy package files
+# Workspaces require member package.json paths; @inquiry-pooler/db prepare runs prisma generate
 COPY package.json package-lock.json* ./
+COPY packages/db/package.json packages/db/
+COPY packages/db/prisma ./packages/db/prisma
+COPY apps/customer-portal/package.json apps/customer-portal/
 RUN npm ci
 
 # Stage 2: Builder
