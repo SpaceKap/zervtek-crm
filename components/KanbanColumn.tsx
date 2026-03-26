@@ -110,7 +110,7 @@ export const KanbanColumn = memo(function KanbanColumn({
       className={cn(
         "flex h-full flex-col rounded-lg bg-gray-50 transition-colors duration-200 dark:bg-[#1E1E1E] flex-shrink-0 border-2",
         isPwa
-          ? "min-w-[86vw] max-w-[86vw] sm:min-w-[340px] sm:max-w-[360px]"
+          ? "min-w-[360px] max-w-[400px]"
           : "min-w-[320px] max-w-[340px]",
         dropZoneClass || "border-gray-200 dark:border-[#2C2C2C]",
       )}
@@ -157,58 +157,61 @@ export const KanbanColumn = memo(function KanbanColumn({
         ref={setNodeRef}
         className={cn(
           "flex min-h-[180px] flex-1 flex-col overflow-x-hidden overflow-y-auto overscroll-contain transition-colors duration-200 scrollbar-modern-vertical",
-          isPwa ? "p-1.5 pb-2.5" : "p-2 pb-3",
+          isPwa ? "p-3" : "p-2 pb-3",
         )}
       >
-        <div className="flex-1 space-y-2 min-h-0">
-        {inquirySections.map((section, sectionIdx) => (
-          <div key={`${section.label || "flat"}-${sectionIdx}`} className="space-y-2">
-            {section.label ? (
-              <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground px-1 pt-1 border-b border-border/40 pb-1 mb-0.5">
-                {section.label}
-              </div>
-            ) : null}
-            {section.inquiries.map((inquiry) =>
-              mergeMode ? (
-                <MergeModeCard
-                  key={inquiry.id}
-                  inquiry={inquiry}
-                  onView={onView}
-                  onRelease={onRelease}
-                  onNotes={onNotes}
-                  onAssignTo={onAssignTo}
-                  onDelete={onDelete}
-                  onCountryUpdated={onCountryUpdated}
-                  currentUserId={currentUserId}
-                  currentUserEmail={currentUserEmail}
-                  isManager={isManager}
-                  isAdmin={isAdmin}
-                />
-              ) : (
-                <SortableInquiryCard
-                  key={inquiry.id}
-                  inquiry={inquiry}
-                  onView={onView}
-                  onRelease={onRelease}
-                  onNotes={onNotes}
-                  onAssignTo={onAssignTo}
-                  onDelete={onDelete}
-                  onCountryUpdated={onCountryUpdated}
-                  currentUserId={currentUserId}
-                  currentUserEmail={currentUserEmail}
-                  isManager={isManager}
-                  isAdmin={isAdmin}
-                  isMergeTarget={mergeTargetId === inquiry.id}
-                  mergeHoldProgress={mergeHoldProgress}
-                  onEnterMergeMode={onEnterMergeMode}
-                />
-              ),
-            )}
-          </div>
-        ))}
+        <div className={cn("min-h-0 flex-1", isPwa ? "space-y-3" : "space-y-2")}>
+          {inquirySections.map((section, sectionIdx) => (
+            <div
+              key={`${section.label || "flat"}-${sectionIdx}`}
+              className="space-y-2"
+            >
+              {section.label ? (
+                <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground px-1 pt-1 border-b border-border/40 pb-1 mb-0.5">
+                  {section.label}
+                </div>
+              ) : null}
+              {section.inquiries.map((inquiry) =>
+                mergeMode ? (
+                  <MergeModeCard
+                    key={inquiry.id}
+                    inquiry={inquiry}
+                    onView={onView}
+                    onRelease={onRelease}
+                    onNotes={onNotes}
+                    onAssignTo={onAssignTo}
+                    onDelete={onDelete}
+                    onCountryUpdated={onCountryUpdated}
+                    currentUserId={currentUserId}
+                    currentUserEmail={currentUserEmail}
+                    isManager={isManager}
+                    isAdmin={isAdmin}
+                  />
+                ) : (
+                  <SortableInquiryCard
+                    key={inquiry.id}
+                    inquiry={inquiry}
+                    onView={onView}
+                    onRelease={onRelease}
+                    onNotes={onNotes}
+                    onAssignTo={onAssignTo}
+                    onDelete={onDelete}
+                    onCountryUpdated={onCountryUpdated}
+                    currentUserId={currentUserId}
+                    currentUserEmail={currentUserEmail}
+                    isManager={isManager}
+                    isAdmin={isAdmin}
+                    isMergeTarget={mergeTargetId === inquiry.id}
+                    mergeHoldProgress={mergeHoldProgress}
+                    onEnterMergeMode={onEnterMergeMode}
+                  />
+                ),
+              )}
+            </div>
+          ))}
         </div>
         {/* Extra hit area below cards so drops work when the column is full */}
-        {totalInquiries > 0 && !mergeMode && (
+        {totalInquiries > 0 && !mergeMode && !isPwa && (
           <div
             className="min-h-[min(140px,22dvh)] flex-shrink-0 rounded-md border border-dashed border-muted-foreground/15 bg-muted/20 dark:bg-muted/10 mt-1"
             aria-hidden

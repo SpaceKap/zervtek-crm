@@ -789,7 +789,7 @@ function KanbanBoardInner({
         <div
           className={cn(
             "flex h-full min-h-0 gap-3 overflow-x-auto overflow-y-hidden scrollbar-modern-horizontal",
-            isPwaStandalone ? "pb-0" : "pb-2",
+            isPwaStandalone ? "pb-4" : "pb-2",
           )}
         >
           <SortableContext

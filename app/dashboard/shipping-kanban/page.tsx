@@ -52,7 +52,7 @@ export default async function ShippingKanbanPage() {
               local_shipping
             </span>
             <div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white pwa-title">
                 Shipping Pipeline
               </h1>
             </div>

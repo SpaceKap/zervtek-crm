@@ -42,7 +42,7 @@ export function KanbanPipelinePage({
         className={cn(
           "flex min-h-0 w-full flex-col",
           isPwa
-            ? "h-[calc(100dvh-7rem)] min-h-0 overflow-hidden sm:h-[calc(100dvh-8rem)]"
+            ? "h-[calc(100dvh-7rem)] min-h-0 overflow-hidden"
             : "h-[calc(100dvh-7rem)] sm:h-[calc(100vh-8rem)]",
         )}
       >
@@ -112,7 +112,7 @@ export function KanbanPipelinePage({
         <div
           className={cn(
             "flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg bg-gray-50 p-4 dark:bg-[#121212]",
-            isPwa && "min-h-0 p-2.5",
+            isPwa && "min-h-0",
           )}
         >
           <KanbanBoard
