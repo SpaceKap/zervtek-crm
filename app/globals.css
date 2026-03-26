@@ -238,14 +238,24 @@
 
   /* PWA-only heading scale for consistency with compact pages */
   @media (display-mode: standalone), (display-mode: fullscreen) {
+    main h1 {
+      font-size: 1.25rem; /* match Pipeline mobile title size */
+      line-height: 1.75rem;
+    }
+
     .pwa-title {
-      font-size: 1.5rem;
-      line-height: 2rem;
+      font-size: 1.25rem;
+      line-height: 1.75rem;
     }
   }
 
   @media (display-mode: standalone) and (min-width: 640px),
     (display-mode: fullscreen) and (min-width: 640px) {
+    main h1 {
+      font-size: 1.875rem; /* match Pipeline desktop title size */
+      line-height: 2.25rem;
+    }
+
     .pwa-title {
       font-size: 1.875rem;
       line-height: 2.25rem;

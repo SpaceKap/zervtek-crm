@@ -1033,12 +1033,18 @@ export function FinancialOperationsView({
         }}
         className="w-full"
       >
+        <div
+          className={cn(
+            isPwaStandalone &&
+              "sticky top-0 z-20 mb-4 -mx-1 overflow-x-auto px-1 pb-1 scrollbar-hide bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80",
+          )}
+        >
         <TabsList
           className={cn(
-            "mb-6 rounded-md bg-muted p-1 text-muted-foreground",
+            "rounded-md bg-muted p-1 text-muted-foreground",
             isPwaStandalone
-              ? "sticky top-0 z-20 grid w-full grid-cols-2 gap-1 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80"
-              : "flex h-10 flex-wrap items-center justify-start gap-1",
+              ? "inline-flex h-11 min-w-max items-center gap-1 whitespace-nowrap"
+              : "mb-6 flex h-10 flex-wrap items-center justify-start gap-1",
           )}
         >
           {canViewTransactions && (
@@ -1046,7 +1052,7 @@ export function FinancialOperationsView({
               value="transactions"
               className={
                 isPwaStandalone
-                  ? "w-full justify-center gap-1.5 px-2 py-2.5 text-xs sm:text-sm"
+                  ? "min-w-[132px] justify-center gap-1.5 px-3 py-2 text-xs"
                   : "min-w-[120px] flex-1"
               }
             >
@@ -1061,7 +1067,7 @@ export function FinancialOperationsView({
               value="invoices"
               className={
                 isPwaStandalone
-                  ? "w-full justify-center gap-1.5 px-2 py-2.5 text-xs sm:text-sm"
+                  ? "min-w-[112px] justify-center gap-1.5 px-3 py-2 text-xs"
                   : "min-w-[100px] flex-1"
               }
             >
@@ -1076,7 +1082,7 @@ export function FinancialOperationsView({
               value="customers"
               className={
                 isPwaStandalone
-                  ? "w-full justify-center gap-1.5 px-2 py-2.5 text-xs sm:text-sm"
+                  ? "min-w-[120px] justify-center gap-1.5 px-3 py-2 text-xs"
                   : "min-w-[100px] flex-1"
               }
             >
@@ -1091,7 +1097,7 @@ export function FinancialOperationsView({
               value="vehicles"
               className={
                 isPwaStandalone
-                  ? "w-full justify-center gap-1.5 px-2 py-2.5 text-xs sm:text-sm"
+                  ? "min-w-[108px] justify-center gap-1.5 px-3 py-2 text-xs"
                   : "min-w-[100px] flex-1"
               }
             >
@@ -1102,9 +1108,10 @@ export function FinancialOperationsView({
             </TabsTrigger>
           )}
         </TabsList>
+        </div>
 
         {canViewTransactions && (
-          <TabsContent value="transactions" className="mt-6">
+          <TabsContent value="transactions" className={cn(isPwaStandalone ? "mt-3" : "mt-6")}>
             <Card>
               <CardHeader className="pb-4">
                 <div
@@ -3480,13 +3487,13 @@ export function FinancialOperationsView({
         )}
 
         {canViewCustomers && (
-          <TabsContent value="customers" className="mt-6">
+          <TabsContent value="customers" className={cn(isPwaStandalone ? "mt-3" : "mt-6")}>
             <CustomersList />
           </TabsContent>
         )}
 
         {canViewInvoices && (
-          <TabsContent value="invoices" className="mt-6">
+          <TabsContent value="invoices" className={cn(isPwaStandalone ? "mt-3" : "mt-6")}>
             <Card>
               <CardHeader className="pb-4">
                 <div className="flex items-center justify-between flex-wrap gap-3">
@@ -3522,7 +3529,12 @@ export function FinancialOperationsView({
                   }
                   className="mt-4"
                 >
-                  <TabsList className="grid w-full max-w-md grid-cols-2">
+                  <TabsList
+                    className={cn(
+                      "grid w-full max-w-md grid-cols-2",
+                      isPwaStandalone && "h-10 max-w-full",
+                    )}
+                  >
                     <TabsTrigger value="customer">
                       Customer Invoices
                     </TabsTrigger>
@@ -3545,7 +3557,7 @@ export function FinancialOperationsView({
         )}
 
         {canViewVehicles && (
-          <TabsContent value="vehicles" className="mt-6">
+          <TabsContent value="vehicles" className={cn(isPwaStandalone ? "mt-3" : "mt-6")}>
             <Card>
               <CardHeader className="pb-4">
                 <div

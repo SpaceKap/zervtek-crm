@@ -132,12 +132,12 @@ function inquiryMatchesSearch(inquiry: Inquiry, q: string): boolean {
   );
 }
 
-function TrashDropZone() {
+function TrashDropZone({ compact = false }: { compact?: boolean }) {
   const { setNodeRef, isOver } = useDroppable({ id: "trash" });
   return (
     <div
       ref={setNodeRef}
-      className={`min-w-[120px] flex flex-col items-center justify-center flex-shrink-0 rounded-lg border-2 border-dashed transition-colors ${
+      className={`${compact ? "min-w-[72px]" : "min-w-[120px]"} flex flex-col items-center justify-center flex-shrink-0 rounded-lg border-2 border-dashed transition-colors ${
         isOver
           ? "bg-red-50 dark:bg-red-900/20 border-red-400 dark:border-red-600"
           : "border-gray-300 dark:border-[#2C2C2C] hover:border-red-300 dark:hover:border-red-700/50"
@@ -155,9 +155,11 @@ function TrashDropZone() {
       <span className="text-xs font-medium text-gray-500 dark:text-[#A1A1A1]">
         Trash
       </span>
-      <span className="text-[10px] text-gray-400 dark:text-[#6B6B6B] mt-0.5">
-        Failed leads
-      </span>
+      {!compact && (
+        <span className="text-[10px] text-gray-400 dark:text-[#6B6B6B] mt-0.5">
+          Failed leads
+        </span>
+      )}
     </div>
   );
 }
@@ -783,7 +785,7 @@ function KanbanBoardInner({
             </div>
           </div>
         )}
-        <div className="flex h-full min-h-0 gap-4 overflow-x-auto overflow-y-hidden pb-3 scrollbar-modern-horizontal">
+        <div className="flex h-full min-h-0 gap-3 overflow-x-auto overflow-y-hidden pb-2 scrollbar-modern-horizontal">
           <SortableContext
             items={mergeMode ? [] : allInquiryIds}
             strategy={verticalListSortingStrategy}
@@ -816,14 +818,15 @@ function KanbanBoardInner({
             ))}
           </SortableContext>
           {/* Trash - drag inquiries here to move to failed leads */}
-          <TrashDropZone />
-          {/* Add Column Button */}
-          <div className="min-w-[360px] flex items-center justify-center flex-shrink-0">
-            <button className="w-full h-12 border-2 border-dashed border-gray-300 dark:border-[#2C2C2C] rounded-lg hover:border-gray-400 dark:hover:border-[#49454F] hover:bg-gray-50 dark:hover:bg-[#1E1E1E] transition-colors flex items-center justify-center gap-2 text-gray-500 dark:text-[#A1A1A1]">
-              <span className="material-symbols-outlined text-xl">add</span>
-              <span className="text-sm font-medium">Add Column</span>
-            </button>
-          </div>
+          <TrashDropZone compact={isPwaStandalone} />
+          {!isPwaStandalone && (
+            <div className="min-w-[360px] flex items-center justify-center flex-shrink-0">
+              <button className="w-full h-12 border-2 border-dashed border-gray-300 dark:border-[#2C2C2C] rounded-lg hover:border-gray-400 dark:hover:border-[#49454F] hover:bg-gray-50 dark:hover:bg-[#1E1E1E] transition-colors flex items-center justify-center gap-2 text-gray-500 dark:text-[#A1A1A1]">
+                <span className="material-symbols-outlined text-xl">add</span>
+                <span className="text-sm font-medium">Add Column</span>
+              </button>
+            </div>
+          )}
         </div>
       </div>
       <DragOverlay>

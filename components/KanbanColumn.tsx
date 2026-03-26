@@ -5,6 +5,8 @@ import { SortableInquiryCard } from "./SortableInquiryCard";
 import { MergeModeCard } from "./MergeModeCard";
 import { InquiryStatus, InquirySource } from "@prisma/client";
 import { useDroppable } from "@dnd-kit/core";
+import { useStandalonePwa } from "@/hooks/useStandalonePwa";
+import { cn } from "@/lib/utils";
 
 interface Inquiry {
   id: string;
@@ -73,6 +75,7 @@ export const KanbanColumn = memo(function KanbanColumn({
   mergeMode = false,
   onEnterMergeMode,
 }: KanbanColumnProps) {
+  const isPwa = useStandalonePwa();
   const totalInquiries = inquirySections.reduce(
     (n, s) => n + s.inquiries.length,
     0,
@@ -103,9 +106,22 @@ export const KanbanColumn = memo(function KanbanColumn({
   };
 
   return (
-    <div className={`flex flex-col h-full min-w-[320px] max-w-[340px] bg-gray-50 dark:bg-[#1E1E1E] rounded-lg flex-shrink-0 border-2 transition-colors duration-200 ${dropZoneClass || "border-gray-200 dark:border-[#2C2C2C]"}`}>
+    <div
+      className={cn(
+        "flex h-full flex-col rounded-lg bg-gray-50 transition-colors duration-200 dark:bg-[#1E1E1E] flex-shrink-0 border-2",
+        isPwa
+          ? "min-w-[86vw] max-w-[86vw] sm:min-w-[340px] sm:max-w-[360px]"
+          : "min-w-[320px] max-w-[340px]",
+        dropZoneClass || "border-gray-200 dark:border-[#2C2C2C]",
+      )}
+    >
       {/* Column Header */}
-      <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-[#2C2C2C] bg-white dark:bg-[#1E1E1E] rounded-t-lg flex-shrink-0">
+      <div
+        className={cn(
+          "flex flex-shrink-0 items-center justify-between border-b border-gray-200 bg-white dark:border-[#2C2C2C] dark:bg-[#1E1E1E] rounded-t-lg",
+          isPwa ? "p-3" : "p-4",
+        )}
+      >
         <div className="flex items-center gap-2">
           <div className={`w-2 h-2 rounded-full ${getStatusDot()}`} />
           <h3 className="font-semibold text-sm text-gray-900 dark:text-white">
@@ -139,7 +155,10 @@ export const KanbanColumn = memo(function KanbanColumn({
       {/* Column Content */}
       <div
         ref={setNodeRef}
-        className="flex-1 flex flex-col p-2 pb-3 overflow-y-auto overflow-x-hidden min-h-[180px] transition-colors duration-200 scrollbar-modern-vertical"
+        className={cn(
+          "flex min-h-[180px] flex-1 flex-col overflow-x-hidden overflow-y-auto transition-colors duration-200 scrollbar-modern-vertical",
+          isPwa ? "p-1.5 pb-2.5" : "p-2 pb-3",
+        )}
       >
         <div className="flex-1 space-y-2 min-h-0">
         {inquirySections.map((section, sectionIdx) => (

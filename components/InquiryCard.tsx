@@ -22,6 +22,8 @@ import {
 } from "@/components/ui/select";
 import { getCountriesSorted } from "@/lib/countries-data";
 import { Label } from "@/components/ui/label";
+import { useStandalonePwa } from "@/hooks/useStandalonePwa";
+import { cn } from "@/lib/utils";
 
 interface InquiryCardProps {
   inquiry: {
@@ -163,6 +165,7 @@ export function InquiryCard({
   onMergeInto,
   onCancelMerge,
 }: InquiryCardProps) {
+  const isPwa = useStandalonePwa();
   const canDelete = currentUserEmail === "avi@zervtek.com";
   const metadata = (inquiry.metadata as any) || {};
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -334,12 +337,17 @@ export function InquiryCard({
               : "opacity-75"
         }`}
       >
-        <CardContent className="p-3 flex flex-col flex-1 min-h-0">
+        <CardContent
+          className={cn(
+            "flex min-h-0 flex-1 flex-col",
+            isPwa ? "p-2.5" : "p-3",
+          )}
+        >
           {/* Header Section */}
           <div className="flex flex-col space-y-3 flex-shrink-0">
             {/* Badges + Title Row */}
             <div className="flex flex-col gap-2">
-              <div className="flex flex-wrap items-center gap-1.5">
+              <div className={cn("flex flex-wrap items-center gap-1.5", isPwa && "gap-1")}>
                 {!hideStatusBadge && (
                   <span
                     className={`text-xs font-medium px-2 py-0.5 rounded border ${
@@ -371,7 +379,7 @@ export function InquiryCard({
                   </span>
                 )}
                 {previouslyTriedBy && (
-                  <span className="text-xs font-medium px-2 py-0.5 rounded border bg-amber-50 text-amber-700 border-amber-300 dark:bg-amber-900/20 dark:text-amber-300 dark:border-amber-700">
+                  <span className="text-xs font-medium px-2 py-0.5 rounded border bg-amber-50 text-amber-700 border-amber-300 dark:bg-amber-900/20 dark:text-amber-300 dark:border-amber-700 max-w-full truncate">
                     Previously tried: {previouslyTriedBy.userName}
                   </span>
                 )}
@@ -508,7 +516,7 @@ export function InquiryCard({
           )}
 
           {/* Footer */}
-          <div className="flex items-center justify-between gap-2 pt-3 mt-auto border-t border-gray-100 dark:border-[#2C2C2C] flex-shrink-0">
+          <div className="flex items-center justify-between gap-1.5 pt-2.5 mt-auto border-t border-gray-100 dark:border-[#2C2C2C] flex-shrink-0">
             <div className="flex items-center gap-2 min-w-0">
               {inquiry.assignedTo ? (
                 inquiry.assignedTo.image ? (
@@ -536,14 +544,14 @@ export function InquiryCard({
                 {format(new Date(inquiry.createdAt), "dd MMM yyyy")}
               </span>
             </div>
-            <div className="flex items-center gap-1 flex-shrink-0">
+            <div className={cn("flex items-center flex-shrink-0", isPwa ? "gap-0.5" : "gap-1")}>
               {showNotesButton && onNotes && (
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
                     onNotes(inquiry.id);
                   }}
-                  className={`flex items-center justify-center p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-[#2C2C2C] transition-colors ${
+                  className={`flex items-center justify-center ${isPwa ? "p-1" : "p-1.5"} rounded-md hover:bg-gray-100 dark:hover:bg-[#2C2C2C] transition-colors ${
                     hasNotes
                       ? "text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20"
                       : "text-gray-500 dark:text-[#A1A1A1]"
@@ -561,7 +569,10 @@ export function InquiryCard({
                     e.stopPropagation();
                     onAssign(inquiry.id);
                   }}
-                  className="flex items-center justify-center p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-[#2C2C2C] transition-colors text-gray-500 dark:text-[#A1A1A1]"
+                  className={cn(
+                    "flex items-center justify-center rounded-md hover:bg-gray-100 dark:hover:bg-[#2C2C2C] transition-colors text-gray-500 dark:text-[#A1A1A1]",
+                    isPwa ? "p-1" : "p-1.5",
+                  )}
                   title="Assign to myself"
                 >
                   <span className="material-symbols-outlined text-base">
@@ -575,7 +586,10 @@ export function InquiryCard({
                     e.stopPropagation();
                     onAssignTo(inquiry.id);
                   }}
-                  className="flex items-center justify-center p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-[#2C2C2C] transition-colors text-gray-500 dark:text-[#A1A1A1]"
+                  className={cn(
+                    "flex items-center justify-center rounded-md hover:bg-gray-100 dark:hover:bg-[#2C2C2C] transition-colors text-gray-500 dark:text-[#A1A1A1]",
+                    isPwa ? "p-1" : "p-1.5",
+                  )}
                   title="Assign to a team member"
                 >
                   <span className="material-symbols-outlined text-base">
@@ -589,7 +603,10 @@ export function InquiryCard({
                     e.stopPropagation();
                     onStartMerge(inquiry.id);
                   }}
-                  className="flex items-center justify-center p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-[#2C2C2C] transition-colors text-gray-500 dark:text-[#A1A1A1]"
+                  className={cn(
+                    "flex items-center justify-center rounded-md hover:bg-gray-100 dark:hover:bg-[#2C2C2C] transition-colors text-gray-500 dark:text-[#A1A1A1]",
+                    isPwa ? "p-1" : "p-1.5",
+                  )}
                   title="Merge into another lead"
                 >
                   <span className="material-symbols-outlined text-base">
@@ -643,13 +660,16 @@ export function InquiryCard({
                     onRelease(inquiry.id);
                   }}
                   onMouseDown={(e) => e.stopPropagation()}
-                  className="h-7 px-2 text-xs flex items-center gap-1 shrink-0"
+                  className={cn(
+                    "h-7 text-xs flex items-center gap-1 shrink-0",
+                    isPwa ? "w-7 px-0 justify-center" : "px-2",
+                  )}
                   title="Release to pool"
                 >
                   <span className="material-symbols-outlined text-sm">
                     person_remove
                   </span>
-                  Release
+                  {!isPwa && "Release"}
                 </Button>
               ) : null}
               {canDelete && showDeleteButton && onDelete && (
