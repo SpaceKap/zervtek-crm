@@ -54,11 +54,13 @@ COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules/@prisma ./node_modules/@prisma
 
-# Copy package.json and install Prisma CLI + tsx for migrations and scripts
+# Copy package.json and install Prisma CLI + tsx for migrations and scripts.
+# --ignore-scripts: root package.json lists workspaces; standalone may include packages/db
+# without prisma/schema — npm would run @inquiry-pooler/db "prepare" (prisma generate) and fail.
 USER root
 RUN apk add --no-cache openssl
 COPY --from=builder --chown=root:root /app/package.json ./package.json
-RUN mkdir -p ./node_modules && npm install --no-save --prefix . prisma@5.19.0 tsx
+RUN mkdir -p ./node_modules && npm install --no-save --ignore-scripts --prefix . prisma@5.22.0 tsx
 RUN chown -R nextjs:nodejs ./node_modules
 USER nextjs
 
