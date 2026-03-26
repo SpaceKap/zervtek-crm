@@ -17,11 +17,11 @@ export default async function DashboardLayout({
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-[#121212]">
+    <div className="dashboard-app min-h-screen bg-gray-50 dark:bg-[#121212]">
       <DashboardNav user={session.user} />
       <InquiryNotificationPoller user={session.user} />
       <PwaClientExperience userRole={session.user.role} />
-      <main className="w-full px-4 sm:px-6 py-4 sm:py-6 bg-gray-50 dark:bg-[#121212]">
+      <main className="dashboard-main w-full px-4 py-4 sm:px-6 sm:py-6 bg-gray-50 dark:bg-[#121212]">
         {children}
       </main>
     </div>

@@ -1,9 +1,10 @@
 "use client";
 
-import { memo, useRef } from "react";
+import { memo } from "react";
 import { useDraggable, useDroppable } from "@dnd-kit/core";
 import { InquiryCard } from "./InquiryCard";
 import { InquirySource, InquiryStatus } from "@prisma/client";
+import { useStandalonePwa } from "@/hooks/useStandalonePwa";
 
 interface Inquiry {
   id: string;
@@ -50,6 +51,7 @@ function MergeModeCardComponent({
   isManager = false,
   isAdmin = false,
 }: MergeModeCardProps) {
+  const isPwaStandalone = useStandalonePwa();
   const {
     attributes,
     listeners,
@@ -103,6 +105,7 @@ function MergeModeCardComponent({
           isInFunnel={true}
           isMergeTarget={isOver}
           mergeHoldProgress={1}
+          pwaComfortableTouch={isPwaStandalone}
         />
       </div>
     </div>

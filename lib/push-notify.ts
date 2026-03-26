@@ -57,7 +57,11 @@ export async function sendAssignmentPushNotification(
           keys: { p256dh: sub.p256dh, auth: sub.auth },
         },
         data,
-        { TTL: 86_400 }
+        {
+          TTL: 86_400,
+          // Helps timely delivery on constrained networks (Web Push / FCM / APNs).
+          urgency: "high",
+        },
       );
     } catch (err: unknown) {
       const status = (err as { statusCode?: number })?.statusCode;

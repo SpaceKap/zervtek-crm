@@ -26,6 +26,7 @@ import {
   DragOverlay,
   DragStartEvent,
   PointerSensor,
+  TouchSensor,
   closestCorners,
   useSensor,
   useSensors,
@@ -42,6 +43,7 @@ import {
   parsePipelineSort,
   parsePipelineSourcesFilter,
 } from "@/lib/kanban-pipeline-view";
+import { useStandalonePwa } from "@/hooks/useStandalonePwa";
 
 interface Inquiry {
   id: string;
@@ -247,6 +249,7 @@ function KanbanBoardInner({
     : userIdFromUrl;
   const pipelineSearch = usePipelineSearch();
   const pipelineView = usePipelineViewPreferences();
+  const isPwaStandalone = useStandalonePwa();
   const searchQuery = pipelineSearch?.searchQuery ?? searchQueryProp ?? undefined;
   const [stages, setStages] = useState<Stage[]>([]);
   const [loading, setLoading] = useState(true);
@@ -279,8 +282,14 @@ function KanbanBoardInner({
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        distance: 5, // Reduced from 8 for more responsive dragging
+        // PWA (esp. iOS): larger distance so horizontal scroll is less likely to start a drag.
+        distance: isPwaStandalone ? 24 : 5,
       },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: isPwaStandalone
+        ? { delay: 280, tolerance: 12 }
+        : { delay: 3_600_000, tolerance: 0 },
     }),
   );
 

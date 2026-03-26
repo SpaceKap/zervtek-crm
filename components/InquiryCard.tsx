@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/select";
 import { getCountriesSorted } from "@/lib/countries-data";
 import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils";
 
 interface InquiryCardProps {
   inquiry: {
@@ -72,6 +73,8 @@ interface InquiryCardProps {
   onStartMerge?: (inquiryId: string) => void;
   onMergeInto?: (targetId: string) => void;
   onCancelMerge?: () => void;
+  /** Installed PWA: larger action hit targets (44px) in the card footer. */
+  pwaComfortableTouch?: boolean;
 }
 
 const COUNTRIES = getCountriesSorted();
@@ -162,6 +165,7 @@ export function InquiryCard({
   onStartMerge,
   onMergeInto,
   onCancelMerge,
+  pwaComfortableTouch = false,
 }: InquiryCardProps) {
   const canDelete = currentUserEmail === "avi@zervtek.com";
   const metadata = (inquiry.metadata as any) || {};
@@ -536,18 +540,27 @@ export function InquiryCard({
                 {format(new Date(inquiry.createdAt), "dd MMM yyyy")}
               </span>
             </div>
-            <div className="flex items-center gap-1 flex-shrink-0">
+            <div
+              className={cn(
+                "flex flex-shrink-0 items-center",
+                pwaComfortableTouch ? "gap-1.5" : "gap-1",
+              )}
+            >
               {showNotesButton && onNotes && (
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
                     onNotes(inquiry.id);
                   }}
-                  className={`flex items-center justify-center p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-[#2C2C2C] transition-colors ${
+                  className={cn(
+                    "flex items-center justify-center rounded-md transition-colors hover:bg-gray-100 dark:hover:bg-[#2C2C2C]",
+                    pwaComfortableTouch
+                      ? "min-h-11 min-w-11 touch-manipulation"
+                      : "p-1.5",
                     hasNotes
-                      ? "text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20"
-                      : "text-gray-500 dark:text-[#A1A1A1]"
-                  }`}
+                      ? "bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400"
+                      : "text-gray-500 dark:text-[#A1A1A1]",
+                  )}
                   title={hasNotes ? "Edit notes" : "Add notes"}
                 >
                   <span className="material-symbols-outlined text-base">
@@ -561,7 +574,12 @@ export function InquiryCard({
                     e.stopPropagation();
                     onAssign(inquiry.id);
                   }}
-                  className="flex items-center justify-center p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-[#2C2C2C] transition-colors text-gray-500 dark:text-[#A1A1A1]"
+                  className={cn(
+                    "flex items-center justify-center rounded-md text-gray-500 transition-colors hover:bg-gray-100 dark:text-[#A1A1A1] dark:hover:bg-[#2C2C2C]",
+                    pwaComfortableTouch
+                      ? "min-h-11 min-w-11 touch-manipulation"
+                      : "p-1.5",
+                  )}
                   title="Assign to myself"
                 >
                   <span className="material-symbols-outlined text-base">
@@ -575,7 +593,12 @@ export function InquiryCard({
                     e.stopPropagation();
                     onAssignTo(inquiry.id);
                   }}
-                  className="flex items-center justify-center p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-[#2C2C2C] transition-colors text-gray-500 dark:text-[#A1A1A1]"
+                  className={cn(
+                    "flex items-center justify-center rounded-md text-gray-500 transition-colors hover:bg-gray-100 dark:text-[#A1A1A1] dark:hover:bg-[#2C2C2C]",
+                    pwaComfortableTouch
+                      ? "min-h-11 min-w-11 touch-manipulation"
+                      : "p-1.5",
+                  )}
                   title="Assign to a team member"
                 >
                   <span className="material-symbols-outlined text-base">
@@ -589,7 +612,12 @@ export function InquiryCard({
                     e.stopPropagation();
                     onStartMerge(inquiry.id);
                   }}
-                  className="flex items-center justify-center p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-[#2C2C2C] transition-colors text-gray-500 dark:text-[#A1A1A1]"
+                  className={cn(
+                    "flex items-center justify-center rounded-md text-gray-500 transition-colors hover:bg-gray-100 dark:text-[#A1A1A1] dark:hover:bg-[#2C2C2C]",
+                    pwaComfortableTouch
+                      ? "min-h-11 min-w-11 touch-manipulation"
+                      : "p-1.5",
+                  )}
                   title="Merge into another lead"
                 >
                   <span className="material-symbols-outlined text-base">
@@ -607,7 +635,10 @@ export function InquiryCard({
                       e.stopPropagation();
                       onCancelMerge();
                     }}
-                    className="h-7 px-2 text-xs shrink-0"
+                    className={cn(
+                      "shrink-0 px-2 text-xs",
+                      pwaComfortableTouch ? "min-h-10 touch-manipulation" : "h-7",
+                    )}
                     title="Cancel merge"
                   >
                     Cancel
@@ -624,7 +655,10 @@ export function InquiryCard({
                       e.stopPropagation();
                       onMergeInto(inquiry.id);
                     }}
-                    className="h-7 px-2 text-xs shrink-0 gap-1"
+                    className={cn(
+                      "shrink-0 gap-1 px-2 text-xs",
+                      pwaComfortableTouch ? "min-h-10 touch-manipulation" : "h-7",
+                    )}
                     title="Merge selected lead into this one"
                   >
                     <span className="material-symbols-outlined text-sm">
@@ -643,7 +677,10 @@ export function InquiryCard({
                     onRelease(inquiry.id);
                   }}
                   onMouseDown={(e) => e.stopPropagation()}
-                  className="h-7 px-2 text-xs flex items-center gap-1 shrink-0"
+                  className={cn(
+                    "flex shrink-0 items-center gap-1 px-2 text-xs",
+                    pwaComfortableTouch ? "min-h-10 touch-manipulation" : "h-7",
+                  )}
                   title="Release to pool"
                 >
                   <span className="material-symbols-outlined text-sm">
@@ -660,7 +697,12 @@ export function InquiryCard({
                     onDelete(inquiry.id);
                   }}
                   onMouseDown={(e) => e.stopPropagation()}
-                  className="flex items-center justify-center p-1.5 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 transition-colors"
+                  className={cn(
+                    "flex items-center justify-center rounded-md text-red-600 transition-colors hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20",
+                    pwaComfortableTouch
+                      ? "min-h-11 min-w-11 touch-manipulation"
+                      : "p-1.5",
+                  )}
                   title="Delete inquiry"
                 >
                   <span className="material-symbols-outlined text-base">

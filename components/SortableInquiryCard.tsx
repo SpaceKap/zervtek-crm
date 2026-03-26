@@ -5,6 +5,7 @@ import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { InquiryCard } from "./InquiryCard";
 import { InquirySource, InquiryStatus } from "@prisma/client";
+import { useStandalonePwa } from "@/hooks/useStandalonePwa";
 
 interface Inquiry {
   id: string;
@@ -57,6 +58,7 @@ function SortableInquiryCardComponent({
   mergeHoldProgress = 0,
   onEnterMergeMode,
 }: SortableInquiryCardProps) {
+  const isPwaStandalone = useStandalonePwa();
   const {
     attributes,
     listeners,
@@ -120,6 +122,7 @@ function SortableInquiryCardComponent({
         isInFunnel={true}
         isMergeTarget={isMergeTarget}
         mergeHoldProgress={mergeHoldProgress}
+        pwaComfortableTouch={isPwaStandalone}
       />
       </div>
     </div>

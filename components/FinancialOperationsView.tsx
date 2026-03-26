@@ -45,6 +45,8 @@ import {
 } from "@/components/ui/select";
 import { ShippingStage, DocumentCategory } from "@prisma/client";
 import { format } from "date-fns";
+import { useStandalonePwa } from "@/hooks/useStandalonePwa";
+import { cn } from "@/lib/utils";
 
 interface FinancialOperationsViewProps {
   currentUser: {
@@ -157,6 +159,7 @@ function parseAmountSafe(value: unknown): number {
 export function FinancialOperationsView({
   currentUser,
 }: FinancialOperationsViewProps) {
+  const isPwaStandalone = useStandalonePwa();
   const searchParams = useSearchParams();
   const sectionParam = searchParams.get("section");
 
@@ -997,17 +1000,32 @@ export function FinancialOperationsView({
     currentUser.role === UserRole.ACCOUNTANT;
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between gap-4 flex-wrap">
-        <div className="flex items-center gap-3">
-          <span className="material-symbols-outlined text-4xl text-primary dark:text-[#D4AF37]">
+    <div className={cn("space-y-6", isPwaStandalone && "max-sm:space-y-4")}>
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex min-w-0 items-center gap-3">
+          <span
+            className={cn(
+              "material-symbols-outlined shrink-0 text-primary dark:text-[#D4AF37]",
+              isPwaStandalone ? "text-3xl sm:text-4xl" : "text-4xl",
+            )}
+          >
             account_balance_wallet
           </span>
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+          <div className="min-w-0">
+            <h1
+              className={cn(
+                "font-bold text-gray-900 dark:text-white",
+                isPwaStandalone ? "text-xl sm:text-3xl" : "text-3xl",
+              )}
+            >
               Financial Operations
             </h1>
-            <p className="text-muted-foreground">
+            <p
+              className={cn(
+                "text-muted-foreground",
+                isPwaStandalone && "text-sm sm:text-base",
+              )}
+            >
               Manage transactions, invoices, and vehicles in one place
             </p>
           </div>
@@ -1023,24 +1041,59 @@ export function FinancialOperationsView({
         }}
         className="w-full"
       >
-        <TabsList className="h-10 items-center justify-start rounded-md bg-muted p-1 text-muted-foreground flex flex-wrap gap-1 mb-6">
+        <TabsList
+          className={cn(
+            "mb-6 rounded-md bg-muted p-1 text-muted-foreground",
+            isPwaStandalone
+              ? "grid w-full grid-cols-2 gap-1"
+              : "flex h-10 flex-wrap items-center justify-start gap-1",
+          )}
+        >
           {canViewTransactions && (
-            <TabsTrigger value="transactions" className="flex-1 min-w-[120px]">
+            <TabsTrigger
+              value="transactions"
+              className={
+                isPwaStandalone
+                  ? "min-h-11 w-full touch-manipulation justify-center px-2 py-2 text-xs sm:min-h-10 sm:text-sm"
+                  : "min-w-[120px] flex-1"
+              }
+            >
               Transactions
             </TabsTrigger>
           )}
           {canViewInvoices && (
-            <TabsTrigger value="invoices" className="flex-1 min-w-[100px]">
+            <TabsTrigger
+              value="invoices"
+              className={
+                isPwaStandalone
+                  ? "min-h-11 w-full touch-manipulation justify-center px-2 py-2 text-xs sm:min-h-10 sm:text-sm"
+                  : "min-w-[100px] flex-1"
+              }
+            >
               Invoices
             </TabsTrigger>
           )}
           {canViewCustomers && (
-            <TabsTrigger value="customers" className="flex-1 min-w-[100px]">
+            <TabsTrigger
+              value="customers"
+              className={
+                isPwaStandalone
+                  ? "min-h-11 w-full touch-manipulation justify-center px-2 py-2 text-xs sm:min-h-10 sm:text-sm"
+                  : "min-w-[100px] flex-1"
+              }
+            >
               Customers
             </TabsTrigger>
           )}
           {canViewVehicles && (
-            <TabsTrigger value="vehicles" className="flex-1 min-w-[100px]">
+            <TabsTrigger
+              value="vehicles"
+              className={
+                isPwaStandalone
+                  ? "min-h-11 w-full touch-manipulation justify-center px-2 py-2 text-xs sm:min-h-10 sm:text-sm"
+                  : "min-w-[100px] flex-1"
+              }
+            >
               Vehicles
             </TabsTrigger>
           )}
@@ -3464,22 +3517,49 @@ export function FinancialOperationsView({
           <TabsContent value="vehicles" className="mt-6">
             <Card>
               <CardHeader className="pb-4">
-                <div className="flex items-center justify-between">
+                <div
+                  className={cn(
+                    "flex gap-3",
+                    isPwaStandalone
+                      ? "flex-col items-stretch sm:flex-row sm:items-center sm:justify-between"
+                      : "items-center justify-between",
+                  )}
+                >
                   <CardTitle>Vehicle Database</CardTitle>
                   <Link href="/dashboard/vehicles/new">
-                    <Button className="inline-flex items-center gap-2">
-                      <span className="material-symbols-outlined">add</span>
+                    <Button
+                      className={cn(
+                        "inline-flex items-center gap-2",
+                        isPwaStandalone &&
+                          "h-10 w-full justify-center sm:h-9 sm:w-auto",
+                      )}
+                    >
+                      <span className="material-symbols-outlined text-lg sm:text-base">
+                        add
+                      </span>
                       Add Vehicle
                     </Button>
                   </Link>
                 </div>
               </CardHeader>
               <CardContent className="pt-6">
-                <div className="flex gap-4 mb-6 flex-wrap items-end">
+                <div
+                  className={cn(
+                    "mb-6 gap-4",
+                    isPwaStandalone
+                      ? "flex flex-col items-stretch"
+                      : "flex flex-wrap items-end",
+                  )}
+                >
                   {(currentUser.role === UserRole.MANAGER ||
                     currentUser.role === UserRole.ADMIN ||
                     currentUser.role === UserRole.BACK_OFFICE_STAFF) && (
-                    <div className="flex gap-2">
+                    <div
+                      className={cn(
+                        "flex gap-2",
+                        isPwaStandalone && "w-full justify-stretch [&>button]:flex-1",
+                      )}
+                    >
                       <Button
                         variant={
                           vehicleFilterType === "all" ? "default" : "outline"
@@ -3504,7 +3584,12 @@ export function FinancialOperationsView({
                       </Button>
                     </div>
                   )}
-                  <div className="flex-1 min-w-[250px]">
+                  <div
+                    className={cn(
+                      !isPwaStandalone && "min-w-[250px] flex-1",
+                      isPwaStandalone && "w-full min-w-0",
+                    )}
+                  >
                     <Label
                       htmlFor="vehicle-search"
                       className="text-xs mb-1.5 block"
@@ -3521,7 +3606,12 @@ export function FinancialOperationsView({
                       className="w-full"
                     />
                   </div>
-                  <div className="min-w-[180px]">
+                  <div
+                    className={cn(
+                      !isPwaStandalone && "min-w-[180px]",
+                      isPwaStandalone && "w-full min-w-0",
+                    )}
+                  >
                     <Label
                       htmlFor="customer-filter"
                       className="text-xs mb-1.5 block"
@@ -3548,7 +3638,12 @@ export function FinancialOperationsView({
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="min-w-[180px]">
+                  <div
+                    className={cn(
+                      !isPwaStandalone && "min-w-[180px]",
+                      isPwaStandalone && "w-full min-w-0",
+                    )}
+                  >
                     <Label
                       htmlFor="stage-filter"
                       className="text-xs mb-1.5 block"
@@ -3569,44 +3664,68 @@ export function FinancialOperationsView({
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="min-w-[180px]">
-                    <Label htmlFor="sort-by" className="text-xs mb-1.5 block">
-                      Sort By
-                    </Label>
-                    <Select value={sortBy} onValueChange={setSortBy}>
-                      <SelectTrigger id="sort-by" className="w-full">
-                        <SelectValue placeholder="Sort by" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="purchaseDate">
-                          Purchase Date
-                        </SelectItem>
-                        <SelectItem value="eta">ETA</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="min-w-[140px]">
-                    <Label
-                      htmlFor="sort-order"
-                      className="text-xs mb-1.5 block"
+                  <div
+                    className={cn(
+                      "gap-3",
+                      isPwaStandalone ? "grid w-full grid-cols-2" : "contents",
+                    )}
+                  >
+                    <div
+                      className={cn(
+                        !isPwaStandalone && "min-w-[180px]",
+                        isPwaStandalone && "min-w-0",
+                      )}
                     >
-                      Order
-                    </Label>
-                    <Select
-                      value={sortOrder}
-                      onValueChange={(v) => setSortOrder(v as "asc" | "desc")}
+                      <Label htmlFor="sort-by" className="text-xs mb-1.5 block">
+                        Sort By
+                      </Label>
+                      <Select value={sortBy} onValueChange={setSortBy}>
+                        <SelectTrigger id="sort-by" className="w-full">
+                          <SelectValue placeholder="Sort by" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="purchaseDate">
+                            Purchase Date
+                          </SelectItem>
+                          <SelectItem value="eta">ETA</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div
+                      className={cn(
+                        !isPwaStandalone && "min-w-[140px]",
+                        isPwaStandalone && "min-w-0",
+                      )}
                     >
-                      <SelectTrigger id="sort-order" className="w-full">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="desc">Descending</SelectItem>
-                        <SelectItem value="asc">Ascending</SelectItem>
-                      </SelectContent>
-                    </Select>
+                      <Label
+                        htmlFor="sort-order"
+                        className="text-xs mb-1.5 block"
+                      >
+                        Order
+                      </Label>
+                      <Select
+                        value={sortOrder}
+                        onValueChange={(v) => setSortOrder(v as "asc" | "desc")}
+                      >
+                        <SelectTrigger id="sort-order" className="w-full">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="desc">Descending</SelectItem>
+                          <SelectItem value="asc">Ascending</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
-                  <Button onClick={fetchVehicles} className="h-10">
-                    <span className="material-symbols-outlined text-sm mr-2">
+                  <Button
+                    onClick={fetchVehicles}
+                    className={cn(
+                      "h-10",
+                      isPwaStandalone &&
+                        "min-h-11 w-full shrink-0 touch-manipulation sm:min-h-10 sm:w-auto",
+                    )}
+                  >
+                    <span className="material-symbols-outlined mr-2 text-sm">
                       search
                     </span>
                     Search

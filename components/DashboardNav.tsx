@@ -3,10 +3,13 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { signOut } from "next-auth/react";
 import { SignOutButton } from "./SignOutButton";
+import { useStandalonePwa } from "@/hooks/useStandalonePwa";
 import { ThemeToggle } from "./ThemeToggle";
 import { AssignmentNotificationCenter } from "./AssignmentNotificationCenter";
 import { Button } from "./ui/button";
+import { cn } from "@/lib/utils";
 
 interface DashboardNavProps {
   user: { name?: string | null; email?: string | null; role?: string };
@@ -36,6 +39,7 @@ const navItems = [
 export function DashboardNav({ user }: DashboardNavProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const pathname = usePathname();
+  const isPwaStandalone = useStandalonePwa();
 
   const filteredItems = navItems.filter((item) => {
     if (!item.roles) return true;
@@ -46,11 +50,13 @@ export function DashboardNav({ user }: DashboardNavProps) {
 
   const linkClass = (href: string) => {
     const isActive = pathname === href || (href !== "/dashboard" && pathname.startsWith(href));
-    return `flex items-center gap-3 px-4 py-3 text-base font-medium rounded-lg transition-colors ${
+    return cn(
+      "flex items-center gap-3 rounded-lg px-4 text-base font-medium transition-colors",
+      isPwaStandalone ? "min-h-12 py-3" : "py-3",
       isActive
         ? "bg-primary/10 text-primary"
-        : "text-gray-600 dark:text-[#A1A1A1] hover:bg-gray-100 dark:hover:bg-[#2C2C2C]"
-    }`;
+        : "text-gray-600 dark:text-[#A1A1A1] hover:bg-gray-100 dark:hover:bg-[#2C2C2C]",
+    );
   };
 
   return (
@@ -67,7 +73,7 @@ export function DashboardNav({ user }: DashboardNavProps) {
               </h1>
             </Link>
             {/* Desktop nav */}
-            <div className="hidden sm:ml-6 sm:flex sm:items-center sm:gap-1">
+            <div className="hidden sm:ml-6 sm:flex sm:items-center sm:gap-1 sm:flex-wrap">
               {filteredItems.map((item) => (
                 <Link
                   key={item.href}
@@ -82,6 +88,16 @@ export function DashboardNav({ user }: DashboardNavProps) {
                   {item.label}
                 </Link>
               ))}
+              {isPwaStandalone && (
+                <button
+                  type="button"
+                  onClick={() => signOut({ callbackUrl: "/login" })}
+                  className="inline-flex items-center gap-1 rounded-md px-2 py-2 text-xs font-medium text-gray-500 transition-colors hover:bg-gray-100 dark:text-[#A1A1A1] dark:hover:bg-[#2C2C2C] dark:hover:text-white"
+                >
+                  <span className="material-symbols-outlined text-base">logout</span>
+                  Sign out
+                </button>
+              )}
             </div>
           </div>
           <div className="flex items-center gap-2 sm:gap-3">
@@ -95,7 +111,7 @@ export function DashboardNav({ user }: DashboardNavProps) {
                 {user.name || user.email}
               </span>
             </div>
-            <SignOutButton />
+            {!isPwaStandalone && <SignOutButton />}
             {/* Mobile menu button */}
             <Button
               variant="ghost"
@@ -117,8 +133,14 @@ export function DashboardNav({ user }: DashboardNavProps) {
             className="fixed inset-0 z-50 bg-black/50 sm:hidden"
             onClick={() => setMobileMenuOpen(false)}
           />
-          <div className="fixed inset-y-0 right-0 z-50 w-full max-w-sm bg-white dark:bg-[#1E1E1E] shadow-xl sm:hidden flex flex-col">
-            <div className="flex items-center justify-between h-14 px-4 border-b border-gray-200 dark:border-[#2C2C2C]">
+          <div
+            className={cn(
+              "fixed inset-y-0 right-0 z-50 flex w-full max-w-sm flex-col bg-white shadow-xl dark:bg-[#1E1E1E] sm:hidden",
+              isPwaStandalone &&
+                "pb-[max(1rem,env(safe-area-inset-bottom,0px))] pl-[max(0px,env(safe-area-inset-left,0px))]",
+            )}
+          >
+            <div className="flex h-14 items-center justify-between border-b border-gray-200 px-4 dark:border-[#2C2C2C]">
               <span className="font-semibold">Menu</span>
               <Button
                 variant="ghost"
@@ -142,16 +164,22 @@ export function DashboardNav({ user }: DashboardNavProps) {
                 </Link>
               ))}
             </div>
-            <div className="p-4 border-t border-gray-200 dark:border-[#2C2C2C]">
-              <div className="flex items-center gap-3 mb-3">
+            <div className="border-t border-gray-200 p-4 dark:border-[#2C2C2C]">
+              <div className="mb-3 flex items-center gap-3">
                 <span className="material-symbols-outlined text-xl text-gray-500 dark:text-[#A1A1A1]">
                   account_circle
                 </span>
-                <span className="text-sm text-gray-700 dark:text-white truncate">
+                <span className="truncate text-sm text-gray-700 dark:text-white">
                   {user.name || user.email}
                 </span>
               </div>
-              <SignOutButton />
+              <SignOutButton
+                className={
+                  isPwaStandalone
+                    ? "h-11 w-full touch-manipulation justify-center"
+                    : undefined
+                }
+              />
             </div>
           </div>
         </>

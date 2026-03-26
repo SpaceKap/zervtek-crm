@@ -8,6 +8,7 @@ import {
   PWA_NUDGE_DISMISS_KEY,
   urlBase64ToUint8Array,
 } from "@/lib/pwa-client";
+import { useStandalonePwa } from "@/hooks/useStandalonePwa";
 
 const ELIGIBLE_ROLES: UserRole[] = [
   UserRole.SALES,
@@ -15,6 +16,23 @@ const ELIGIBLE_ROLES: UserRole[] = [
   UserRole.ADMIN,
   UserRole.BACK_OFFICE_STAFF,
 ];
+
+/** Associate the browser push subscription with the current session user (upsert). */
+async function savePushSubscriptionToServer(
+  sub: PushSubscription,
+): Promise<boolean> {
+  const json = sub.toJSON();
+  if (!json.endpoint || !json.keys?.p256dh || !json.keys?.auth) {
+    return false;
+  }
+  const res = await fetch("/api/push/subscribe", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify(json),
+  });
+  return res.ok;
+}
 
 type Phase =
   | "idle"
@@ -30,6 +48,7 @@ interface PwaClientExperienceProps {
 }
 
 export function PwaClientExperience({ userRole }: PwaClientExperienceProps) {
+  const isPwaStandalone = useStandalonePwa();
   const [phase, setPhase] = useState<Phase>("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [dismissed, setDismissed] = useState(false);
@@ -85,6 +104,16 @@ export function PwaClientExperience({ userRole }: PwaClientExperienceProps) {
     const reg = await navigator.serviceWorker.ready;
     const existing = await reg.pushManager.getSubscription();
     if (existing) {
+      try {
+        const ok = await savePushSubscriptionToServer(existing);
+        if (!ok) {
+          console.warn(
+            "[PWA] Could not sync push subscription to server (check login / VAPID).",
+          );
+        }
+      } catch (e) {
+        console.warn("[PWA] Push subscription sync failed", e);
+      }
       setPhase("idle");
       return;
     }
@@ -122,19 +151,9 @@ export function PwaClientExperience({ userRole }: PwaClientExperienceProps) {
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(publicKey) as BufferSource,
       });
-      const json = sub.toJSON();
-      if (!json.endpoint || !json.keys?.p256dh || !json.keys?.auth) {
-        throw new Error("Invalid subscription");
-      }
-      const save = await fetch("/api/push/subscribe", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify(json),
-      });
-      if (!save.ok) {
-        const err = await save.json().catch(() => ({}));
-        throw new Error((err as { error?: string }).error || "Save failed");
+      const ok = await savePushSubscriptionToServer(sub);
+      if (!ok) {
+        throw new Error("Could not save push subscription on server");
       }
       setPhase("idle");
       setSuccessToast(true);
@@ -249,7 +268,10 @@ export function PwaClientExperience({ userRole }: PwaClientExperienceProps) {
                 <Button
                   type="button"
                   size="sm"
-                  className="rounded-full bg-[#003049] px-5 text-white hover:bg-[#004060] dark:bg-[#D4AF37] dark:text-[#1a1a1a] dark:hover:bg-[#c4a032]"
+                  className={cn(
+                    "rounded-full bg-[#003049] px-5 text-white hover:bg-[#004060] dark:bg-[#D4AF37] dark:text-[#1a1a1a] dark:hover:bg-[#c4a032]",
+                    isPwaStandalone && "min-h-11 touch-manipulation",
+                  )}
                   disabled={phase === "subscribing"}
                   onClick={() => void subscribe()}
                 >
@@ -272,7 +294,10 @@ export function PwaClientExperience({ userRole }: PwaClientExperienceProps) {
                 <button
                   type="button"
                   onClick={dismiss}
-                  className="rounded-full px-3 py-2 text-sm font-medium text-gray-500 transition-colors hover:text-gray-800 dark:text-[#A1A1A1] dark:hover:text-white"
+                  className={cn(
+                    "rounded-full px-3 py-2 text-sm font-medium text-gray-500 transition-colors hover:text-gray-800 dark:text-[#A1A1A1] dark:hover:text-white",
+                    isPwaStandalone && "min-h-11 touch-manipulation",
+                  )}
                 >
                   Not now
                 </button>

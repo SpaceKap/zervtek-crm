@@ -2,6 +2,8 @@
 
 import { Button } from "@/components/ui/button";
 import { AddInquiryDialog } from "./AddInquiryDialog";
+import { useStandalonePwa } from "@/hooks/useStandalonePwa";
+import { cn } from "@/lib/utils";
 
 interface User {
   id: string;
@@ -38,21 +40,69 @@ export function DashboardControls({
   dialogOpen,
   onInquiryCreated,
 }: DashboardControlsProps) {
+  const isPwaStandalone = useStandalonePwa();
+  const selectClass = cn(
+    "flex rounded-md border border-input bg-background px-3 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-100",
+    isPwaStandalone
+      ? "min-h-11 w-full min-w-0 touch-manipulation py-2 text-base"
+      : "h-10 w-48 py-2 text-sm",
+  );
+
   return (
     <>
-      <div className="flex items-center gap-4 flex-wrap">
-        <Button
-          onClick={() => onDialogOpenChange(true)}
-          className="flex items-center gap-2"
+      <div
+        className={cn(
+          "flex gap-4",
+          isPwaStandalone
+            ? "w-full max-w-full flex-col items-stretch"
+            : "flex-wrap items-center",
+        )}
+      >
+        <div
+          className={cn(
+            "flex gap-2",
+            isPwaStandalone ? "items-center" : "contents",
+          )}
         >
-          <span className="material-symbols-outlined text-lg">add</span>
-          Add Inquiry
-        </Button>
+          <Button
+            onClick={() => onDialogOpenChange(true)}
+            size={isPwaStandalone ? "icon" : "default"}
+            aria-label="Add inquiry"
+            className={cn(
+              isPwaStandalone &&
+                "h-11 w-11 shrink-0 touch-manipulation rounded-full border border-primary/30",
+              !isPwaStandalone && "flex items-center gap-2",
+            )}
+          >
+            <span
+              className={cn(
+                "material-symbols-outlined",
+                isPwaStandalone ? "text-2xl" : "text-lg",
+              )}
+            >
+              add
+            </span>
+            {!isPwaStandalone && "Add Inquiry"}
+          </Button>
+          <Button
+            onClick={onRefresh}
+            variant="outline"
+            size={isPwaStandalone ? "icon" : "default"}
+            aria-label="Refresh inquiries"
+            className={cn(
+              isPwaStandalone && "h-11 w-11 shrink-0 touch-manipulation rounded-full",
+              !isPwaStandalone && "flex items-center gap-2",
+            )}
+          >
+            <span className="material-symbols-outlined text-xl">refresh</span>
+            {!isPwaStandalone && "Refresh"}
+          </Button>
+        </div>
         {isManager && users.length > 0 && (
           <select
             value={filterUserId}
             onChange={(e) => onFilterUserIdChange(e.target.value)}
-            className="flex h-10 w-48 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-100"
+            className={selectClass}
           >
             <option value="all">All Inquiries</option>
             <option value="me">My Inquiries</option>
@@ -66,7 +116,7 @@ export function DashboardControls({
         <select
           value={filterSource}
           onChange={(e) => onFilterSourceChange(e.target.value)}
-          className="flex h-10 w-48 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-100"
+          className={selectClass}
         >
           <option value="all">All Sources</option>
           <option value="WHATSAPP">WhatsApp</option>
@@ -81,7 +131,7 @@ export function DashboardControls({
         <select
           value={filterStatus}
           onChange={(e) => onFilterStatusChange(e.target.value)}
-          className="flex h-10 w-48 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-100"
+          className={selectClass}
         >
           <option value="all">All Statuses</option>
           <option value="NEW">New</option>
@@ -93,14 +143,6 @@ export function DashboardControls({
           <option value="CLOSED_LOST">Closed Lost</option>
           <option value="RECURRING">Recurring</option>
         </select>
-        <Button
-          onClick={onRefresh}
-          variant="outline"
-          className="flex items-center gap-2"
-        >
-          <span className="material-symbols-outlined text-lg">refresh</span>
-          Refresh
-        </Button>
       </div>
       <AddInquiryDialog
         open={dialogOpen}
