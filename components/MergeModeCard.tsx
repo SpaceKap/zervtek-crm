@@ -4,6 +4,7 @@ import { memo, useRef } from "react";
 import { useDraggable, useDroppable } from "@dnd-kit/core";
 import { InquiryCard } from "./InquiryCard";
 import { InquirySource, InquiryStatus } from "@prisma/client";
+import { useStandalonePwa } from "@/hooks/useStandalonePwa";
 
 interface Inquiry {
   id: string;
@@ -50,6 +51,7 @@ function MergeModeCardComponent({
   isManager = false,
   isAdmin = false,
 }: MergeModeCardProps) {
+  const isPwa = useStandalonePwa();
   const {
     attributes,
     listeners,
@@ -90,7 +92,7 @@ function MergeModeCardComponent({
           onCountryUpdated={onCountryUpdated}
           showReleaseButton={true}
           showNotesButton={true}
-          showCopyFieldIcons={true}
+          showCopyFieldIcons={!isPwa}
           showAssignToButton={true}
           showDeleteButton={true}
           currentUserId={currentUserId}

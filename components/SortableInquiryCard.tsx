@@ -5,6 +5,7 @@ import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { InquiryCard } from "./InquiryCard";
 import { InquirySource, InquiryStatus } from "@prisma/client";
+import { useStandalonePwa } from "@/hooks/useStandalonePwa";
 
 interface Inquiry {
   id: string;
@@ -57,6 +58,7 @@ function SortableInquiryCardComponent({
   mergeHoldProgress = 0,
   onEnterMergeMode,
 }: SortableInquiryCardProps) {
+  const isPwa = useStandalonePwa();
   const {
     attributes,
     listeners,
@@ -107,7 +109,7 @@ function SortableInquiryCardComponent({
         onCountryUpdated={onCountryUpdated}
         showReleaseButton={true}
         showNotesButton={true}
-        showCopyFieldIcons={true}
+        showCopyFieldIcons={!isPwa}
         showAssignToButton={true}
         showDeleteButton={true}
         currentUserId={currentUserId}

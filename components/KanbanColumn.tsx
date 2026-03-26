@@ -110,7 +110,7 @@ export const KanbanColumn = memo(function KanbanColumn({
       className={cn(
         "flex h-full flex-col rounded-lg bg-gray-50 transition-colors duration-200 dark:bg-[#1E1E1E] flex-shrink-0 border-2",
         isPwa
-          ? "min-w-[360px] max-w-[400px]"
+          ? "min-w-[calc(100vw-1rem)] max-w-[calc(100vw-1rem)] sm:min-w-[400px] sm:max-w-[400px]"
           : "min-w-[320px] max-w-[340px]",
         dropZoneClass || "border-gray-200 dark:border-[#2C2C2C]",
       )}
