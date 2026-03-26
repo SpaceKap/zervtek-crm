@@ -3,13 +3,8 @@
 import { useState, useEffect } from "react";
 import { useTheme } from "./ThemeProvider";
 import { Button } from "./ui/button";
-import { cn } from "@/lib/utils";
 
-interface ThemeToggleProps {
-  className?: string;
-}
-
-export function ThemeToggle({ className }: ThemeToggleProps = {}) {
+export function ThemeToggle() {
   const { theme, toggleTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
 
@@ -24,7 +19,7 @@ export function ThemeToggle({ className }: ThemeToggleProps = {}) {
       variant="ghost"
       size="sm"
       onClick={toggleTheme}
-      className={cn("h-9 w-9 p-0", className)}
+      className="w-9 h-9 p-0"
       aria-label="Toggle theme"
     >
       {!mounted ? (

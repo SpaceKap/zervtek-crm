@@ -1,14 +1,10 @@
-import { KanbanBoard } from "@/components/KanbanBoard";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { UserRole } from "@prisma/client";
-import { KanbanBoardFilter } from "@/components/KanbanBoardFilter";
-import { PipelineKanbanToolbar } from "@/components/PipelineKanbanToolbar";
-import { KanbanSearch } from "@/components/KanbanSearch";
 import { PipelineSearchProvider } from "@/components/PipelineSearchContext";
-import { Suspense } from "react";
+import { KanbanPipelinePage } from "@/components/KanbanPipelinePage";
 
 function firstQueryValue(
   v: string | string[] | undefined,
@@ -89,57 +85,13 @@ export default async function KanbanPage(props: {
     <PipelineSearchProvider
       initialQuery={firstQueryValue(searchParams.q) ?? ""}
     >
-      <div className="h-[calc(100dvh-7rem)] sm:h-[calc(100vh-8rem)] flex flex-col min-h-0">
-        {/* Header */}
-        <div className="mb-4 flex-shrink-0">
-        <div className="flex items-center justify-between gap-4 flex-wrap">
-          <div className="flex items-center gap-2 sm:gap-3">
-            <span className="material-symbols-outlined text-3xl sm:text-4xl text-primary dark:text-[#D4AF37]">
-              view_kanban
-            </span>
-            <div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
-                Pipeline
-              </h1>
-              <p className="text-muted-foreground mt-1">
-                Drag and drop inquiries between stages to update their status
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-3 flex-shrink-0 flex-wrap">
-            <Suspense fallback={<div className="w-[280px] h-10" />}>
-              <KanbanSearch />
-            </Suspense>
-            {isManager && (
-              <Suspense fallback={<div className="w-48 h-10" />}>
-                <KanbanBoardFilter
-                  currentUserId={session.user.id}
-                  users={users}
-                />
-              </Suspense>
-            )}
-            <Suspense fallback={<div className="flex gap-2 h-10 w-[200px]" />}>
-              <PipelineKanbanToolbar />
-            </Suspense>
-            <button className="p-1.5 text-gray-700 dark:text-white hover:bg-gray-100 dark:hover:bg-[#2C2C2C] rounded transition-colors">
-              <span className="material-symbols-outlined text-lg">
-                more_vert
-              </span>
-            </button>
-          </div>
-        </div>
-        </div>
-        {/* Kanban Board - Full Width */}
-        <div className="flex-1 bg-gray-50 dark:bg-[#121212] rounded-lg p-4 overflow-hidden">
-          <KanbanBoard
-            isManager={isManager}
-            isAdmin={isAdmin}
-            users={users}
-            currentUserId={session.user.id}
-            currentUserEmail={session.user.email || ""}
-          />
-        </div>
-      </div>
+      <KanbanPipelinePage
+        isManager={isManager}
+        isAdmin={isAdmin}
+        users={users}
+        currentUserId={session.user.id}
+        currentUserEmail={session.user.email || ""}
+      />
     </PipelineSearchProvider>
   );
 }

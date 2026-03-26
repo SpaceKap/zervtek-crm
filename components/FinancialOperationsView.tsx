@@ -1054,7 +1054,7 @@ export function FinancialOperationsView({
               value="transactions"
               className={
                 isPwaStandalone
-                  ? "min-h-11 w-full touch-manipulation justify-center px-2 py-2 text-xs sm:min-h-10 sm:text-sm"
+                  ? "w-full justify-center px-2 py-2.5 text-xs sm:text-sm"
                   : "min-w-[120px] flex-1"
               }
             >
@@ -1066,7 +1066,7 @@ export function FinancialOperationsView({
               value="invoices"
               className={
                 isPwaStandalone
-                  ? "min-h-11 w-full touch-manipulation justify-center px-2 py-2 text-xs sm:min-h-10 sm:text-sm"
+                  ? "w-full justify-center px-2 py-2.5 text-xs sm:text-sm"
                   : "min-w-[100px] flex-1"
               }
             >
@@ -1078,7 +1078,7 @@ export function FinancialOperationsView({
               value="customers"
               className={
                 isPwaStandalone
-                  ? "min-h-11 w-full touch-manipulation justify-center px-2 py-2 text-xs sm:min-h-10 sm:text-sm"
+                  ? "w-full justify-center px-2 py-2.5 text-xs sm:text-sm"
                   : "min-w-[100px] flex-1"
               }
             >
@@ -1090,7 +1090,7 @@ export function FinancialOperationsView({
               value="vehicles"
               className={
                 isPwaStandalone
-                  ? "min-h-11 w-full touch-manipulation justify-center px-2 py-2 text-xs sm:min-h-10 sm:text-sm"
+                  ? "w-full justify-center px-2 py-2.5 text-xs sm:text-sm"
                   : "min-w-[100px] flex-1"
               }
             >
@@ -3721,8 +3721,7 @@ export function FinancialOperationsView({
                     onClick={fetchVehicles}
                     className={cn(
                       "h-10",
-                      isPwaStandalone &&
-                        "min-h-11 w-full shrink-0 touch-manipulation sm:min-h-10 sm:w-auto",
+                      isPwaStandalone && "w-full shrink-0 sm:w-auto",
                     )}
                   >
                     <span className="material-symbols-outlined mr-2 text-sm">

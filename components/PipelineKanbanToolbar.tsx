@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
+import { useStandalonePwa } from "@/hooks/useStandalonePwa";
 import { usePipelineViewPreferences } from "@/components/PipelineSearchContext";
 import {
   ALL_INQUIRY_SOURCES_SORTED,
@@ -36,6 +37,7 @@ function sourceCheckboxLabel(source: InquirySource): string {
 
 export function PipelineKanbanToolbar() {
   const view = usePipelineViewPreferences();
+  const isPwa = useStandalonePwa();
   const [filterOpen, setFilterOpen] = useState(false);
   const [groupOpen, setGroupOpen] = useState(false);
   const [sortOpen, setSortOpen] = useState(false);
@@ -60,6 +62,10 @@ export function PipelineKanbanToolbar() {
   const groupSummary =
     GROUP_OPTIONS.find((o) => o.value === prefs.groupMode)?.label ?? "Group";
 
+  const triggerBase = isPwa
+    ? "flex h-10 w-10 shrink-0 items-center justify-center rounded-lg transition-colors"
+    : "flex items-center gap-2 rounded px-3 py-1.5 text-sm transition-colors";
+
   return (
     <>
       <Popover open={filterOpen} onOpenChange={setFilterOpen}>
@@ -67,14 +73,15 @@ export function PipelineKanbanToolbar() {
           <button
             type="button"
             className={cn(
-              "flex items-center gap-2 px-3 py-1.5 text-sm rounded transition-colors",
+              triggerBase,
               prefs.hideEmpty || prefs.sourcesAllowlist != null
-                ? "text-primary dark:text-[#D4AF37] bg-primary/10 dark:bg-primary/15"
-                : "text-gray-700 dark:text-white hover:bg-gray-100 dark:hover:bg-[#2C2C2C]",
+                ? "bg-primary/10 text-primary dark:bg-[#D4AF37] dark:bg-primary/15"
+                : "text-gray-700 hover:bg-gray-100 dark:text-white dark:hover:bg-[#2C2C2C]",
             )}
+            aria-label="Filter pipeline by source and empty columns"
           >
             <span className="material-symbols-outlined text-lg">tune</span>
-            <span>Filter</span>
+            {!isPwa && <span>Filter</span>}
           </button>
         </PopoverTrigger>
         <PopoverContent className="w-80 max-h-[min(70vh,420px)] overflow-y-auto" align="end">
@@ -125,15 +132,20 @@ export function PipelineKanbanToolbar() {
           <button
             type="button"
             className={cn(
-              "flex items-center gap-2 px-3 py-1.5 text-sm rounded transition-colors",
+              triggerBase,
               prefs.groupMode !== "none"
-                ? "text-primary dark:text-[#D4AF37] bg-primary/10 dark:bg-primary/15"
-                : "text-gray-700 dark:text-white hover:bg-gray-100 dark:hover:bg-[#2C2C2C]",
+                ? "bg-primary/10 text-primary dark:bg-[#D4AF37] dark:bg-primary/15"
+                : "text-gray-700 hover:bg-gray-100 dark:text-white dark:hover:bg-[#2C2C2C]",
             )}
+            aria-label={`Group pipeline cards (${groupSummary})`}
           >
             <span className="material-symbols-outlined text-lg">view_module</span>
-            <span className="hidden sm:inline">Group by</span>
-            <span className="sm:hidden">Group</span>
+            {!isPwa && (
+              <>
+                <span className="hidden sm:inline">Group by</span>
+                <span className="sm:hidden">Group</span>
+              </>
+            )}
           </button>
         </PopoverTrigger>
         <PopoverContent className="w-56 p-2" align="end">
@@ -164,14 +176,15 @@ export function PipelineKanbanToolbar() {
           <button
             type="button"
             className={cn(
-              "flex items-center gap-2 px-3 py-1.5 text-sm rounded transition-colors",
+              triggerBase,
               prefs.sortMode !== "newest"
-                ? "text-primary dark:text-[#D4AF37] bg-primary/10 dark:bg-primary/15"
-                : "text-gray-700 dark:text-white hover:bg-gray-100 dark:hover:bg-[#2C2C2C]",
+                ? "bg-primary/10 text-primary dark:bg-[#D4AF37] dark:bg-primary/15"
+                : "text-gray-700 hover:bg-gray-100 dark:text-white dark:hover:bg-[#2C2C2C]",
             )}
+            aria-label={`Sort pipeline (${sortSummary})`}
           >
             <span className="material-symbols-outlined text-lg">sort</span>
-            <span>Sort</span>
+            {!isPwa && <span>Sort</span>}
           </button>
         </PopoverTrigger>
         <PopoverContent className="w-56 p-2" align="end">

@@ -59,7 +59,7 @@ export async function sendAssignmentPushNotification(
         data,
         {
           TTL: 86_400,
-          // Helps timely delivery on constrained networks (Web Push / FCM / APNs).
+          // Helps timely delivery on Android (FCM); safe for Apple endpoints too.
           urgency: "high",
         },
       );

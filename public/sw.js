@@ -9,35 +9,26 @@ self.addEventListener("activate", (event) => {
   event.waitUntil(self.clients.claim());
 });
 
-function absoluteAssetPath(path) {
-  return new URL(path, self.location.origin).href;
-}
-
 self.addEventListener("push", (event) => {
-  const iconUrl = absoluteAssetPath("/icons/icon-192.png");
-  event.waitUntil(
-    (async () => {
-      let data = { title: "CRM", body: "", url: "/dashboard", inquiryId: "" };
-      try {
-        if (event.data) {
-          const text = await event.data.text();
-          if (text) Object.assign(data, JSON.parse(text));
-        }
-      } catch (_) {
-        /* keep defaults */
-      }
-      const title = data.title || "CRM";
-      const options = {
-        body: data.body || "",
-        icon: iconUrl,
-        badge: iconUrl,
-        data: { url: data.url || "/dashboard" },
-        tag: data.inquiryId ? `inquiry-${data.inquiryId}` : "crm-push",
-        renotify: true,
-      };
-      await self.registration.showNotification(title, options);
-    })(),
-  );
+  let data = { title: "CRM", body: "", url: "/dashboard", inquiryId: "" };
+  try {
+    if (event.data) {
+      const parsed = event.data.json();
+      data = { ...data, ...parsed };
+    }
+  } catch (_) {
+    // ignore
+  }
+  const title = data.title || "CRM";
+  const options = {
+    body: data.body || "",
+    icon: "/icons/icon-192.png",
+    badge: "/icons/icon-192.png",
+    data: { url: data.url || "/dashboard" },
+    tag: data.inquiryId ? `inquiry-${data.inquiryId}` : "crm-push",
+    renotify: true,
+  };
+  event.waitUntil(self.registration.showNotification(title, options));
 });
 
 self.addEventListener("notificationclick", (event) => {
@@ -46,23 +37,32 @@ self.addEventListener("notificationclick", (event) => {
   const path = typeof raw === "string" ? raw : "/dashboard";
   const url = new URL(path, self.location.origin).href;
   event.waitUntil(
-    (async () => {
-      const list = await self.clients.matchAll({
-        type: "window",
-        includeUncontrolled: true,
-      });
-      for (const client of list) {
-        if (!client.url.startsWith(self.location.origin)) continue;
-        if ("navigate" in client && typeof client.navigate === "function") {
+    self.clients
+      .matchAll({ type: "window", includeUncontrolled: true })
+      .then((windowClients) => {
+        for (const client of windowClients) {
           try {
-            await client.navigate(url);
-            return client.focus();
-          } catch (_) {
-            /* Safari / older engines: fall through to openWindow */
+            if (new URL(client.url).origin !== self.location.origin) {
+              continue;
+            }
+          } catch {
+            continue;
+          }
+          if ("focus" in client) {
+            return client.focus().then(() => {
+              if (
+                "navigate" in client &&
+                typeof client.navigate === "function"
+              ) {
+                return client.navigate(url).catch(() => undefined);
+              }
+            });
           }
         }
-      }
-      return self.clients.openWindow(url).catch(() => undefined);
-    })(),
+        if (self.clients.openWindow) {
+          return self.clients.openWindow(url).catch(() => undefined);
+        }
+      })
+      .catch(() => undefined),
   );
 });

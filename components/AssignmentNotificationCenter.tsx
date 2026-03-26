@@ -21,13 +21,7 @@ const NOTIFICATIONS_ICON_STYLE = {
   fontVariationSettings: "'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24",
 } as const;
 
-interface AssignmentNotificationCenterProps {
-  triggerClassName?: string;
-}
-
-export function AssignmentNotificationCenter({
-  triggerClassName,
-}: AssignmentNotificationCenterProps = {}) {
+export function AssignmentNotificationCenter() {
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<"all" | "unread">("all");
   const [items, setItems] = useState<AssignmentNotificationItem[]>([]);
@@ -87,10 +81,7 @@ export function AssignmentNotificationCenter({
           type="button"
           variant="ghost"
           size="icon"
-          className={cn(
-            "relative h-10 w-10 shrink-0 rounded-lg",
-            triggerClassName,
-          )}
+          className="relative h-10 w-10 shrink-0 rounded-lg"
           aria-label={
             hasUnseenNotifications ? "Notifications (new)" : "Notifications"
           }

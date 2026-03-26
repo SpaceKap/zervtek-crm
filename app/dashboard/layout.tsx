@@ -1,9 +1,7 @@
 import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { DashboardNav } from "@/components/DashboardNav";
-import { InquiryNotificationPoller } from "@/components/InquiryNotificationPoller";
-import { PwaClientExperience } from "@/components/PwaClientExperience";
+import { DashboardChrome } from "@/components/DashboardChrome";
 
 export default async function DashboardLayout({
   children,
@@ -17,13 +15,6 @@ export default async function DashboardLayout({
   }
 
   return (
-    <div className="dashboard-app min-h-screen bg-gray-50 dark:bg-[#121212]">
-      <DashboardNav user={session.user} />
-      <InquiryNotificationPoller user={session.user} />
-      <PwaClientExperience userRole={session.user.role} />
-      <main className="dashboard-main w-full px-4 py-4 sm:px-6 sm:py-6 bg-gray-50 dark:bg-[#121212]">
-        {children}
-      </main>
-    </div>
+    <DashboardChrome user={session.user}>{children}</DashboardChrome>
   );
 }

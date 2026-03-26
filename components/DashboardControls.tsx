@@ -42,10 +42,8 @@ export function DashboardControls({
 }: DashboardControlsProps) {
   const isPwaStandalone = useStandalonePwa();
   const selectClass = cn(
-    "flex rounded-md border border-input bg-background px-3 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-100",
-    isPwaStandalone
-      ? "min-h-11 w-full min-w-0 touch-manipulation py-2 text-base"
-      : "h-10 w-48 py-2 text-sm",
+    "flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-100",
+    isPwaStandalone ? "w-full min-w-0" : "w-48",
   );
 
   return (
@@ -70,7 +68,7 @@ export function DashboardControls({
             aria-label="Add inquiry"
             className={cn(
               isPwaStandalone &&
-                "h-11 w-11 shrink-0 touch-manipulation rounded-full border border-primary/30",
+                "h-11 w-11 shrink-0 rounded-full border border-primary/30",
               !isPwaStandalone && "flex items-center gap-2",
             )}
           >
@@ -90,7 +88,7 @@ export function DashboardControls({
             size={isPwaStandalone ? "icon" : "default"}
             aria-label="Refresh inquiries"
             className={cn(
-              isPwaStandalone && "h-11 w-11 shrink-0 touch-manipulation rounded-full",
+              isPwaStandalone && "h-11 w-11 shrink-0 rounded-full",
               !isPwaStandalone && "flex items-center gap-2",
             )}
           >

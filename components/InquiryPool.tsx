@@ -9,7 +9,6 @@ import { AddInquiryDialog } from "./AddInquiryDialog";
 import { NotesDialog } from "./NotesDialog";
 import { ReleaseConfirmationDialog } from "./ReleaseConfirmationDialog";
 import { AssignToDialog } from "./AssignToDialog";
-import { useStandalonePwa } from "@/hooks/useStandalonePwa";
 
 interface Inquiry {
   id: string;
@@ -71,7 +70,6 @@ export function InquiryPool({
   onFilterSourceChange,
   onFilterStatusChange,
 }: InquiryPoolProps) {
-  const isPwaStandalone = useStandalonePwa();
   const router = useRouter();
   const [inquiries, setInquiries] = useState<Inquiry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -519,7 +517,6 @@ export function InquiryPool({
               onStartMerge={handleStartMerge}
               onMergeInto={handleMergeInto}
               onCancelMerge={handleCancelMerge}
-              pwaComfortableTouch={isPwaStandalone}
             />
           ))}
         </div>
