@@ -54,17 +54,17 @@ COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules/@prisma ./node_modules/@prisma
 
-# Copy package.json and install Prisma CLI + tsx for migrations and scripts.
-# Standalone already contains packages/db (traced workspace) but often without prisma/schema.
-# npm still treats those dirs as workspaces if package.json has "workspaces" and can run
-# prepare (prisma generate) even with --ignore-scripts on some npm versions — strip workspaces
-# for this install only; scripts like db:push do not need the workspaces key at runtime.
+# Full app package.json (needed for npm run db:push, etc.). Do not run npm install here:
+# without workspaces npm resolves "@inquiry-pooler/db":"*" from the registry (404).
+# Install prisma CLI + tsx in an isolated tree and merge into standalone node_modules.
 USER root
 RUN apk add --no-cache openssl
 COPY --from=builder --chown=root:root /app/package.json ./package.json
-RUN node -e "const fs=require('fs');const p=JSON.parse(fs.readFileSync('package.json','utf8'));delete p.workspaces;fs.writeFileSync('package.json',JSON.stringify(p,null,2));"
-RUN mkdir -p ./node_modules && npm install --no-save --ignore-scripts --prefix . prisma@5.22.0 tsx
-RUN chown -R nextjs:nodejs ./node_modules
+RUN mkdir -p /tmp/cli /app/node_modules && \
+    printf '%s\n' '{"name":"runner-cli","private":true,"dependencies":{"prisma":"5.22.0","tsx":"4.21.0"}}' > /tmp/cli/package.json && \
+    cd /tmp/cli && npm install --ignore-scripts && \
+    cp -r node_modules/. /app/node_modules/
+RUN chown -R nextjs:nodejs /app/node_modules
 USER nextjs
 
 # Copy scripts and lib so one-off scripts (e.g. change-role) can run in container
