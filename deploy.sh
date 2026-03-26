@@ -55,7 +55,7 @@ echo -e "${YELLOW}🗄️  Running database schema migrations...${NC}"
 # Use npm run which should work if package.json and prisma are installed
 $DOCKER_COMPOSE exec -T inquiry-pooler sh -c "cd /app && npm run db:push -- --skip-generate --accept-data-loss" || {
     echo -e "${YELLOW}⚠️  Migration failed, trying direct prisma command...${NC}"
-    $DOCKER_COMPOSE exec -T inquiry-pooler sh -c "cd /app && ./node_modules/.bin/prisma db push --schema=packages/db/prisma/schema.prisma --skip-generate --accept-data-loss"
+    $DOCKER_COMPOSE exec -T inquiry-pooler sh -c "cd /app && ./node_modules/.bin/prisma db push --skip-generate --accept-data-loss || node_modules/prisma/build/index.js db push --skip-generate --accept-data-loss"
 }
 
 # Check if containers are running

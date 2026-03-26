@@ -3,11 +3,10 @@
 
 # Stage 1: Dependencies
 FROM node:20-alpine AS deps
-RUN apk add --no-cache libc6-compat openssl
+RUN apk add --no-cache libc6-compat
 WORKDIR /app
 COPY package.json package-lock.json* ./
 COPY packages/db/package.json packages/db/
-COPY packages/db/prisma ./packages/db/prisma
 COPY apps/customer-portal/package.json apps/customer-portal/
 RUN npm ci
 

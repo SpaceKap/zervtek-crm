@@ -211,8 +211,6 @@ model User {
   depositPaymentLinksCreated DepositPaymentLink[]
   stockListingsCreated       StockListing[]
 
-  userNotifications UserNotification[]
-
   accounts Account[]
   sessions Session[]
 
@@ -280,7 +278,6 @@ model Inquiry {
   assignedTo User?            @relation("AssignedTo", fields: [assignedToId], references: [id], onDelete: SetNull)
   history    InquiryHistory[]
   vehicles   Vehicle[]
-  userNotifications UserNotification[]
 
   @@index([assignedToId])
   @@index([status])
@@ -320,26 +317,6 @@ model InquiryHistory {
   @@index([inquiryId])
   @@index([userId])
   @@index([createdAt])
-  @@schema("inquiry_pooler")
-}
-
-model UserNotification {
-  id          String    @id @default(cuid())
-  userId      String
-  type        String
-  title       String
-  body        String    @db.Text
-  link        String?
-  inquiryId   String?
-  actorUserId String?
-  readAt      DateTime?
-  createdAt   DateTime  @default(now())
-
-  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  inquiry Inquiry? @relation(fields: [inquiryId], references: [id], onDelete: Cascade)
-
-  @@index([userId, createdAt])
-  @@index([userId, readAt])
   @@schema("inquiry_pooler")
 }
 

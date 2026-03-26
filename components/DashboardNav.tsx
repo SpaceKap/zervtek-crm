@@ -5,16 +5,11 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { SignOutButton } from "./SignOutButton";
 import { ThemeToggle } from "./ThemeToggle";
-import { NotificationCenter } from "./NotificationCenter";
+import { AssignmentNotificationCenter } from "./AssignmentNotificationCenter";
 import { Button } from "./ui/button";
 
 interface DashboardNavProps {
-  user: {
-    id?: string | null;
-    name?: string | null;
-    email?: string | null;
-    role?: string;
-  };
+  user: { name?: string | null; email?: string | null; role?: string };
 }
 
 const navItems = [
@@ -46,6 +41,8 @@ export function DashboardNav({ user }: DashboardNavProps) {
     if (!item.roles) return true;
     return item.roles.includes(user.role || "");
   });
+
+  const showAssignmentNotifications = user.role !== "ACCOUNTANT";
 
   const linkClass = (href: string) => {
     const isActive = pathname === href || (href !== "/dashboard" && pathname.startsWith(href));
@@ -88,7 +85,7 @@ export function DashboardNav({ user }: DashboardNavProps) {
             </div>
           </div>
           <div className="flex items-center gap-2 sm:gap-3">
-            <NotificationCenter user={user} />
+            {showAssignmentNotifications && <AssignmentNotificationCenter />}
             <ThemeToggle />
             <div className="hidden sm:flex sm:items-center sm:gap-2">
               <span className="material-symbols-outlined text-lg text-gray-500 dark:text-[#A1A1A1]">

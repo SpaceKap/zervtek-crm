@@ -2,15 +2,11 @@
 
 # Stage 1: Dependencies
 FROM node:20-alpine AS deps
-# OpenSSL needed so Prisma can resolve linux-musl engine during generate (prepare / postinstall)
-RUN apk add --no-cache libc6-compat openssl
+RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
-# Workspaces require member package.json paths; @inquiry-pooler/db prepare runs prisma generate
+# Copy package files
 COPY package.json package-lock.json* ./
-COPY packages/db/package.json packages/db/
-COPY packages/db/prisma ./packages/db/prisma
-COPY apps/customer-portal/package.json apps/customer-portal/
 RUN npm ci
 
 # Stage 2: Builder
@@ -54,17 +50,12 @@ COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules/@prisma ./node_modules/@prisma
 
-# Full app package.json (needed for npm run db:push, etc.). Do not run npm install here:
-# without workspaces npm resolves "@inquiry-pooler/db":"*" from the registry (404).
-# Install prisma CLI + tsx in an isolated tree and merge into standalone node_modules.
+# Copy package.json and install Prisma CLI + tsx for migrations and scripts
 USER root
 RUN apk add --no-cache openssl
 COPY --from=builder --chown=root:root /app/package.json ./package.json
-RUN mkdir -p /tmp/cli /app/node_modules && \
-    printf '%s\n' '{"name":"runner-cli","private":true,"dependencies":{"prisma":"5.22.0","tsx":"4.21.0"}}' > /tmp/cli/package.json && \
-    cd /tmp/cli && npm install --ignore-scripts && \
-    cp -r node_modules/. /app/node_modules/
-RUN chown -R nextjs:nodejs /app/node_modules
+RUN mkdir -p ./node_modules && npm install --no-save --prefix . prisma@5.19.0 tsx
+RUN chown -R nextjs:nodejs ./node_modules
 USER nextjs
 
 # Copy scripts and lib so one-off scripts (e.g. change-role) can run in container
