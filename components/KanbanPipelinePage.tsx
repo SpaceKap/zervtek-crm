@@ -51,14 +51,9 @@ export function KanbanPipelinePage({
                 <span className="material-symbols-outlined shrink-0 text-3xl text-primary dark:text-[#D4AF37] sm:text-4xl">
                   view_kanban
                 </span>
-                <div className="min-w-0">
-                  <h1 className="text-xl font-bold text-gray-900 dark:text-white sm:text-3xl">
-                    Pipeline
-                  </h1>
-                  <p className="mt-0.5 hidden text-sm text-muted-foreground sm:block">
-                    Drag and drop inquiries between stages to update their status
-                  </p>
-                </div>
+                <h1 className="min-w-0 text-xl font-bold text-gray-900 dark:text-white sm:text-3xl">
+                  Pipeline
+                </h1>
               </div>
               <div className="scrollbar-modern-horizontal -mx-1 overflow-x-auto overflow-y-hidden px-1 pb-1">
                 <div className="flex w-max min-w-full items-center gap-2 pr-3">
@@ -83,14 +78,9 @@ export function KanbanPipelinePage({
                   <span className="material-symbols-outlined text-3xl text-primary dark:text-[#D4AF37] sm:text-4xl">
                     view_kanban
                   </span>
-                  <div>
-                    <h1 className="text-2xl font-bold text-gray-900 dark:text-white sm:text-3xl">
-                      Pipeline
-                    </h1>
-                    <p className="mt-1 text-muted-foreground">
-                      Drag and drop inquiries between stages to update their status
-                    </p>
-                  </div>
+                  <h1 className="text-2xl font-bold text-gray-900 dark:text-white sm:text-3xl">
+                    Pipeline
+                  </h1>
                 </div>
                 <div className="flex flex-shrink-0 flex-wrap items-center gap-3">
                   <Suspense fallback={<div className="h-10 w-[280px]" />}>

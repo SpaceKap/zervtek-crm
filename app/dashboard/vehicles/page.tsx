@@ -90,12 +90,9 @@ export default function VehiclesPage() {
             directions_car
           </span>
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white sm:text-3xl">
               Vehicle Database
             </h1>
-            <p className="text-muted-foreground">
-              Track all vehicles and their shipping stages
-            </p>
           </div>
         </div>
         <Link

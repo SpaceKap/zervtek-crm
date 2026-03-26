@@ -18,9 +18,6 @@ export default async function CustomersPage() {
         <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
           Customers
         </h1>
-        <p className="text-muted-foreground">
-          Manage customer information for invoices
-        </p>
       </div>
 
       <CustomersList />

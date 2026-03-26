@@ -236,9 +236,6 @@ export default async function StatsPage({
               <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
                 Analytics Dashboard
               </h1>
-              <p className="text-muted-foreground mt-0.5">
-                Comprehensive performance metrics and insights
-              </p>
             </div>
           </div>
         </div>
@@ -393,9 +390,6 @@ export default async function StatsPage({
                 <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
                   Team Performance
                 </h2>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Individual metrics for each team member
-                </p>
               </div>
             </div>
 

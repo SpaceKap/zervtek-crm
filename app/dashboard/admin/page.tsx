@@ -34,9 +34,6 @@ export default async function AdminPage() {
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
             Admin Settings
           </h1>
-          <p className="text-muted-foreground mt-0.5">
-            Manage system settings and configurations
-          </p>
         </div>
       </div>
 

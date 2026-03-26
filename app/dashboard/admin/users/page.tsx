@@ -26,9 +26,6 @@ export default async function AdminUsersPage() {
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
             User Management
           </h1>
-          <p className="text-muted-foreground mt-0.5">
-            Manage user roles and permissions for your team
-          </p>
         </div>
       </div>
       <UserManagement />

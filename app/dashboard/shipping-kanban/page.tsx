@@ -57,9 +57,6 @@ export default async function ShippingKanbanPage() {
               <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
                 Shipping Pipeline
               </h1>
-              <p className="text-muted-foreground mt-1">
-                View vehicle pipeline by stage — click cards for details
-              </p>
             </div>
           </div>
           <div className="flex items-center gap-2">

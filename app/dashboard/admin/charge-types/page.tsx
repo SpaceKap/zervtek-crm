@@ -24,9 +24,6 @@ export default async function ChargeTypesPage() {
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
             Charge Types
           </h1>
-          <p className="text-muted-foreground mt-0.5">
-            Manage charge types for customer invoices
-          </p>
         </div>
       </div>
 

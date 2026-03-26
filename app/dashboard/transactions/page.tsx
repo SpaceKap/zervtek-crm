@@ -98,12 +98,9 @@ export default function TransactionsPage() {
             account_balance
           </span>
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white sm:text-3xl">
               Transactions
             </h1>
-            <p className="text-muted-foreground">
-              Track all incoming and outgoing payments
-            </p>
           </div>
         </div>
         <button

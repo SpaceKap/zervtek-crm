@@ -15,9 +15,6 @@ export default async function DepositLinkPage() {
         <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
           Request deposit
         </h1>
-        <p className="text-muted-foreground mt-1">
-          Create a PayPal deposit link for a customer. The link expires in 3 days. No login required for the customer.
-        </p>
       </div>
       <DepositLinkForm />
     </div>

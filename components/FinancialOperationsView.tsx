@@ -1020,14 +1020,6 @@ export function FinancialOperationsView({
             >
               Financial Operations
             </h1>
-            <p
-              className={cn(
-                "text-muted-foreground",
-                isPwaStandalone && "text-sm sm:text-base",
-              )}
-            >
-              Manage transactions, invoices, and vehicles in one place
-            </p>
           </div>
         </div>
       </div>

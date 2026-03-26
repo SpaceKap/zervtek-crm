@@ -63,12 +63,9 @@ export default function StockListingsPage() {
             directions_car
           </span>
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white sm:text-3xl">
               Stock cars
             </h1>
-            <p className="text-muted-foreground">
-              Listings for www.zervtek.com/stock-cars
-            </p>
           </div>
         </div>
         <Link

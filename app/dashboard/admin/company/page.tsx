@@ -24,9 +24,6 @@ export default async function CompanyInfoPage() {
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
             Company Information
           </h1>
-          <p className="text-muted-foreground mt-0.5">
-            Manage your company details for invoices
-          </p>
         </div>
       </div>
 

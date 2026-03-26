@@ -20,9 +20,6 @@ export default async function AdminCustomersPage() {
         <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
           Customer Database
         </h1>
-        <p className="text-muted-foreground">
-          View and manage all customer information
-        </p>
       </div>
 
       <AdminCustomersList />

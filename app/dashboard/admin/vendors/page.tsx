@@ -24,9 +24,6 @@ export default async function VendorsPage() {
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
             Vendors
           </h1>
-          <p className="text-muted-foreground mt-0.5">
-            Manage vendors for cost invoices
-          </p>
         </div>
       </div>
 

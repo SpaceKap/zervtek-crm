@@ -1,11 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { InquiryPool } from "./InquiryPool";
 import { DashboardControls } from "./DashboardControls";
-import { useStandalonePwa } from "@/hooks/useStandalonePwa";
-import { cn } from "@/lib/utils";
-
 interface User {
   id: string;
   name: string | null;
@@ -36,51 +33,23 @@ export function DashboardPageClient({
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
-  const isPwaStandalone = useStandalonePwa();
 
   const handleInquiryCreated = () => {
     setRefreshKey((prev) => prev + 1);
   };
 
   return (
-    <div className={cn("space-y-6", isPwaStandalone && "max-sm:space-y-4")}>
-      <div
-        className={cn(
-          "flex gap-4",
-          isPwaStandalone
-            ? "flex-col items-stretch sm:flex-row sm:items-start sm:justify-between"
-            : "flex-wrap items-center justify-between",
-        )}
-      >
-        <div className="flex min-w-0 items-center gap-3">
-          <span
-            className={cn(
-              "material-symbols-outlined shrink-0 text-primary dark:text-[#D4AF37]",
-              isPwaStandalone ? "text-3xl sm:text-4xl" : "text-4xl",
-            )}
-          >
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+          <span className="material-symbols-outlined shrink-0 text-3xl text-primary dark:text-[#D4AF37] sm:text-4xl">
             inbox
           </span>
-          <div className="min-w-0">
-            <h1
-              className={cn(
-                "font-bold text-gray-900 dark:text-white",
-                isPwaStandalone ? "text-2xl sm:text-3xl" : "text-3xl",
-              )}
-            >
-              Dashboard
-            </h1>
-            <p
-              className={cn(
-                "text-muted-foreground",
-                isPwaStandalone && "text-sm sm:text-base",
-              )}
-            >
-              Pick inquiries from the pool to start working on them
-            </p>
-          </div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white sm:text-3xl">
+            Dashboard
+          </h1>
         </div>
-        <div className={cn(isPwaStandalone ? "w-full min-w-0 sm:w-auto" : "flex-shrink-0")}>
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
           <DashboardControls
             isManager={isManager}
             users={users}

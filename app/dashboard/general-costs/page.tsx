@@ -175,9 +175,6 @@ export default function GeneralCostsPage() {
             <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
               Recurring expenses
             </h1>
-            <p className="text-muted-foreground">
-              Manage recurring expenses. They show up in Financial Operations → Transactions → Expenses when due.
-            </p>
           </div>
         </div>
         <div className="flex gap-2">

@@ -11,12 +11,9 @@ export default function AccountantDashboardPage() {
           calculate
         </span>
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white sm:text-3xl">
             Accountant Dashboard
           </h1>
-          <p className="text-muted-foreground">
-            Vehicle database and transaction management
-          </p>
         </div>
       </div>
 

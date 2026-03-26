@@ -26,9 +26,6 @@ export default async function SharedInvoicesPage() {
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
             Shared Invoices
           </h1>
-          <p className="text-muted-foreground">
-            Manage forwarder and container invoices
-          </p>
         </div>
         <div id="new-shared-invoice-btn-wrapper"></div>
       </div>

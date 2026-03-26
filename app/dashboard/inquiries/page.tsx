@@ -39,14 +39,13 @@ export default async function InquiriesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-3">
-        <span className="material-symbols-outlined text-4xl text-primary dark:text-[#D4AF37]">inbox</span>
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Inquiry Pool</h1>
-          <p className="text-muted-foreground">
-            Pick inquiries from the pool to start working on them
-          </p>
-        </div>
+      <div className="flex items-center gap-2 sm:gap-3">
+        <span className="material-symbols-outlined text-3xl text-primary dark:text-[#D4AF37] sm:text-4xl">
+          inbox
+        </span>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white sm:text-3xl">
+          Inquiry Pool
+        </h1>
       </div>
       <InquiryPool
         isManager={isManager}
