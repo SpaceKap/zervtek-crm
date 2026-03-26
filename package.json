@@ -34,7 +34,8 @@
     "recalc-invoice-payment-status": "tsx scripts/recalc-invoice-payment-status.ts",
     "sample-invoice-pdf": "tsx scripts/generate-sample-invoice-pdf.ts",
     "sync-vehicle-purchase-date": "tsx scripts/sync-vehicle-purchase-date-from-invoice.ts",
-    "seed-stock-listings": "tsx scripts/seed-stock-listings.ts"
+    "seed-stock-listings": "tsx scripts/seed-stock-listings.ts",
+    "generate-pwa-icons": "node scripts/generate-pwa-icons.mjs"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.6.0",
@@ -65,12 +66,14 @@
     "server-only": "^0.0.1",
     "sharp": "^0.34.5",
     "tailwind-merge": "^2.5.0",
+    "web-push": "^3.6.7",
     "zod": "^3.23.0"
   },
   "devDependencies": {
     "@types/node": "^20.14.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
+    "@types/web-push": "^3.6.4",
     "autoprefixer": "^10.4.20",
     "eslint": "^8.57.0",
     "eslint-config-next": "^15.0.0",

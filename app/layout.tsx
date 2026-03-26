@@ -20,16 +20,27 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: dark)", color: "#121212" },
+  ],
 };
 
 export const metadata: Metadata = {
   title: "CRM",
   description: "CRM system for managing customer inquiries",
+  applicationName: "Zervtek CRM",
+  appleWebApp: {
+    capable: true,
+    title: "CRM",
+    statusBarStyle: "default",
+  },
   icons: {
     icon: [
       { url: "/favicon-light.svg", media: "(prefers-color-scheme: light)" },
       { url: "/favicon-dark.svg", media: "(prefers-color-scheme: dark)" },
     ],
+    apple: [{ url: "/icons/icon-192.png", sizes: "192x192" }],
   },
 };
 

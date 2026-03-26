@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma"
 import { UserRole } from "@prisma/client"
 import { canAssignInquiry } from "@/lib/permissions"
 import { invalidateCachePattern } from "@/lib/cache"
+import { sendAssignmentPushNotification } from "@/lib/push-notify"
 
 export async function POST(
   request: NextRequest,
@@ -132,6 +133,17 @@ export async function POST(
 
     await invalidateCachePattern("inquiries:list:")
     await invalidateCachePattern("kanban:")
+
+    const displayName =
+      updatedInquiry.customerName?.trim() ||
+      updatedInquiry.email?.trim() ||
+      "New lead"
+    void sendAssignmentPushNotification(targetAssigneeId, {
+      inquiryId: id,
+      title: "Lead assigned to you",
+      body: `${displayName} — tap to open`,
+      url: `/dashboard/inquiries/${id}`,
+    })
 
     return NextResponse.json(updatedInquiry)
   } catch (error) {

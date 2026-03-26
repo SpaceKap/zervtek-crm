@@ -213,8 +213,24 @@ model User {
 
   accounts Account[]
   sessions Session[]
+  pushSubscriptions PushSubscription[]
 
   @@index([role])
+  @@schema("inquiry_pooler")
+}
+
+/// Web Push subscription for PWA background notifications (one row per device/browser).
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  endpoint  String   @unique @db.Text
+  p256dh    String   @db.Text
+  auth      String   @db.Text
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
   @@schema("inquiry_pooler")
 }
 
