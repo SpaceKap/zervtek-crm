@@ -108,10 +108,11 @@ export const KanbanColumn = memo(function KanbanColumn({
   return (
     <div
       className={cn(
-        "box-border flex h-full snap-start flex-col rounded-lg bg-gray-50 transition-colors duration-200 dark:bg-[#1E1E1E] flex-shrink-0 border-2",
+        "box-border flex h-full flex-col rounded-lg bg-gray-50 transition-colors duration-200 dark:bg-[#1E1E1E] flex-shrink-0 border-2",
+        isPwa ? "snap-center" : "snap-start",
         isPwa
-          ? // Inset from viewport edges; never wider than ~400px or the screen (whichever is smaller)
-            "min-w-[min(400px,calc(100dvw_-_2.5rem))] max-w-[min(400px,calc(100dvw_-_2.5rem))]"
+          ? // Match lane/page horizontal padding so left and right gutters feel symmetric on mobile
+            "min-w-[min(400px,calc(100dvw_-_1.5rem))] max-w-[min(400px,calc(100dvw_-_1.5rem))]"
           : "min-w-[320px] max-w-[340px]",
         dropZoneClass || "border-gray-200 dark:border-[#2C2C2C]",
       )}

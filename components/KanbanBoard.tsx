@@ -790,7 +790,7 @@ function KanbanBoardInner({
           className={cn(
             "flex h-full min-h-0 gap-4 overflow-x-auto overflow-y-hidden scrollbar-modern-horizontal",
             isPwaStandalone
-              ? "snap-x snap-mandatory pb-4 px-1 [scroll-padding-left:0.25rem] [scroll-padding-right:0.25rem] [touch-action:pan-x]"
+              ? "snap-x snap-mandatory pb-4 px-1 [touch-action:pan-x]"
               : "pb-2",
           )}
         >
@@ -825,8 +825,8 @@ function KanbanBoardInner({
               />
             ))}
           </SortableContext>
-          {/* Trash in-flow only for non-PWA; PWA gets floating drop-zone to keep lane margins symmetric */}
-          {!isPwaStandalone && <TrashDropZone compact={false} />}
+          {/* Trash - drag inquiries here to move to failed leads */}
+          <TrashDropZone compact={isPwaStandalone} />
           {!isPwaStandalone && (
             <div className="min-w-[360px] flex items-center justify-center flex-shrink-0">
               <button className="w-full h-12 border-2 border-dashed border-gray-300 dark:border-[#2C2C2C] rounded-lg hover:border-gray-400 dark:hover:border-[#49454F] hover:bg-gray-50 dark:hover:bg-[#1E1E1E] transition-colors flex items-center justify-center gap-2 text-gray-500 dark:text-[#A1A1A1]">
@@ -836,13 +836,6 @@ function KanbanBoardInner({
             </div>
           )}
         </div>
-        {isPwaStandalone && (
-          <div className="pointer-events-none absolute bottom-2 right-1 z-20">
-            <div className="pointer-events-auto">
-              <TrashDropZone compact />
-            </div>
-          </div>
-        )}
       </div>
       <DragOverlay>
         {activeId ? (
