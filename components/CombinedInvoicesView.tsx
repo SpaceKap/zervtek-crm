@@ -40,9 +40,13 @@ export function CombinedInvoicesView({
           }
           className="w-full"
         >
-          <TabsList className="grid w-full max-w-md grid-cols-2 mb-6">
-            <TabsTrigger value="invoices">Customer Invoices</TabsTrigger>
-            <TabsTrigger value="shared">Shared Invoices</TabsTrigger>
+          <TabsList className="mb-6 grid h-10 w-full grid-cols-2 p-1">
+            <TabsTrigger value="invoices" className="text-center">
+              Customer Invoices
+            </TabsTrigger>
+            <TabsTrigger value="shared" className="text-center">
+              Shared Invoices
+            </TabsTrigger>
           </TabsList>
           <TabsContent value="invoices" className="mt-0">
             <InvoicesList />

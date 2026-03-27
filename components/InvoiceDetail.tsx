@@ -503,89 +503,76 @@ export function InvoiceDetail({
               </div>
             </div>
 
-            {/* Right: Action Buttons */}
+            {/* Right: actions — icon toolbar + workflow */}
             <div
               className={cn(
-                "flex gap-2",
-                isPwa
-                  ? "w-full flex-col items-stretch"
-                  : "shrink-0 items-center",
+                "flex min-w-0 flex-col gap-3",
+                isPwa ? "w-full" : "shrink-0 items-end",
               )}
             >
-              {/* Primary Actions */}
+              {/* Edit, share, PDF, delete — one row, icons only */}
               <div
                 className={cn(
-                  "flex items-center gap-2",
-                  isPwa && "w-full flex-wrap",
+                  "flex flex-wrap items-center justify-end gap-1.5",
+                  isPwa && "w-full justify-start sm:justify-end",
                 )}
               >
                 {canEdit && (
                   <Button
+                    type="button"
                     onClick={() =>
                       router.push(`/dashboard/invoices/${invoice.id}?edit=true`)
                     }
                     variant="outline"
-                    className={cn(
-                      isPwa ? "flex w-full" : "hidden sm:flex",
-                    )}
+                    size="icon"
+                    className="shrink-0"
+                    aria-label="Edit invoice"
+                    title="Edit invoice"
                   >
-                    <span className="material-symbols-outlined text-lg mr-2">
+                    <span className="material-symbols-outlined text-xl">
                       edit
                     </span>
-                    Edit Invoice
                   </Button>
                 )}
-                {/* Submit for Approval - Visible to Staff and Managers when Draft */}
-                {canSubmitForApproval(currentUser.role) &&
-                  invoice.status === "DRAFT" &&
-                  !invoice.isLocked && (
-                    <Button
-                      onClick={handleSubmitForApproval}
-                      disabled={loading}
-                      className={cn(
-                        "bg-amber-600 hover:bg-amber-700 text-white",
-                        isPwa && "w-full",
-                      )}
-                    >
-                      <span className="material-symbols-outlined text-lg mr-2">
-                        send
-                      </span>
-                      Submit for Approval
-                    </Button>
-                  )}
                 {(invoice.status === "APPROVED" ||
                   invoice.status === "FINALIZED") && (
                   <>
                     <Button
+                      type="button"
                       onClick={() => setShowShareDialog(true)}
                       variant="outline"
-                      className={cn(
-                        isPwa ? "flex" : "hidden sm:flex",
-                      )}
-                      title="Share Invoice Link"
+                      size="icon"
+                      className="shrink-0"
+                      title="Share invoice link"
+                      aria-label="Share invoice link"
                     >
-                      <span className="material-symbols-outlined text-lg mr-2">
+                      <span className="material-symbols-outlined text-xl">
                         share
                       </span>
-                      Share Link
                     </Button>
                     <Button
+                      type="button"
                       onClick={handlePreviewPDF}
                       variant="outline"
                       size="icon"
-                      className={cn(isPwa ? "flex" : "hidden sm:flex")}
+                      className="shrink-0"
+                      title="Preview PDF"
+                      aria-label="Preview PDF"
                     >
-                      <span className="material-symbols-outlined">
+                      <span className="material-symbols-outlined text-xl">
                         picture_as_pdf
                       </span>
                     </Button>
                     <Button
+                      type="button"
                       onClick={handleDownloadPDF}
                       variant="outline"
                       size="icon"
-                      className={cn(isPwa ? "flex" : "hidden sm:flex")}
+                      className="shrink-0"
+                      title="Download PDF"
+                      aria-label="Download PDF"
                     >
-                      <span className="material-symbols-outlined">
+                      <span className="material-symbols-outlined text-xl">
                         download
                       </span>
                     </Button>
@@ -594,33 +581,68 @@ export function InvoiceDetail({
                 {invoice.status !== "APPROVED" &&
                   invoice.status !== "FINALIZED" && (
                     <Button
+                      type="button"
                       onClick={handlePreviewPDF}
                       variant="outline"
                       disabled
                       size="icon"
-                      className={cn(isPwa ? "flex" : "hidden sm:flex")}
-                      title="Requires Approval"
+                      className="shrink-0"
+                      title="Requires approval"
+                      aria-label="PDF preview requires approval"
                     >
-                      <span className="material-symbols-outlined">
+                      <span className="material-symbols-outlined text-xl">
                         picture_as_pdf
                       </span>
                     </Button>
                   )}
+                {canDelete && (
+                  <Button
+                    type="button"
+                    onClick={handleDelete}
+                    variant="destructive"
+                    disabled={loading}
+                    size="icon"
+                    className="shrink-0"
+                    aria-label="Delete invoice"
+                    title="Delete invoice"
+                  >
+                    <span className="material-symbols-outlined text-xl">
+                      delete
+                    </span>
+                  </Button>
+                )}
               </div>
 
-              {/* Workflow Actions - Admin Only */}
+              {/* Submit for Approval */}
+              {canSubmitForApproval(currentUser.role) &&
+                invoice.status === "DRAFT" &&
+                !invoice.isLocked && (
+                  <Button
+                    onClick={handleSubmitForApproval}
+                    disabled={loading}
+                    className={cn(
+                      "bg-amber-600 hover:bg-amber-700 text-white",
+                      isPwa && "w-full",
+                    )}
+                  >
+                    <span className="material-symbols-outlined mr-2 text-lg">
+                      send
+                    </span>
+                    Submit for Approval
+                  </Button>
+                )}
+
+              {/* Workflow — Admin */}
               {(canApprove || canFinalize) && (
                 <>
                   <Separator
-                    orientation={isPwa ? "horizontal" : "vertical"}
-                    className={cn(
-                      isPwa ? "w-full" : "h-6 hidden sm:block",
-                    )}
+                    orientation={isPwa ? "horizontal" : "horizontal"}
+                    className={cn(isPwa ? "w-full" : "w-full max-w-md")}
                   />
                   <div
                     className={cn(
-                      "flex items-center gap-2",
-                      isPwa && "w-full flex-wrap",
+                      "flex flex-wrap items-center gap-2",
+                      isPwa && "w-full",
                     )}
                   >
                     {canApprove && invoice.status === "PENDING_APPROVAL" && (
@@ -633,48 +655,27 @@ export function InvoiceDetail({
                         )}
                         size="lg"
                       >
-                        <span className="material-symbols-outlined text-lg mr-2">
+                        <span className="material-symbols-outlined mr-2 text-lg">
                           check_circle
                         </span>
                         Approve Invoice
                       </Button>
                     )}
                     {canFinalize && invoice.status === "APPROVED" && (
-                      <div
+                      <Button
+                        onClick={handleFinalize}
+                        disabled={loading}
                         className={cn(
-                          "flex items-stretch gap-2",
-                          isPwa ? "w-full" : "contents",
+                          "bg-blue-600 hover:bg-blue-700 text-white",
+                          isPwa && "w-full",
                         )}
+                        size="lg"
                       >
-                        <Button
-                          onClick={handleFinalize}
-                          disabled={loading}
-                          className={cn(
-                            "bg-blue-600 hover:bg-blue-700 text-white",
-                            isPwa && "min-w-0 flex-1",
-                          )}
-                          size="lg"
-                        >
-                          <span className="material-symbols-outlined text-lg mr-2">
-                            lock
-                          </span>
-                          Finalize Invoice
-                        </Button>
-                        {canDelete && isPwa && (
-                          <Button
-                            onClick={handleDelete}
-                            variant="destructive"
-                            disabled={loading}
-                            size="icon"
-                            className="h-auto min-h-[44px] min-w-[44px] shrink-0"
-                            aria-label="Delete invoice"
-                          >
-                            <span className="material-symbols-outlined">
-                              delete
-                            </span>
-                          </Button>
-                        )}
-                      </div>
+                        <span className="material-symbols-outlined mr-2 text-lg">
+                          lock
+                        </span>
+                        Finalize Invoice
+                      </Button>
                     )}
                     {canFinalize && invoice.isLocked && (
                       <Button
@@ -683,28 +684,10 @@ export function InvoiceDetail({
                         disabled={loading}
                         className={cn(isPwa && "w-full")}
                       >
-                        <span className="material-symbols-outlined text-lg mr-2">
+                        <span className="material-symbols-outlined mr-2 text-lg">
                           lock_open
                         </span>
                         Unlock
-                      </Button>
-                    )}
-                    {canDelete &&
-                      !(
-                        canFinalize &&
-                        invoice.status === "APPROVED" &&
-                        isPwa
-                      ) && (
-                      <Button
-                        onClick={handleDelete}
-                        variant="destructive"
-                        disabled={loading}
-                        size="icon"
-                        className={cn(isPwa && "shrink-0")}
-                      >
-                        <span className="material-symbols-outlined">
-                          delete
-                        </span>
                       </Button>
                     )}
                   </div>

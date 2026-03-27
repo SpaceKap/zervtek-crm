@@ -3495,13 +3495,33 @@ export function FinancialOperationsView({
         {canViewInvoices && (
           <TabsContent value="invoices" className={cn(isPwaStandalone ? "mt-3" : "mt-6")}>
             <Card>
-              <CardHeader className="pb-4">
-                <div className="flex items-center justify-between flex-wrap gap-3">
-                  <CardTitle>Invoices</CardTitle>
-                  <div className="flex gap-2">
-                    <Link href="/dashboard/invoices/new">
-                      <Button className="inline-flex items-center gap-2">
-                        <span className="material-symbols-outlined">add</span>
+              <CardHeader
+                className={cn(
+                  "space-y-4 pb-4",
+                  isPwaStandalone && "space-y-3",
+                )}
+              >
+                <div
+                  className={cn(
+                    "flex w-full flex-col gap-3",
+                    "sm:flex-row sm:items-center sm:justify-between sm:gap-4",
+                  )}
+                >
+                  <CardTitle className="text-left">Invoices</CardTitle>
+                  <div
+                    className={cn(
+                      "flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:justify-end",
+                    )}
+                  >
+                    <Link href="/dashboard/invoices/new" className="w-full sm:w-auto">
+                      <Button
+                        className={cn(
+                          "inline-flex w-full items-center justify-center gap-2 sm:w-auto",
+                        )}
+                      >
+                        <span className="material-symbols-outlined shrink-0 text-lg">
+                          add
+                        </span>
                         New Invoice
                       </Button>
                     </Link>
@@ -3511,9 +3531,11 @@ export function FinancialOperationsView({
                         onClick={() =>
                           sharedInvoicesListRef.current?.openNewForm()
                         }
-                        className="inline-flex items-center gap-2"
+                        className={cn(
+                          "inline-flex w-full items-center justify-center gap-2 sm:w-auto",
+                        )}
                       >
-                        <span className="material-symbols-outlined">
+                        <span className="material-symbols-outlined shrink-0 text-lg">
                           receipt_long
                         </span>
                         New Shared Invoice
@@ -3527,19 +3549,22 @@ export function FinancialOperationsView({
                   onValueChange={(v) =>
                     setInvoiceTab(v as "customer" | "shared")
                   }
-                  className="mt-4"
+                  className="w-full"
                 >
                   <TabsList
                     className={cn(
-                      "grid w-full max-w-md grid-cols-2",
-                      isPwaStandalone && "h-10 max-w-full",
+                      "grid h-10 w-full gap-0 p-1",
+                      canViewSharedInvoices ? "grid-cols-2" : "grid-cols-1",
+                      isPwaStandalone && "h-11",
                     )}
                   >
-                    <TabsTrigger value="customer">
+                    <TabsTrigger value="customer" className="text-center">
                       Customer Invoices
                     </TabsTrigger>
                     {canViewSharedInvoices && (
-                      <TabsTrigger value="shared">Shared Invoices</TabsTrigger>
+                      <TabsTrigger value="shared" className="text-center">
+                        Shared Invoices
+                      </TabsTrigger>
                     )}
                   </TabsList>
                   <TabsContent value="customer" className="mt-4">
