@@ -108,7 +108,7 @@ export const KanbanColumn = memo(function KanbanColumn({
   return (
     <div
       className={cn(
-        "box-border flex h-full flex-col rounded-lg bg-gray-50 transition-colors duration-200 dark:bg-[#1E1E1E] flex-shrink-0 border-2",
+        "box-border flex h-full snap-start flex-col rounded-lg bg-gray-50 transition-colors duration-200 dark:bg-[#1E1E1E] flex-shrink-0 border-2",
         isPwa
           ? // Inset from viewport edges; never wider than ~400px or the screen (whichever is smaller)
             "min-w-[min(400px,calc(100dvw_-_2.25rem))] max-w-[min(400px,calc(100dvw_-_2.25rem))]"
@@ -120,7 +120,7 @@ export const KanbanColumn = memo(function KanbanColumn({
       <div
         className={cn(
           "flex flex-shrink-0 items-center justify-between border-b border-gray-200 bg-white dark:border-[#2C2C2C] dark:bg-[#1E1E1E] rounded-t-lg",
-          isPwa ? "p-3" : "p-4",
+          isPwa ? "sticky top-0 z-[2] p-3" : "p-4",
         )}
       >
         <div className="flex items-center gap-2">
@@ -138,18 +138,25 @@ export const KanbanColumn = memo(function KanbanColumn({
               e.stopPropagation();
               onCreateInquiry && onCreateInquiry(status);
             }}
-            className="p-1 hover:bg-gray-100 dark:hover:bg-[#2C2C2C] rounded transition-colors"
+            className={cn(
+              "rounded transition-colors hover:bg-gray-100 dark:hover:bg-[#2C2C2C]",
+              isPwa
+                ? "flex h-9 w-9 items-center justify-center"
+                : "p-1",
+            )}
             title="Add inquiry"
           >
             <span className="material-symbols-outlined text-lg text-gray-500 dark:text-[#A1A1A1]">
               add
             </span>
           </button>
-          <button className="p-1 hover:bg-gray-100 dark:hover:bg-[#2C2C2C] rounded transition-colors">
-            <span className="material-symbols-outlined text-lg text-gray-500 dark:text-[#A1A1A1]">
-              more_vert
-            </span>
-          </button>
+          {!isPwa ? (
+            <button className="p-1 hover:bg-gray-100 dark:hover:bg-[#2C2C2C] rounded transition-colors">
+              <span className="material-symbols-outlined text-lg text-gray-500 dark:text-[#A1A1A1]">
+                more_vert
+              </span>
+            </button>
+          ) : null}
         </div>
       </div>
 
@@ -158,7 +165,7 @@ export const KanbanColumn = memo(function KanbanColumn({
         ref={setNodeRef}
         className={cn(
           "flex min-h-[180px] flex-1 flex-col overflow-x-hidden overflow-y-auto overscroll-contain transition-colors duration-200 scrollbar-modern-vertical",
-          isPwa ? "p-3" : "p-2 pb-3",
+          isPwa ? "p-3 [touch-action:pan-y]" : "p-2 pb-3",
         )}
       >
         <div className={cn("min-h-0 flex-1", isPwa ? "space-y-3" : "space-y-2")}>

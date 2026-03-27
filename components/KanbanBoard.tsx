@@ -286,12 +286,12 @@ function KanbanBoardInner({
     useSensor(PointerSensor, {
       activationConstraint: {
         // PWA (esp. iOS): larger distance so horizontal scroll is less likely to start a drag.
-        distance: isPwaStandalone ? 24 : 5,
+        distance: isPwaStandalone ? 30 : 5,
       },
     }),
     useSensor(TouchSensor, {
       activationConstraint: isPwaStandalone
-        ? { delay: 280, tolerance: 12 }
+        ? { delay: 320, tolerance: 14 }
         : { delay: 3_600_000, tolerance: 0 },
     }),
   );
@@ -789,7 +789,9 @@ function KanbanBoardInner({
         <div
           className={cn(
             "flex h-full min-h-0 gap-4 overflow-x-auto overflow-y-hidden scrollbar-modern-horizontal",
-            isPwaStandalone ? "pb-4 px-1" : "pb-2",
+            isPwaStandalone
+              ? "snap-x snap-mandatory pb-4 px-1 [touch-action:pan-x]"
+              : "pb-2",
           )}
         >
           <SortableContext
