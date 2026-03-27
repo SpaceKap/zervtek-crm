@@ -21,6 +21,8 @@ import {
   TableHeader,
   TableRow,
 } from "./ui/table";
+import { useStandalonePwa } from "@/hooks/useStandalonePwa";
+import { cn } from "@/lib/utils";
 
 interface Customer {
   id: string;
@@ -42,6 +44,7 @@ interface Customer {
 }
 
 export function AdminCustomersList() {
+  const isPwa = useStandalonePwa();
   const { data: session } = useSession();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
@@ -169,29 +172,39 @@ export function AdminCustomersList() {
   return (
     <>
       <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
+        <CardHeader className={cn(isPwa && "space-y-3 pb-3")}>
+          <div
+            className={cn(
+              "flex gap-3",
+              isPwa
+                ? "flex-col items-stretch"
+                : "items-center justify-between",
+            )}
+          >
+            <div className="min-w-0">
               <CardTitle>All Customers</CardTitle>
               <CardDescription>
                 Complete customer database with all information
               </CardDescription>
             </div>
-            <Button onClick={handleCreate}>
-              <span className="material-symbols-outlined text-lg mr-2">
+            <Button
+              onClick={handleCreate}
+              className={cn(isPwa && "w-full shrink-0 sm:w-auto")}
+            >
+              <span className="material-symbols-outlined mr-2 text-lg">
                 add
               </span>
-              Create a new customer
+              {isPwa ? "New customer" : "Create a new customer"}
             </Button>
           </div>
         </CardHeader>
-        <CardContent>
-          <div className="mb-6">
+        <CardContent className={cn(isPwa && "px-3 sm:px-6")}>
+          <div className={cn("mb-6", isPwa && "mb-4")}>
             <Input
               placeholder="Search customers by name, email, phone, or country..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="max-w-md"
+              className={cn(!isPwa && "max-w-md", isPwa && "w-full")}
             />
           </div>
 
@@ -199,8 +212,113 @@ export function AdminCustomersList() {
             <div className="text-center py-8 text-muted-foreground">
               No customers found
             </div>
+          ) : isPwa ? (
+            <div className="space-y-3">
+              {customers.map((customer) => (
+                <div
+                  key={customer.id}
+                  className="rounded-lg border bg-card p-4 shadow-sm"
+                >
+                  <div className="mb-3 flex flex-col gap-1 border-b border-border pb-3">
+                    <Link
+                      href={`/dashboard/customers/${customer.id}`}
+                      className="text-lg font-semibold text-primary dark:text-[#D4AF37]"
+                    >
+                      {customer.name}
+                    </Link>
+                    <div className="text-sm text-muted-foreground">
+                      {customer.email || customer.phone || "—"}
+                    </div>
+                    {customer.country && (
+                      <div className="text-xs text-muted-foreground">
+                        {customer.country}
+                      </div>
+                    )}
+                  </div>
+                  <dl className="space-y-2 text-sm">
+                    <div>
+                      <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                        Billing
+                      </dt>
+                      <dd className="break-words text-muted-foreground">
+                        {formatAddress(customer.billingAddress)}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                        Shipping
+                      </dt>
+                      <dd className="break-words text-muted-foreground">
+                        {formatAddress(customer.shippingAddress)}
+                      </dd>
+                    </div>
+                    {customer.portOfDestination && (
+                      <div>
+                        <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                          Port
+                        </dt>
+                        <dd>{customer.portOfDestination}</dd>
+                      </div>
+                    )}
+                    {customer.notes && (
+                      <div>
+                        <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                          Notes
+                        </dt>
+                        <dd className="line-clamp-3 text-muted-foreground">
+                          {customer.notes}
+                        </dd>
+                      </div>
+                    )}
+                    <div className="text-xs text-muted-foreground">
+                      Created {formatDate(customer.createdAt)}
+                    </div>
+                  </dl>
+                  <div className="mt-4 grid grid-cols-2 gap-2 border-t pt-3">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="min-h-[40px]"
+                      onClick={() => handleEdit(customer)}
+                    >
+                      <span className="material-symbols-outlined mr-1 text-sm">
+                        edit
+                      </span>
+                      Edit
+                    </Button>
+                    <Link href={`/dashboard/invoices?customer=${customer.id}`}>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="min-h-[40px] w-full"
+                      >
+                        <span className="material-symbols-outlined mr-1 text-sm">
+                          receipt
+                        </span>
+                        Invoices
+                      </Button>
+                    </Link>
+                    <Link
+                      href={`/dashboard/customers/${customer.id}`}
+                      className="col-span-2"
+                    >
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="min-h-[40px] w-full"
+                      >
+                        <span className="material-symbols-outlined mr-1 text-sm">
+                          directions_car
+                        </span>
+                        Profile & vehicles
+                      </Button>
+                    </Link>
+                  </div>
+                </div>
+              ))}
+            </div>
           ) : (
-            <div className="rounded-md border overflow-x-auto">
+            <div className="overflow-x-auto rounded-md border">
               <Table>
                 <TableHeader>
                   <TableRow>

@@ -29,6 +29,8 @@ import { Separator } from "@/components/ui/separator";
 import { ShareInvoiceDialog } from "@/components/ShareInvoiceDialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { PublicInvoiceView } from "@/components/PublicInvoiceView";
+import { useStandalonePwa } from "@/hooks/useStandalonePwa";
+import { cn } from "@/lib/utils";
 
 interface InvoiceDetailProps {
   invoice: any;
@@ -85,6 +87,7 @@ export function InvoiceDetail({
   additionalVehicles = [],
   companyInfo,
 }: InvoiceDetailProps) {
+  const isPwa = useStandalonePwa();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -413,44 +416,82 @@ export function InvoiceDetail({
 
   return (
     <div className="min-h-screen bg-gray-50/50 dark:bg-gray-950">
-      {/* Sticky Header */}
+      {/* Sticky Header — stacked on PWA so metadata and actions never overlap */}
       <div className="sticky top-0 z-10 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-800">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between gap-4">
+        <div
+          className={cn(
+            "max-w-7xl mx-auto py-4",
+            isPwa ? "px-3" : "px-4 sm:px-6 lg:px-8",
+          )}
+        >
+          <div
+            className={cn(
+              "gap-4",
+              isPwa
+                ? "flex flex-col items-stretch"
+                : "flex items-center justify-between",
+            )}
+          >
             {/* Left: Invoice Info */}
-            <div className="flex items-center gap-4 min-w-0 flex-1">
-              <Link href="/dashboard/financial-operations">
+            <div
+              className={cn(
+                "flex min-w-0 gap-3",
+                isPwa ? "w-full items-start" : "flex-1 items-center gap-4",
+              )}
+            >
+              <Link href="/dashboard/financial-operations" className="shrink-0">
                 <Button variant="ghost" size="icon" className="shrink-0">
                   <span className="material-symbols-outlined">arrow_back</span>
                 </Button>
               </Link>
               <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-3 mb-1">
-                  <h1 className="text-2xl font-bold text-gray-900 dark:text-white truncate">
+                <div
+                  className={cn(
+                    "mb-1 gap-2",
+                    isPwa
+                      ? "flex flex-col items-start gap-2"
+                      : "flex flex-wrap items-center gap-3",
+                  )}
+                >
+                  <h1
+                    className={cn(
+                      "font-bold text-gray-900 dark:text-white",
+                      isPwa
+                        ? "text-xl break-words"
+                        : "text-2xl truncate",
+                    )}
+                  >
                     {invoice.invoiceNumber}
                   </h1>
-                  <Badge
-                    variant="outline"
-                    className={`${statusInfo.className} border font-medium px-3 py-1`}
-                  >
-                    <span className="material-symbols-outlined text-sm mr-1.5">
-                      {statusInfo.icon}
-                    </span>
-                    {statusInfo.label}
-                  </Badge>
-                  {invoice.isLocked && (
+                  <div className="flex flex-wrap items-center gap-2">
                     <Badge
                       variant="outline"
-                      className="bg-red-50 text-red-700 border-red-300 dark:bg-red-900/20 dark:text-red-300 dark:border-red-700"
+                      className={`${statusInfo.className} border font-medium px-3 py-1`}
                     >
                       <span className="material-symbols-outlined text-sm mr-1.5">
-                        lock
+                        {statusInfo.icon}
                       </span>
-                      Locked
+                      {statusInfo.label}
                     </Badge>
-                  )}
+                    {invoice.isLocked && (
+                      <Badge
+                        variant="outline"
+                        className="bg-red-50 text-red-700 border-red-300 dark:bg-red-900/20 dark:text-red-300 dark:border-red-700"
+                      >
+                        <span className="material-symbols-outlined text-sm mr-1.5">
+                          lock
+                        </span>
+                        Locked
+                      </Badge>
+                    )}
+                  </div>
                 </div>
-                <p className="text-sm text-muted-foreground">
+                <p
+                  className={cn(
+                    "text-sm text-muted-foreground",
+                    isPwa && "leading-relaxed break-words",
+                  )}
+                >
                   Created{" "}
                   {format(
                     new Date(invoice.createdAt),
@@ -463,16 +504,30 @@ export function InvoiceDetail({
             </div>
 
             {/* Right: Action Buttons */}
-            <div className="flex items-center gap-2 shrink-0">
+            <div
+              className={cn(
+                "flex gap-2",
+                isPwa
+                  ? "w-full flex-col items-stretch"
+                  : "shrink-0 items-center",
+              )}
+            >
               {/* Primary Actions */}
-              <div className="flex items-center gap-2">
+              <div
+                className={cn(
+                  "flex items-center gap-2",
+                  isPwa && "w-full flex-wrap",
+                )}
+              >
                 {canEdit && (
                   <Button
                     onClick={() =>
                       router.push(`/dashboard/invoices/${invoice.id}?edit=true`)
                     }
                     variant="outline"
-                    className="hidden sm:flex"
+                    className={cn(
+                      isPwa ? "flex w-full" : "hidden sm:flex",
+                    )}
                   >
                     <span className="material-symbols-outlined text-lg mr-2">
                       edit
@@ -487,7 +542,10 @@ export function InvoiceDetail({
                     <Button
                       onClick={handleSubmitForApproval}
                       disabled={loading}
-                      className="bg-amber-600 hover:bg-amber-700 text-white"
+                      className={cn(
+                        "bg-amber-600 hover:bg-amber-700 text-white",
+                        isPwa && "w-full",
+                      )}
                     >
                       <span className="material-symbols-outlined text-lg mr-2">
                         send
@@ -501,7 +559,9 @@ export function InvoiceDetail({
                     <Button
                       onClick={() => setShowShareDialog(true)}
                       variant="outline"
-                      className="hidden sm:flex"
+                      className={cn(
+                        isPwa ? "flex" : "hidden sm:flex",
+                      )}
                       title="Share Invoice Link"
                     >
                       <span className="material-symbols-outlined text-lg mr-2">
@@ -513,7 +573,7 @@ export function InvoiceDetail({
                       onClick={handlePreviewPDF}
                       variant="outline"
                       size="icon"
-                      className="hidden sm:flex"
+                      className={cn(isPwa ? "flex" : "hidden sm:flex")}
                     >
                       <span className="material-symbols-outlined">
                         picture_as_pdf
@@ -523,7 +583,7 @@ export function InvoiceDetail({
                       onClick={handleDownloadPDF}
                       variant="outline"
                       size="icon"
-                      className="hidden sm:flex"
+                      className={cn(isPwa ? "flex" : "hidden sm:flex")}
                     >
                       <span className="material-symbols-outlined">
                         download
@@ -538,7 +598,7 @@ export function InvoiceDetail({
                       variant="outline"
                       disabled
                       size="icon"
-                      className="hidden sm:flex"
+                      className={cn(isPwa ? "flex" : "hidden sm:flex")}
                       title="Requires Approval"
                     >
                       <span className="material-symbols-outlined">
@@ -552,15 +612,25 @@ export function InvoiceDetail({
               {(canApprove || canFinalize) && (
                 <>
                   <Separator
-                    orientation="vertical"
-                    className="h-6 hidden sm:block"
+                    orientation={isPwa ? "horizontal" : "vertical"}
+                    className={cn(
+                      isPwa ? "w-full" : "h-6 hidden sm:block",
+                    )}
                   />
-                  <div className="flex items-center gap-2">
+                  <div
+                    className={cn(
+                      "flex items-center gap-2",
+                      isPwa && "w-full flex-wrap",
+                    )}
+                  >
                     {canApprove && invoice.status === "PENDING_APPROVAL" && (
                       <Button
                         onClick={handleApprove}
                         disabled={loading}
-                        className="bg-green-600 hover:bg-green-700 text-white"
+                        className={cn(
+                          "bg-green-600 hover:bg-green-700 text-white",
+                          isPwa && "w-full",
+                        )}
                         size="lg"
                       >
                         <span className="material-symbols-outlined text-lg mr-2">
@@ -570,23 +640,48 @@ export function InvoiceDetail({
                       </Button>
                     )}
                     {canFinalize && invoice.status === "APPROVED" && (
-                      <Button
-                        onClick={handleFinalize}
-                        disabled={loading}
-                        className="bg-blue-600 hover:bg-blue-700 text-white"
-                        size="lg"
+                      <div
+                        className={cn(
+                          "flex items-stretch gap-2",
+                          isPwa ? "w-full" : "contents",
+                        )}
                       >
-                        <span className="material-symbols-outlined text-lg mr-2">
-                          lock
-                        </span>
-                        Finalize Invoice
-                      </Button>
+                        <Button
+                          onClick={handleFinalize}
+                          disabled={loading}
+                          className={cn(
+                            "bg-blue-600 hover:bg-blue-700 text-white",
+                            isPwa && "min-w-0 flex-1",
+                          )}
+                          size="lg"
+                        >
+                          <span className="material-symbols-outlined text-lg mr-2">
+                            lock
+                          </span>
+                          Finalize Invoice
+                        </Button>
+                        {canDelete && isPwa && (
+                          <Button
+                            onClick={handleDelete}
+                            variant="destructive"
+                            disabled={loading}
+                            size="icon"
+                            className="h-auto min-h-[44px] min-w-[44px] shrink-0"
+                            aria-label="Delete invoice"
+                          >
+                            <span className="material-symbols-outlined">
+                              delete
+                            </span>
+                          </Button>
+                        )}
+                      </div>
                     )}
                     {canFinalize && invoice.isLocked && (
                       <Button
                         onClick={handleUnlock}
                         variant="outline"
                         disabled={loading}
+                        className={cn(isPwa && "w-full")}
                       >
                         <span className="material-symbols-outlined text-lg mr-2">
                           lock_open
@@ -594,12 +689,18 @@ export function InvoiceDetail({
                         Unlock
                       </Button>
                     )}
-                    {canDelete && (
+                    {canDelete &&
+                      !(
+                        canFinalize &&
+                        invoice.status === "APPROVED" &&
+                        isPwa
+                      ) && (
                       <Button
                         onClick={handleDelete}
                         variant="destructive"
                         disabled={loading}
                         size="icon"
+                        className={cn(isPwa && "shrink-0")}
                       >
                         <span className="material-symbols-outlined">
                           delete
@@ -615,8 +716,18 @@ export function InvoiceDetail({
       </div>
 
       {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-10 gap-6">
+      <div
+        className={cn(
+          "max-w-7xl mx-auto",
+          isPwa ? "px-3 py-4" : "px-4 py-8 sm:px-6 lg:px-8",
+        )}
+      >
+        <div
+          className={cn(
+            "grid grid-cols-1 lg:grid-cols-10 gap-6",
+            isPwa && "gap-4",
+          )}
+        >
           {/* Left 70% - Invoice document (same as public view) */}
           <div className="lg:col-span-7 min-w-0">
             {companyInfo ? (
@@ -635,6 +746,7 @@ export function InvoiceDetail({
                   invoice.customer?.portOfDestination ??
                   null
                 }
+                isPwaLayout={isPwa}
               />
             ) : (
               <Card>
@@ -664,12 +776,17 @@ export function InvoiceDetail({
                         <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                           Wise Payment Link
                         </Label>
-                        <div className="flex gap-2">
+                        <div
+                          className={cn(
+                            "flex gap-2",
+                            isPwa && "flex-col",
+                          )}
+                        >
                           <Input
                             value={wisePaymentLink}
                             onChange={(e) => setWisePaymentLink(e.target.value)}
                             placeholder="https://wise.com/pay/business/..."
-                            className="font-mono text-sm"
+                            className="font-mono text-sm min-w-0"
                           />
                           <Button
                             onClick={async () => {
@@ -701,19 +818,37 @@ export function InvoiceDetail({
                             }}
                             disabled={savingWiseLink}
                             size="sm"
+                            className={cn(isPwa && "w-full shrink-0")}
                           >
                             {savingWiseLink ? "Saving..." : "Save"}
                           </Button>
                         </div>
-                        <p className="text-xs text-muted-foreground">
-                          Enter your reusable Wise payment link (e.g.,{" "}
-                          <code className="text-xs bg-gray-100 dark:bg-gray-800 px-1 rounded">
-                            https://wise.com/pay/business/ugoigd
-                          </code>
-                          ). The invoice amount will be automatically added to
-                          the link. You can create a reusable link in Wise
-                          Business dashboard → Payments → Payment Links.
-                        </p>
+                        {isPwa ? (
+                          <details className="text-xs text-muted-foreground rounded-md border border-border/60 bg-muted/30 px-3 py-2">
+                            <summary className="cursor-pointer font-medium text-foreground">
+                              How Wise links work
+                            </summary>
+                            <p className="mt-2 leading-relaxed">
+                              Enter your reusable Wise payment link (e.g.,{" "}
+                              <code className="text-xs bg-gray-100 dark:bg-gray-800 px-1 rounded break-all">
+                                https://wise.com/pay/business/ugoigd
+                              </code>
+                              ). The invoice amount will be automatically added
+                              to the link. Create a reusable link in Wise
+                              Business dashboard → Payments → Payment Links.
+                            </p>
+                          </details>
+                        ) : (
+                          <p className="text-xs text-muted-foreground">
+                            Enter your reusable Wise payment link (e.g.,{" "}
+                            <code className="text-xs bg-gray-100 dark:bg-gray-800 px-1 rounded">
+                              https://wise.com/pay/business/ugoigd
+                            </code>
+                            ). The invoice amount will be automatically added to
+                            the link. You can create a reusable link in Wise
+                            Business dashboard → Payments → Payment Links.
+                          </p>
+                        )}
                       </div>
                     )}
                     {invoice.wisePaymentLink && (
@@ -739,11 +874,16 @@ export function InvoiceDetail({
                         <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                           Public Invoice Link
                         </Label>
-                        <div className="mt-2 flex gap-2">
+                        <div
+                          className={cn(
+                            "mt-2 flex gap-2",
+                            isPwa && "flex-col",
+                          )}
+                        >
                           <Input
                             value={`${typeof window !== "undefined" ? window.location.origin : ""}/invoice/${invoice.shareToken}`}
                             readOnly
-                            className="font-mono text-sm"
+                            className="font-mono text-sm min-w-0"
                           />
                           <Button
                             onClick={async () => {
@@ -757,6 +897,7 @@ export function InvoiceDetail({
                             }}
                             variant="outline"
                             size="sm"
+                            className={cn(isPwa && "w-full shrink-0")}
                           >
                             <span className="material-symbols-outlined text-sm">
                               content_copy

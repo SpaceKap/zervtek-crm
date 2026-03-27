@@ -14,6 +14,8 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useStandalonePwa } from "@/hooks/useStandalonePwa";
+import { cn } from "@/lib/utils";
 
 const bankDetailsSchema = z.object({
   name: z.string().optional(),
@@ -46,6 +48,7 @@ const companyInfoSchema = z.object({
 type CompanyInfoFormData = z.infer<typeof companyInfoSchema>;
 
 export function CompanyInfoForm() {
+  const isPwa = useStandalonePwa();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
@@ -171,14 +174,17 @@ export function CompanyInfoForm() {
 
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className={cn(isPwa && "space-y-1 pb-3")}>
         <CardTitle>Company Details</CardTitle>
         <CardDescription>
           Update your company information for invoices
         </CardDescription>
       </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+      <CardContent className={cn(isPwa && "px-3 sm:px-6")}>
+        <form
+          onSubmit={handleSubmit(onSubmit)}
+          className={cn("space-y-6", isPwa && "space-y-5")}
+        >
           <div className="space-y-2">
             <Label htmlFor="name">Company Name</Label>
             <Input
@@ -193,16 +199,24 @@ export function CompanyInfoForm() {
 
           <div className="space-y-2">
             <Label htmlFor="logo">Logo</Label>
-            <div className="flex gap-2">
+            <div
+              className={cn(
+                "flex gap-2",
+                isPwa && "flex-col items-stretch sm:flex-row sm:items-center",
+              )}
+            >
               <Input
                 id="logo"
                 {...register("logo")}
                 placeholder="https://example.com/logo.png or data:image/png;base64,..."
-                className="flex-1"
+                className="min-w-0 flex-1"
               />
               <label
                 htmlFor="logo-upload"
-                className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2 cursor-pointer"
+                className={cn(
+                  "inline-flex h-10 cursor-pointer items-center justify-center whitespace-nowrap rounded-md border border-input bg-background px-4 py-2 text-sm font-medium ring-offset-background transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
+                  isPwa && "min-h-[44px] w-full shrink-0 sm:w-auto",
+                )}
               >
                 {uploadingLogo ? "Uploading..." : "Upload"}
               </label>
@@ -292,7 +306,12 @@ export function CompanyInfoForm() {
             })()}
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div
+            className={cn(
+              "grid gap-4",
+              isPwa ? "grid-cols-1" : "grid-cols-2",
+            )}
+          >
             <div className="space-y-2">
               <Label htmlFor="phone">Phone</Label>
               <Input
@@ -316,7 +335,12 @@ export function CompanyInfoForm() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div
+            className={cn(
+              "grid gap-4",
+              isPwa ? "grid-cols-1" : "grid-cols-2",
+            )}
+          >
             <div className="space-y-2">
               <Label htmlFor="website">Website</Label>
               <Input
@@ -347,14 +371,24 @@ export function CompanyInfoForm() {
                 {...register("address.street")}
               />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div
+              className={cn(
+                "grid gap-4",
+                isPwa ? "grid-cols-1" : "grid-cols-2",
+              )}
+            >
               <Input placeholder="City" {...register("address.city")} />
               <Input
                 placeholder="State/Province"
                 {...register("address.state")}
               />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div
+              className={cn(
+                "grid gap-4",
+                isPwa ? "grid-cols-1" : "grid-cols-2",
+              )}
+            >
               <Input
                 placeholder="ZIP/Postal Code"
                 {...register("address.zip")}
@@ -366,7 +400,12 @@ export function CompanyInfoForm() {
           {/* Bank Details 1 */}
           <div className="space-y-4 border-t pt-6">
             <Label className="text-lg font-semibold">Bank Details 1</Label>
-            <div className="grid grid-cols-2 gap-4">
+            <div
+              className={cn(
+                "grid gap-4",
+                isPwa ? "grid-cols-1" : "grid-cols-2",
+              )}
+            >
               <div className="space-y-2">
                 <Label htmlFor="bank1-name">Bank Name</Label>
                 <Input
@@ -384,7 +423,12 @@ export function CompanyInfoForm() {
                 />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div
+              className={cn(
+                "grid gap-4",
+                isPwa ? "grid-cols-1" : "grid-cols-2",
+              )}
+            >
               <div className="space-y-2">
                 <Label htmlFor="bank1-branch">Branch Name</Label>
                 <Input
@@ -420,7 +464,11 @@ export function CompanyInfoForm() {
             </div>
           </div>
 
-          <Button type="submit" disabled={saving}>
+          <Button
+            type="submit"
+            disabled={saving}
+            className={cn(isPwa && "min-h-[44px] w-full sm:w-auto")}
+          >
             {saving ? "Saving..." : "Save Changes"}
           </Button>
         </form>

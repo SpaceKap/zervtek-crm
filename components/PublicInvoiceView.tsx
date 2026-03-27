@@ -13,6 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { PaymentStatus } from "@prisma/client";
+import { cn } from "@/lib/utils";
 
 interface PublicInvoiceViewProps {
   invoice: any;
@@ -25,6 +26,8 @@ interface PublicInvoiceViewProps {
   hidePaymentSection?: boolean;
   /** Override for port of destination (e.g. vehicle booking POD); falls back to customer.portOfDestination */
   effectivePortOfDestination?: string | null;
+  /** Installed PWA: stacked sections, no cramped 3-column grid or table */
+  isPwaLayout?: boolean;
 }
 
 const paymentStatusColors: Record<PaymentStatus, string> = {
@@ -71,6 +74,7 @@ export function PublicInvoiceView({
   showPortOfDestinationUnderShipping = false,
   hidePaymentSection = false,
   effectivePortOfDestination,
+  isPwaLayout = false,
 }: PublicInvoiceViewProps) {
   const [copiedField, setCopiedField] = useState<string | null>(null);
 
@@ -213,13 +217,30 @@ export function PublicInvoiceView({
   const total = afterDeposit + taxAmount + recycleFee;
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-[#1E1E1E] py-8 px-4">
+    <div
+      className={cn(
+        "bg-gray-50 dark:bg-[#1E1E1E] px-4",
+        isPwaLayout ? "min-h-0 py-4" : "min-h-screen py-8",
+      )}
+    >
       <div className="max-w-4xl mx-auto">
         {/* Header */}
-        <div className="bg-white dark:bg-[#1E1E1E] dark:border-[#2C2C2C] rounded-lg border shadow-sm p-6 mb-6">
-          <div className="flex items-start justify-between mb-6">
+        <div
+          className={cn(
+            "bg-white dark:bg-[#1E1E1E] dark:border-[#2C2C2C] rounded-lg border shadow-sm mb-6",
+            isPwaLayout ? "p-4" : "p-6",
+          )}
+        >
+          <div
+            className={cn(
+              "mb-6",
+              isPwaLayout
+                ? "flex flex-col gap-4"
+                : "flex items-start justify-between",
+            )}
+          >
             {/* Company Info */}
-            <div className="flex-1">
+            <div className="flex-1 min-w-0">
               {companyInfo?.logo && (
                 <div className="mb-4">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -255,7 +276,7 @@ export function PublicInvoiceView({
             </div>
 
             {/* Invoice Title */}
-            <div className="text-right">
+            <div className={cn(isPwaLayout ? "text-left" : "text-right")}>
               <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
                 INVOICE
               </h2>
@@ -264,10 +285,21 @@ export function PublicInvoiceView({
 
           <Separator className="my-4" />
 
-          {/* Bill To (left) | Ship To (center) | Invoice details (right), balanced spacing */}
-          <div className="grid grid-cols-3 gap-6">
+          {/* Bill To | Ship To | Invoice details — single column in PWA */}
+          <div
+            className={cn(
+              "grid gap-6",
+              isPwaLayout ? "grid-cols-1" : "grid-cols-3",
+            )}
+          >
             {/* Bill To - left */}
-            <div className="min-w-0">
+            <div
+              className={cn(
+                "min-w-0",
+                isPwaLayout &&
+                  "border-b border-gray-100 pb-6 dark:border-[#2C2C2C]",
+              )}
+            >
               <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase mb-2">
                 Bill To
               </h3>
@@ -299,7 +331,13 @@ export function PublicInvoiceView({
             </div>
 
             {/* Ship To - center */}
-            <div className="min-w-0">
+            <div
+              className={cn(
+                "min-w-0",
+                isPwaLayout &&
+                  "border-b border-gray-100 pb-6 dark:border-[#2C2C2C]",
+              )}
+            >
               <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase mb-2">
                 Ship To
               </h3>
@@ -343,9 +381,19 @@ export function PublicInvoiceView({
               </div>
             </div>
 
-            {/* Invoice Details - right, label and value close together */}
-            <div className="min-w-0 flex justify-end">
-              <div className="text-sm w-full max-w-[220px]">
+            {/* Invoice Details */}
+            <div
+              className={cn(
+                "min-w-0 flex",
+                isPwaLayout ? "justify-start" : "justify-end",
+              )}
+            >
+              <div
+                className={cn(
+                  "text-sm w-full",
+                  isPwaLayout ? "max-w-none" : "max-w-[220px]",
+                )}
+              >
                 <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 items-baseline">
                   <span className="font-semibold text-gray-700 dark:text-gray-300 uppercase whitespace-nowrap">
                     INVOICE
@@ -404,133 +452,226 @@ export function PublicInvoiceView({
 
         {/* Invoice Items */}
         <Card className="mb-6 dark:bg-[#1E1E1E] dark:border-[#2C2C2C]">
-          <CardHeader>
+          <CardHeader className={cn(isPwaLayout && "pb-2")}>
             <CardTitle className="text-lg text-gray-900 dark:text-white">
               Invoice Items
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-gray-200 dark:border-[#2C2C2C]">
-                    <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                      Description
-                    </th>
-                    <th className="text-right py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wide w-32">
-                      Amount
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {lineItemCharges.map((charge: any) => {
-                    const raw = charge?.amount;
-                    const parsed =
-                      raw == null
-                        ? NaN
-                        : typeof raw === "number"
-                          ? raw
-                          : parseFloat(String(raw));
-                    const amount = Number.isFinite(parsed) ? parsed : 0;
-                    const currencySymbol = "¥";
-                    const formatted = `${currencySymbol}${amount.toLocaleString()}`;
-                    return (
-                      <tr
-                        key={charge.id}
-                        className="border-b border-gray-100 dark:border-[#2C2C2C]/50"
-                      >
-                        <td className="py-3 px-4">
-                          <p className="font-medium text-gray-900 dark:text-white">
-                            {charge.description}
+          <CardContent className={cn(isPwaLayout && "px-4 pb-4 pt-0")}>
+            {isPwaLayout ? (
+              <div className="space-y-0">
+                {lineItemCharges.map((charge: any) => {
+                  const raw = charge?.amount;
+                  const parsed =
+                    raw == null
+                      ? NaN
+                      : typeof raw === "number"
+                        ? raw
+                        : parseFloat(String(raw));
+                  const amount = Number.isFinite(parsed) ? parsed : 0;
+                  const formatted = `¥${amount.toLocaleString()}`;
+                  return (
+                    <div
+                      key={charge.id}
+                      className="flex flex-col gap-2 border-b border-gray-100 py-4 dark:border-[#2C2C2C]/50 last:border-b-0"
+                    >
+                      <p className="text-sm font-medium leading-snug text-gray-900 dark:text-white">
+                        {charge.description}
+                      </p>
+                      <p className="text-base font-semibold tabular-nums text-gray-900 dark:text-white">
+                        {formatted}
+                      </p>
+                    </div>
+                  );
+                })}
+                <div className="mt-4 space-y-3 border-t border-gray-200 pt-4 dark:border-[#2C2C2C]">
+                  <div className="flex items-baseline justify-between gap-4">
+                    <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                      Subtotal
+                    </span>
+                    <span className="text-sm font-semibold tabular-nums text-gray-900 dark:text-white">
+                      ¥{subtotalPositive.toLocaleString()}
+                    </span>
+                  </div>
+                  {discountTotal > 0 && (
+                    <div className="flex items-baseline justify-between gap-4">
+                      <span className="text-sm text-gray-700 dark:text-gray-300">
+                        Discount
+                      </span>
+                      <span className="text-sm tabular-nums text-red-600 dark:text-red-400">
+                        -¥{discountTotal.toLocaleString()}
+                      </span>
+                    </div>
+                  )}
+                  {depositTotal > 0 && (
+                    <div className="flex items-baseline justify-between gap-4">
+                      <span className="text-sm text-gray-700 dark:text-gray-300">
+                        Deposit
+                      </span>
+                      <span className="text-sm tabular-nums text-red-600 dark:text-red-400">
+                        -¥{depositTotal.toLocaleString()}
+                      </span>
+                    </div>
+                  )}
+                  {invoice.taxEnabled && taxAmount > 0 && (
+                    <div className="flex items-baseline justify-between gap-4">
+                      <span className="text-sm text-gray-700 dark:text-gray-300">
+                        Japanese Consumption Tax ({invoice.taxRate}%)
+                      </span>
+                      <span className="text-sm tabular-nums text-gray-700 dark:text-gray-300">
+                        ¥{taxAmount.toLocaleString()}
+                      </span>
+                    </div>
+                  )}
+                  {invoice.taxEnabled && recycleFee > 0 && (
+                    <div className="flex items-baseline justify-between gap-4">
+                      <span className="text-sm text-gray-700 dark:text-gray-300">
+                        Recycle Fee
+                      </span>
+                      <span className="text-sm tabular-nums text-gray-700 dark:text-gray-300">
+                        ¥{recycleFee.toLocaleString()}
+                      </span>
+                    </div>
+                  )}
+                  <div className="flex items-baseline justify-between gap-4 border-t border-gray-300 pt-4 dark:border-gray-700">
+                    <span className="text-lg font-bold text-gray-900 dark:text-white">
+                      Total
+                    </span>
+                    <span className="text-lg font-bold tabular-nums text-gray-900 dark:text-white">
+                      ¥{total.toLocaleString()}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-gray-200 dark:border-[#2C2C2C]">
+                      <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                        Description
+                      </th>
+                      <th className="text-right py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wide w-32">
+                        Amount
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {lineItemCharges.map((charge: any) => {
+                      const raw = charge?.amount;
+                      const parsed =
+                        raw == null
+                          ? NaN
+                          : typeof raw === "number"
+                            ? raw
+                            : parseFloat(String(raw));
+                      const amount = Number.isFinite(parsed) ? parsed : 0;
+                      const currencySymbol = "¥";
+                      const formatted = `${currencySymbol}${amount.toLocaleString()}`;
+                      return (
+                        <tr
+                          key={charge.id}
+                          className="border-b border-gray-100 dark:border-[#2C2C2C]/50"
+                        >
+                          <td className="py-3 px-4">
+                            <p className="font-medium text-gray-900 dark:text-white">
+                              {charge.description}
+                            </p>
+                          </td>
+                          <td className="py-3 px-4 text-right w-32">
+                            <p className="font-semibold text-gray-900 dark:text-white whitespace-nowrap">
+                              {formatted}
+                            </p>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                  <tfoot>
+                    <tr className="border-b border-gray-300 dark:border-gray-600">
+                      <td className="py-2.5 px-4 text-right">
+                        <p className="font-semibold text-gray-900 dark:text-white">
+                          Subtotal
+                        </p>
+                      </td>
+                      <td className="py-2.5 px-4 text-right w-32">
+                        <p className="font-semibold text-gray-900 dark:text-white whitespace-nowrap">
+                          ¥{subtotalPositive.toLocaleString()}
+                        </p>
+                      </td>
+                    </tr>
+                    {discountTotal > 0 && (
+                      <tr>
+                        <td className="py-2 px-4 text-right">
+                          <p className="text-gray-700 dark:text-gray-300">
+                            Discount
                           </p>
                         </td>
-                        <td className="py-3 px-4 text-right w-32">
-                          <p className="font-semibold text-gray-900 dark:text-white whitespace-nowrap">
-                            {formatted}
+                        <td className="py-2 px-4 text-right w-32">
+                          <p className="text-red-600 dark:text-red-400 whitespace-nowrap">
+                            -¥{discountTotal.toLocaleString()}
                           </p>
                         </td>
                       </tr>
-                    );
-                  })}
-                </tbody>
-                <tfoot>
-                  <tr className="border-b border-gray-300 dark:border-gray-600">
-                    <td className="py-2.5 px-4 text-right">
-                      <p className="font-semibold text-gray-900 dark:text-white">Subtotal</p>
-                    </td>
-                    <td className="py-2.5 px-4 text-right w-32">
-                      <p className="font-semibold text-gray-900 dark:text-white whitespace-nowrap">
-                        ¥{subtotalPositive.toLocaleString()}
-                      </p>
-                    </td>
-                  </tr>
-                  {discountTotal > 0 && (
-                    <tr>
-                      <td className="py-2 px-4 text-right">
-                        <p className="text-gray-700 dark:text-gray-300">Discount</p>
+                    )}
+                    {depositTotal > 0 && (
+                      <tr>
+                        <td className="py-2 px-4 text-right">
+                          <p className="text-gray-700 dark:text-gray-300">
+                            Deposit
+                          </p>
+                        </td>
+                        <td className="py-2 px-4 text-right w-32">
+                          <p className="text-red-600 dark:text-red-400 whitespace-nowrap">
+                            -¥{depositTotal.toLocaleString()}
+                          </p>
+                        </td>
+                      </tr>
+                    )}
+                    {invoice.taxEnabled && taxAmount > 0 && (
+                      <tr>
+                        <td className="py-2 px-4 text-right">
+                          <p className="text-gray-700 dark:text-gray-300">
+                            Japanese Consumption Tax ({invoice.taxRate}%)
+                          </p>
+                        </td>
+                        <td className="py-2 px-4 text-right w-32">
+                          <p className="text-gray-700 dark:text-gray-300 whitespace-nowrap">
+                            ¥{taxAmount.toLocaleString()}
+                          </p>
+                        </td>
+                      </tr>
+                    )}
+                    {invoice.taxEnabled && recycleFee > 0 && (
+                      <tr>
+                        <td className="py-2 px-4 text-right">
+                          <p className="text-gray-700 dark:text-gray-300">
+                            Recycle Fee
+                          </p>
+                        </td>
+                        <td className="py-2 px-4 text-right w-32">
+                          <p className="text-gray-700 dark:text-gray-300 whitespace-nowrap">
+                            ¥{recycleFee.toLocaleString()}
+                          </p>
+                        </td>
+                      </tr>
+                    )}
+                    <tr className="border-t-2 border-gray-300 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-900/50">
+                      <td className="py-4 px-4 text-right">
+                        <p className="text-lg font-bold text-gray-900 dark:text-white">
+                          Total
+                        </p>
                       </td>
-                      <td className="py-2 px-4 text-right w-32">
-                        <p className="text-red-600 dark:text-red-400 whitespace-nowrap">
-                          -¥{discountTotal.toLocaleString()}
+                      <td className="py-4 px-4 text-right w-32">
+                        <p className="text-lg font-bold text-gray-900 dark:text-white whitespace-nowrap">
+                          ¥{total.toLocaleString()}
                         </p>
                       </td>
                     </tr>
-                  )}
-                  {depositTotal > 0 && (
-                    <tr>
-                      <td className="py-2 px-4 text-right">
-                        <p className="text-gray-700 dark:text-gray-300">Deposit</p>
-                      </td>
-                      <td className="py-2 px-4 text-right w-32">
-                        <p className="text-red-600 dark:text-red-400 whitespace-nowrap">
-                          -¥{depositTotal.toLocaleString()}
-                        </p>
-                      </td>
-                    </tr>
-                  )}
-                  {invoice.taxEnabled && taxAmount > 0 && (
-                    <tr>
-                      <td className="py-2 px-4 text-right">
-                        <p className="text-gray-700 dark:text-gray-300">
-                          Japanese Consumption Tax ({invoice.taxRate}%)
-                        </p>
-                      </td>
-                      <td className="py-2 px-4 text-right w-32">
-                        <p className="text-gray-700 dark:text-gray-300 whitespace-nowrap">
-                          ¥{taxAmount.toLocaleString()}
-                        </p>
-                      </td>
-                    </tr>
-                  )}
-                  {invoice.taxEnabled && recycleFee > 0 && (
-                    <tr>
-                      <td className="py-2 px-4 text-right">
-                        <p className="text-gray-700 dark:text-gray-300">
-                          Recycle Fee
-                        </p>
-                      </td>
-                      <td className="py-2 px-4 text-right w-32">
-                        <p className="text-gray-700 dark:text-gray-300 whitespace-nowrap">
-                          ¥{recycleFee.toLocaleString()}
-                        </p>
-                      </td>
-                    </tr>
-                  )}
-                  <tr className="border-t-2 border-gray-300 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-900/50">
-                    <td className="py-4 px-4 text-right">
-                      <p className="text-lg font-bold text-gray-900 dark:text-white">
-                        Total
-                      </p>
-                    </td>
-                    <td className="py-4 px-4 text-right w-32">
-                      <p className="text-lg font-bold text-gray-900 dark:text-white whitespace-nowrap">
-                        ¥{total.toLocaleString()}
-                      </p>
-                    </td>
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
+                  </tfoot>
+                </table>
+              </div>
+            )}
           </CardContent>
         </Card>
 

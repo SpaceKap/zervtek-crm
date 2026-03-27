@@ -3,6 +3,7 @@ import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { canManageUsers } from "@/lib/permissions";
 import { AdminCustomersList } from "@/components/AdminCustomersList";
+import { AdminPageShell } from "@/components/AdminPageShell";
 
 export default async function AdminCustomersPage() {
   const session = await getServerSession(authOptions);
@@ -15,14 +16,12 @@ export default async function AdminCustomersPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white pwa-title">
-          Customer Database
-        </h1>
-      </div>
-
+    <AdminPageShell
+      icon="contacts"
+      title="Customer Database"
+      backHref="/dashboard/admin"
+    >
       <AdminCustomersList />
-    </div>
+    </AdminPageShell>
   );
 }

@@ -1,10 +1,17 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { UserRole } from "@prisma/client"
-import { User, Shield, Users } from "lucide-react"
+import { useState, useEffect } from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { UserRole } from "@prisma/client";
+import { User, Shield, Users } from "lucide-react";
+import { useStandalonePwa } from "@/hooks/useStandalonePwa";
+import { cn } from "@/lib/utils";
 
 interface UserData {
   id: string
@@ -19,6 +26,7 @@ interface UserData {
 }
 
 export function UserManagement() {
+  const isPwa = useStandalonePwa();
   const [users, setUsers] = useState<UserData[]>([])
   const [loading, setLoading] = useState(true)
   const [updating, setUpdating] = useState<string | null>(null)
@@ -115,75 +123,112 @@ export function UserManagement() {
 
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className={cn(isPwa && "space-y-1 pb-3")}>
         <CardTitle>Team Members</CardTitle>
         <CardDescription>
           Assign roles to manage access and permissions
         </CardDescription>
       </CardHeader>
-      <CardContent>
-        <div className="space-y-4">
+      <CardContent className={cn(isPwa && "px-3 sm:px-6")}>
+        <div className={cn("space-y-4", isPwa && "space-y-3")}>
           {users.map((user) => (
             <div
               key={user.id}
-              className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+              className={cn(
+                "rounded-lg border border-gray-200 transition-colors hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-gray-900/40",
+                isPwa ? "p-3" : "flex items-center justify-between p-4",
+              )}
             >
-              <div className="flex items-center gap-4 flex-1">
-                {/* Avatar */}
-                {user.image ? (
-                  /* eslint-disable-next-line @next/next/no-img-element */
-                  <img
-                    src={user.image}
-                    alt={user.name || user.email || "User avatar"}
-                    className="w-10 h-10 rounded-full"
-                  />
-                ) : (
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white font-medium">
-                    {getInitials(user.name, user.email)}
-                  </div>
+              <div
+                className={cn(
+                  "flex-1 min-w-0",
+                  isPwa
+                    ? "flex flex-col gap-3"
+                    : "flex items-center gap-4",
                 )}
+              >
+                <div
+                  className={cn(
+                    "flex min-w-0 flex-1 gap-3",
+                    isPwa ? "items-start" : "items-center gap-4",
+                  )}
+                >
+                  {user.image ? (
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img
+                      src={user.image}
+                      alt={user.name || user.email || "User avatar"}
+                      className="h-10 w-10 shrink-0 rounded-full"
+                    />
+                  ) : (
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-blue-400 to-purple-500 font-medium text-white">
+                      {getInitials(user.name, user.email)}
+                    </div>
+                  )}
 
-                {/* User Info */}
-                <div className="flex-1">
-                  <div className="flex items-center gap-2">
-                    <p className="font-medium text-gray-900">
-                      {user.name || user.email}
-                    </p>
-                    <span
-                      className={`text-xs font-medium px-2 py-0.5 rounded border flex items-center gap-1 ${getRoleColor(
-                        user.role
-                      )}`}
+                  <div className="min-w-0 flex-1">
+                    <div
+                      className={cn(
+                        "flex gap-2",
+                        isPwa ? "flex-col items-start" : "items-center",
+                      )}
                     >
-                      {getRoleIcon(user.role)}
-                      {user.role}
-                    </span>
+                      <p className="font-medium text-gray-900 dark:text-gray-100">
+                        {user.name || user.email}
+                      </p>
+                      <span
+                        className={`inline-flex w-fit items-center gap-1 rounded border px-2 py-0.5 text-xs font-medium ${getRoleColor(
+                          user.role,
+                        )}`}
+                      >
+                        {getRoleIcon(user.role)}
+                        {user.role}
+                      </span>
+                    </div>
+                    <p className="break-all text-sm text-gray-500 dark:text-gray-400">
+                      {user.email}
+                    </p>
+                    <p className="mt-1 text-xs text-gray-400">
+                      {user._count.assignedInquiries} assigned inquiries
+                    </p>
                   </div>
-                  <p className="text-sm text-gray-500">{user.email}</p>
-                  <p className="text-xs text-gray-400 mt-1">
-                    {user._count.assignedInquiries} assigned inquiries
-                  </p>
                 </div>
 
-                {/* Role Selector */}
-                <div className="flex items-center gap-3">
-                  <label className="text-sm font-medium text-gray-700">
-                    Role:
-                  </label>
-                  <select
-                    value={user.role}
-                    onChange={(e) =>
-                      handleRoleChange(user.id, e.target.value as UserRole)
-                    }
-                    disabled={updating === user.id}
-                    className="flex h-10 w-40 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    <option value="SALES">Sales</option>
-                    <option value="MANAGER">Manager</option>
-                    <option value="ADMIN">Admin</option>
-                  </select>
-                  {updating === user.id && (
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-900"></div>
+                <div
+                  className={cn(
+                    "flex items-center gap-2",
+                    isPwa ? "w-full flex-col items-stretch sm:flex-row sm:items-center" : "gap-3",
                   )}
+                >
+                  <label
+                    className={cn(
+                      "font-medium text-gray-700 dark:text-gray-300",
+                      isPwa ? "sr-only" : "text-sm",
+                    )}
+                  >
+                    Role
+                  </label>
+                  <div className="flex min-w-0 flex-1 items-center gap-2">
+                    <select
+                      value={user.role}
+                      onChange={(e) =>
+                        handleRoleChange(user.id, e.target.value as UserRole)
+                      }
+                      disabled={updating === user.id}
+                      className={cn(
+                        "flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+                        isPwa ? "min-h-[44px] w-full" : "w-40",
+                      )}
+                      aria-label={`Role for ${user.name || user.email}`}
+                    >
+                      <option value="SALES">Sales</option>
+                      <option value="MANAGER">Manager</option>
+                      <option value="ADMIN">Admin</option>
+                    </select>
+                    {updating === user.id && (
+                      <div className="h-4 w-4 shrink-0 animate-spin rounded-full border-b-2 border-gray-900 dark:border-gray-100" />
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
@@ -191,5 +236,5 @@ export function UserManagement() {
         </div>
       </CardContent>
     </Card>
-  )
+  );
 }

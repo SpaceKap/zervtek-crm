@@ -18,6 +18,8 @@ import {
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { VendorForm } from "./VendorForm";
+import { useStandalonePwa } from "@/hooks/useStandalonePwa";
+import { cn } from "@/lib/utils";
 
 import { VendorCategory } from "@prisma/client";
 
@@ -46,6 +48,7 @@ const categoryLabels: Record<VendorCategory, string> = {
 };
 
 export function VendorsList() {
+  const isPwa = useStandalonePwa();
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -134,33 +137,54 @@ export function VendorsList() {
   return (
     <>
       <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
+        <CardHeader className={cn(isPwa && "space-y-3 pb-3")}>
+          <div
+            className={cn(
+              "flex gap-3",
+              isPwa
+                ? "flex-col items-stretch"
+                : "items-center justify-between",
+            )}
+          >
+            <div className="min-w-0">
               <CardTitle>Vendors</CardTitle>
               <CardDescription>
                 Manage vendors - anyone we pay for any reason.
               </CardDescription>
             </div>
-            <Button onClick={handleCreate}>
-              <span className="material-symbols-outlined text-lg mr-2">
+            <Button
+              onClick={handleCreate}
+              className={cn(isPwa && "w-full shrink-0 sm:w-auto")}
+            >
+              <span className="material-symbols-outlined mr-2 text-lg">
                 add
               </span>
-              Add Vendor
+              {isPwa ? "Add" : "Add Vendor"}
             </Button>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className={cn(isPwa && "px-3 sm:px-6")}>
           {/* Category Filter */}
-          <div className="mb-6 flex items-center gap-4">
-            <Label>Filter by Category:</Label>
+          <div
+            className={cn(
+              "mb-6 flex gap-3",
+              isPwa
+                ? "flex-col items-stretch"
+                : "flex-wrap items-center gap-4",
+            )}
+          >
+            <Label className={cn(isPwa && "text-sm")}>
+              Filter by Category
+            </Label>
             <Select
               value={categoryFilter}
               onValueChange={(value) =>
                 setCategoryFilter(value as VendorCategory | "ALL")
               }
             >
-              <SelectTrigger className="w-64">
+              <SelectTrigger
+                className={cn(isPwa ? "min-h-[44px] w-full" : "w-64")}
+              >
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -174,7 +198,12 @@ export function VendorsList() {
                   ))}
               </SelectContent>
             </Select>
-            <div className="text-sm text-muted-foreground">
+            <div
+              className={cn(
+                "text-sm text-muted-foreground",
+                isPwa && "text-center sm:text-left",
+              )}
+            >
               {vendors.length} vendor{vendors.length !== 1 ? "s" : ""}
             </div>
           </div>
@@ -184,14 +213,21 @@ export function VendorsList() {
               No vendors found. Click &quot;Add Vendor&quot; to create one.
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            <div
+              className={cn(
+                "grid gap-3",
+                isPwa
+                  ? "grid-cols-1"
+                  : "grid-cols-1 md:grid-cols-2 lg:grid-cols-3",
+              )}
+            >
               {vendors.map((vendor) => (
                 <div
                   key={vendor.id}
-                  className="group relative p-4 border rounded-lg hover:border-primary/50 hover:shadow-md transition-all bg-card"
+                  className="group relative rounded-lg border bg-card p-4 transition-all hover:border-primary/50 hover:shadow-md"
                 >
                   <div className="flex items-start justify-between">
-                    <div className="flex-1 min-w-0">
+                    <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2 mb-2">
                         <span className="material-symbols-outlined text-lg text-muted-foreground">
                           store
@@ -220,11 +256,18 @@ export function VendorsList() {
                       </p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 mt-3 pt-3 border-t opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div
+                    className={cn(
+                      "mt-3 flex items-center gap-2 border-t pt-3 transition-opacity",
+                      isPwa
+                        ? "opacity-100"
+                        : "opacity-0 group-hover:opacity-100",
+                    )}
+                  >
                     <Button
                       variant="outline"
                       size="sm"
-                      className="flex-1"
+                      className="min-h-[40px] flex-1"
                       onClick={() => handleEdit(vendor)}
                     >
                       <span className="material-symbols-outlined text-sm mr-1">
