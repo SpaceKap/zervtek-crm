@@ -22,8 +22,8 @@ self.addEventListener("push", (event) => {
   const title = data.title || "CRM";
   const options = {
     body: data.body || "",
-    icon: "/icons/icon-192.png",
-    badge: "/icons/icon-192.png",
+    icon: "/icons/icon-512.png",
+    badge: "/icons/icon-512.png",
     data: { url: data.url || "/dashboard" },
     tag: data.inquiryId ? `inquiry-${data.inquiryId}` : "crm-push",
     renotify: true,

@@ -40,7 +40,7 @@ export const metadata: Metadata = {
       { url: "/favicon-light.svg", media: "(prefers-color-scheme: light)" },
       { url: "/favicon-dark.svg", media: "(prefers-color-scheme: dark)" },
     ],
-    apple: [{ url: "/icons/icon-192.png", sizes: "192x192" }],
+    apple: [{ url: "/icons/icon-512.png", sizes: "512x512" }],
   },
 };
 
