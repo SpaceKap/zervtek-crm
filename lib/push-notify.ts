@@ -36,7 +36,12 @@ export async function sendAssignmentPushNotification(
   userId: string,
   payload: AssignmentPushPayload
 ): Promise<void> {
-  if (!ensureVapid()) return;
+  if (!ensureVapid()) {
+    console.warn(
+      "[push-notify] skipped: VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY not set",
+    );
+    return;
+  }
 
   const data = JSON.stringify({
     title: payload.title,
@@ -48,6 +53,13 @@ export async function sendAssignmentPushNotification(
   const subs = await prisma.pushSubscription.findMany({
     where: { userId },
   });
+
+  if (subs.length === 0) {
+    console.warn(
+      `[push-notify] no saved subscriptions for userId=${userId} — client must call POST /api/push/subscribe (Enable alerts in CRM, or open the app after deploy so existing subscription syncs)`,
+    );
+    return;
+  }
 
   for (const sub of subs) {
     try {

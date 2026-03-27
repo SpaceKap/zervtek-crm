@@ -94,6 +94,27 @@ export function PwaClientExperience({ userRole }: PwaClientExperienceProps) {
     const reg = await navigator.serviceWorker.ready;
     const existing = await reg.pushManager.getSubscription();
     if (existing) {
+      // Always sync to the server — otherwise a browser subscription exists but
+      // PushSubscription rows are missing (new deploy, DB reset, or first save failed).
+      try {
+        const json = existing.toJSON();
+        if (json.endpoint && json.keys?.p256dh && json.keys?.auth) {
+          const save = await fetch("/api/push/subscribe", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify(json),
+          });
+          if (!save.ok) {
+            console.warn(
+              "[PWA] Could not sync push subscription to server",
+              save.status,
+            );
+          }
+        }
+      } catch (e) {
+        console.warn("[PWA] push subscription sync failed", e);
+      }
       setPhase("idle");
       return;
     }
