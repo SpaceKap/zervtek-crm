@@ -35,7 +35,7 @@ export function KanbanPipelinePage({
     <div
       className={cn(
         "flex w-full min-w-0 flex-col",
-        isPwa ? "-mx-4 -mt-4 min-h-0 flex-1 overflow-hidden px-2 pt-2" : "",
+        isPwa ? "-mx-4 -mt-4 min-h-0 flex-1 overflow-hidden px-4 pt-2" : "",
       )}
     >
       <div

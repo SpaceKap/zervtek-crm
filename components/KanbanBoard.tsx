@@ -790,7 +790,7 @@ function KanbanBoardInner({
           className={cn(
             "flex h-full min-h-0 gap-4 overflow-x-auto overflow-y-hidden scrollbar-modern-horizontal",
             isPwaStandalone
-              ? "snap-x snap-mandatory pb-4 px-1 [touch-action:pan-x]"
+              ? "snap-x snap-mandatory pb-4 px-0 [touch-action:pan-x]"
               : "pb-2",
           )}
         >

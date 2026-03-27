@@ -109,10 +109,10 @@ export const KanbanColumn = memo(function KanbanColumn({
     <div
       className={cn(
         "box-border flex h-full flex-col rounded-lg bg-gray-50 transition-colors duration-200 dark:bg-[#1E1E1E] flex-shrink-0 border-2",
-        isPwa ? "snap-center" : "snap-start",
+        "snap-start",
         isPwa
-          ? // Match lane/page horizontal padding so left and right gutters feel symmetric on mobile
-            "min-w-[min(400px,calc(100dvw_-_1.5rem))] max-w-[min(400px,calc(100dvw_-_1.5rem))]"
+          ? // Match nav/main horizontal rhythm (px-4 => 2rem total) for aligned right edge with top bar controls
+            "min-w-[min(400px,calc(100dvw_-_2rem))] max-w-[min(400px,calc(100dvw_-_2rem))]"
           : "min-w-[320px] max-w-[340px]",
         dropZoneClass || "border-gray-200 dark:border-[#2C2C2C]",
       )}
