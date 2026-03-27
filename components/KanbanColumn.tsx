@@ -111,8 +111,8 @@ export const KanbanColumn = memo(function KanbanColumn({
         "box-border flex h-full flex-col rounded-lg bg-gray-50 transition-colors duration-200 dark:bg-[#1E1E1E] flex-shrink-0 border-2",
         "snap-start",
         isPwa
-          ? // Match nav/main horizontal rhythm (px-4 => 2rem total) for aligned right edge with top bar controls
-            "min-w-[min(400px,calc(100dvw_-_2rem))] max-w-[min(400px,calc(100dvw_-_2rem))]"
+          ? // 3rem (48px) leaves equal 16px visible margins on both sides matching main's px-4 rhythm
+            "min-w-[min(400px,calc(100dvw_-_3rem))] max-w-[min(400px,calc(100dvw_-_3rem))]"
           : "min-w-[320px] max-w-[340px]",
         dropZoneClass || "border-gray-200 dark:border-[#2C2C2C]",
       )}
