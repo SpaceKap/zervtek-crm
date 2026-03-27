@@ -108,9 +108,10 @@ export const KanbanColumn = memo(function KanbanColumn({
   return (
     <div
       className={cn(
-        "flex h-full flex-col rounded-lg bg-gray-50 transition-colors duration-200 dark:bg-[#1E1E1E] flex-shrink-0 border-2",
+        "box-border flex h-full flex-col rounded-lg bg-gray-50 transition-colors duration-200 dark:bg-[#1E1E1E] flex-shrink-0 border-2",
         isPwa
-          ? "min-w-[calc(100vw-1rem)] max-w-[calc(100vw-1rem)] sm:min-w-[400px] sm:max-w-[400px]"
+          ? // Inset from viewport edges; never wider than ~400px or the screen (whichever is smaller)
+            "min-w-[min(400px,calc(100dvw_-_2.25rem))] max-w-[min(400px,calc(100dvw_-_2.25rem))]"
           : "min-w-[320px] max-w-[340px]",
         dropZoneClass || "border-gray-200 dark:border-[#2C2C2C]",
       )}
