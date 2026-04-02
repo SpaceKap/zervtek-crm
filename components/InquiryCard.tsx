@@ -208,6 +208,7 @@ export function InquiryCard({
   const notes = metadata.notes || "";
   const hasNotes = notes && notes.trim().length > 0;
   const previouslyTriedBy = metadata.previouslyTriedBy || null;
+  const stockNo = metadata.stockNo || null;
 
   // Message expansion state
   const [isMessageExpanded, setIsMessageExpanded] = useState(false);
@@ -446,6 +447,16 @@ export function InquiryCard({
                     {lookingFor}
                   </span>
                   <CopyIcon text={lookingFor} fieldId="lookingFor" />
+                </div>
+              )}
+
+              {stockNo && (
+                <div className="text-xs text-gray-600 dark:text-[#A1A1A1] flex items-center gap-1">
+                  <span className="font-medium text-gray-700 dark:text-[#D0D0D0]">
+                    JCT Stock No:
+                  </span>{" "}
+                  <span className="font-mono">{stockNo}</span>
+                  <CopyIcon text={stockNo} fieldId="stockNo" />
                 </div>
               )}
 
