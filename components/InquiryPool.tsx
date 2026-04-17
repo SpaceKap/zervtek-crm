@@ -457,7 +457,7 @@ export function InquiryPool({
             open={dialogOpen}
             onOpenChange={setDialogOpen}
             onSuccess={() => fetchInquiries(true)}
-            isManager={isManager}
+            canAssignOnCreate={canAssign}
             users={users}
           />
         </>
@@ -506,7 +506,7 @@ export function InquiryPool({
               showDeleteButton={true}
               showNotesButton={true}
               showAssignButton={canAssign}
-              showAssignToButton={(isManager || isAdmin) && users.length > 0}
+              showAssignToButton={canAssign && users.length > 0}
               currentUserEmail={currentUserEmail}
               showReleaseButton={!!inquiry.assignedToId}
               currentUserId={currentUserId}

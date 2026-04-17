@@ -491,6 +491,28 @@ export function InquiryCard({
                 </div>
               )}
 
+              {hasNotes && (
+                <div className="text-xs text-gray-700 dark:text-[#D0D0D0] rounded-md border border-blue-100 bg-blue-50/80 dark:border-blue-900/40 dark:bg-blue-950/30 px-2 py-1.5">
+                  <div className="flex items-start gap-1">
+                    <span
+                      className="material-symbols-outlined shrink-0 text-blue-600 dark:text-blue-400"
+                      style={{ fontSize: 14 }}
+                    >
+                      sticky_note_2
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <span className="font-medium text-blue-900 dark:text-blue-200">
+                        Notes
+                      </span>
+                      <p className="mt-0.5 leading-snug text-gray-800 dark:text-gray-200 whitespace-pre-wrap break-words line-clamp-6">
+                        {notes}
+                      </p>
+                    </div>
+                    <CopyIcon text={notes} fieldId="notes" />
+                  </div>
+                </div>
+              )}
+
               {/* Contact Info - visible in sales pipeline so staff can contact leads */}
               {showContactInfo && (inquiry.email || inquiry.phone) && (
                 <div className="space-y-1.5 text-xs text-gray-600 dark:text-[#A1A1A1] pt-2 mt-2 border-t border-gray-100 dark:border-[#2C2C2C]">
@@ -523,6 +545,16 @@ export function InquiryCard({
               <div className="text-xs text-gray-500 dark:text-[#A1A1A1] italic">
                 Closed Won
               </div>
+              {hasNotes && (
+                <div className="text-xs text-gray-700 dark:text-[#D0D0D0] rounded-md border border-blue-100 bg-blue-50/80 dark:border-blue-900/40 dark:bg-blue-950/30 px-2 py-1.5 mt-1">
+                  <span className="font-medium text-blue-900 dark:text-blue-200">
+                    Notes:{" "}
+                  </span>
+                  <span className="whitespace-pre-wrap break-words line-clamp-4">
+                    {notes}
+                  </span>
+                </div>
+              )}
             </div>
           )}
 
@@ -591,7 +623,7 @@ export function InquiryCard({
                   </span>
                 </button>
               )}
-              {showAssignToButton && onAssignTo && (isManager || isAdmin) && (
+              {showAssignToButton && onAssignTo && (
                 <button
                   onClick={(e) => {
                     e.stopPropagation();

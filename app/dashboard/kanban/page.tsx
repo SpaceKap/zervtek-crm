@@ -55,19 +55,27 @@ export default async function KanbanPage(props: {
     session.user.role === UserRole.MANAGER ||
     session.user.role === UserRole.ADMIN;
   const isAdmin = session.user.role === UserRole.ADMIN;
+  const canAssignLeads =
+    session.user.role === UserRole.MANAGER ||
+    session.user.role === UserRole.ADMIN ||
+    session.user.role === UserRole.BACK_OFFICE_STAFF;
 
   const userIdFromUrl = firstQueryValue(searchParams.userId);
   if (isManager && !userIdFromUrl) {
     redirect(buildKanbanUrlWithUserIdMe(searchParams));
   }
 
-  // Get all users (sales, managers, admins) for manager/admin filter and assign
   let users: Array<{ id: string; name: string | null; email: string }> = [];
-  if (isManager) {
+  if (isManager || session.user.role === UserRole.BACK_OFFICE_STAFF) {
     users = await prisma.user.findMany({
       where: {
         role: {
-          in: [UserRole.SALES, UserRole.MANAGER, UserRole.ADMIN],
+          in: [
+            UserRole.SALES,
+            UserRole.MANAGER,
+            UserRole.ADMIN,
+            UserRole.BACK_OFFICE_STAFF,
+          ],
         },
       },
       select: {
@@ -88,6 +96,7 @@ export default async function KanbanPage(props: {
       <KanbanPipelinePage
         isManager={isManager}
         isAdmin={isAdmin}
+        canAssignLeads={canAssignLeads}
         users={users}
         currentUserId={session.user.id}
         currentUserEmail={session.user.email || ""}

@@ -17,6 +17,7 @@ interface User {
 interface KanbanPipelinePageProps {
   isManager: boolean;
   isAdmin: boolean;
+  canAssignLeads: boolean;
   users: User[];
   currentUserId: string;
   currentUserEmail: string;
@@ -25,6 +26,7 @@ interface KanbanPipelinePageProps {
 export function KanbanPipelinePage({
   isManager,
   isAdmin,
+  canAssignLeads,
   users,
   currentUserId,
   currentUserEmail,
@@ -118,6 +120,7 @@ export function KanbanPipelinePage({
           <KanbanBoard
             isManager={isManager}
             isAdmin={isAdmin}
+            canAssignLeads={canAssignLeads}
             users={users}
             currentUserId={currentUserId}
             currentUserEmail={currentUserEmail}

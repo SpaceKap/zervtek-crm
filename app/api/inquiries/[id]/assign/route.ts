@@ -35,20 +35,28 @@ export async function POST(
 
     const body = await request.json().catch(() => ({}))
     const assignToId = body.assignToId as string | undefined
-    const isManager = session.user.role === UserRole.MANAGER || session.user.role === UserRole.ADMIN
+    const canRouteToOthers =
+      session.user.role === UserRole.MANAGER ||
+      session.user.role === UserRole.ADMIN ||
+      session.user.role === UserRole.BACK_OFFICE_STAFF
 
-    // Determine target assignee: from body (managers only) or current user
+    // Determine target assignee: from body (managers / admins / back office) or current user
     let targetAssigneeId: string
-    if (assignToId && isManager) {
+    if (assignToId && canRouteToOthers) {
       targetAssigneeId = assignToId
       const targetUser = await prisma.user.findUnique({
         where: { id: assignToId },
         select: { id: true, role: true },
       })
-      const assignableRoles: UserRole[] = [UserRole.SALES, UserRole.MANAGER, UserRole.ADMIN]
+      const assignableRoles: UserRole[] = [
+        UserRole.SALES,
+        UserRole.MANAGER,
+        UserRole.ADMIN,
+        UserRole.BACK_OFFICE_STAFF,
+      ]
       if (!targetUser || !assignableRoles.includes(targetUser.role)) {
         return NextResponse.json(
-          { error: "Invalid assignee - must be sales staff, manager, or admin" },
+          { error: "Invalid assignee - must be sales, manager, admin, or back office" },
           { status: 400 }
         )
       }
@@ -56,11 +64,11 @@ export async function POST(
       targetAssigneeId = session.user.id
     }
 
-    // Check if already assigned to someone else (unless manager reassigning)
+    // Check if already assigned to someone else (unless privileged user reassigning)
     if (
       inquiry.assignedToId &&
       inquiry.assignedToId !== session.user.id &&
-      !isManager
+      !canRouteToOthers
     ) {
       return NextResponse.json(
         { error: "Inquiry already assigned to another user" },
@@ -123,7 +131,7 @@ export async function POST(
         userId: session.user.id,
         action: "ASSIGNED",
         newStatus: inquiry.status,
-        notes: assignToId && isManager
+        notes: assignToId && canRouteToOthers
           ? `Assigned to ${assigneeName} by ${session.user.name || session.user.email}`
           : previousAssignee
             ? `Previously tried by ${previousAssignee.name || previousAssignee.email}`

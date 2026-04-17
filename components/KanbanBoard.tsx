@@ -82,6 +82,8 @@ interface KanbanBoardProps {
   filterControlledByParent?: boolean;
   isManager?: boolean;
   isAdmin?: boolean;
+  /** Pool-style assign (self / team); false for sales */
+  canAssignLeads?: boolean;
   users?: Array<{ id: string; name: string | null; email: string }>;
   currentUserId?: string;
   currentUserEmail?: string;
@@ -239,6 +241,7 @@ function KanbanBoardInner({
   filterControlledByParent = false,
   isManager = false,
   isAdmin = false,
+  canAssignLeads = false,
   users = [],
   currentUserId,
   currentUserEmail,
@@ -822,6 +825,7 @@ function KanbanBoardInner({
                 mergeHoldProgress={mergeHoldProgress}
                 mergeMode={mergeMode}
                 onEnterMergeMode={canMergeInquiries ? () => setMergeMode(true) : undefined}
+                canAssignLeads={canAssignLeads}
               />
             ))}
           </SortableContext>
@@ -874,7 +878,7 @@ function KanbanBoardInner({
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         onSuccess={handleInquiryCreated}
-        isManager={isManager}
+        canAssignOnCreate={canAssignLeads}
         users={users}
         defaultStatus={dialogStatus}
       />
@@ -893,7 +897,7 @@ function KanbanBoardInner({
         onConfirm={confirmRelease}
         loading={releasing}
       />
-      {assignToInquiryId && (
+      {assignToInquiryId && users.length > 0 && (
         <AssignToDialog
           open={assignToDialogOpen}
           onOpenChange={(open) => {

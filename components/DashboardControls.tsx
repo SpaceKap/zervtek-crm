@@ -20,6 +20,7 @@ interface User {
 
 interface DashboardControlsProps {
   isManager: boolean;
+  canAssignOnCreate: boolean;
   users: User[];
   filterUserId: string;
   filterSource: string;
@@ -38,6 +39,7 @@ const selectClass =
 
 export function DashboardControls({
   isManager,
+  canAssignOnCreate,
   users,
   filterUserId,
   filterSource,
@@ -192,7 +194,7 @@ export function DashboardControls({
         open={dialogOpen}
         onOpenChange={onDialogOpenChange}
         onSuccess={onInquiryCreated}
-        isManager={isManager}
+        canAssignOnCreate={canAssignOnCreate}
         users={users}
       />
     </>

@@ -84,6 +84,7 @@ export function ManagerView({
                 }
                 isManager={true}
                 isAdmin={isAdmin}
+                canAssignLeads={true}
                 users={users}
                 currentUserId={currentUserId}
               />
@@ -92,6 +93,7 @@ export function ManagerView({
               <InquiryPool
                 isManager={true}
                 isAdmin={isAdmin}
+                canAssign={true}
                 users={users}
                 userId={
                   selectedUserId === "all"

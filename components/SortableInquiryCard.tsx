@@ -37,6 +37,7 @@ interface SortableInquiryCardProps {
   currentUserEmail?: string;
   isManager?: boolean;
   isAdmin?: boolean;
+  canAssignLeads?: boolean;
   isMergeTarget?: boolean;
   mergeHoldProgress?: number;
   onEnterMergeMode?: () => void;
@@ -54,6 +55,7 @@ function SortableInquiryCardComponent({
   currentUserEmail,
   isManager = false,
   isAdmin = false,
+  canAssignLeads = false,
   isMergeTarget = false,
   mergeHoldProgress = 0,
   onEnterMergeMode,
@@ -110,7 +112,7 @@ function SortableInquiryCardComponent({
         showReleaseButton={true}
         showNotesButton={true}
         showCopyFieldIcons={!isPwa}
-        showAssignToButton={true}
+        showAssignToButton={canAssignLeads}
         showDeleteButton={true}
         currentUserId={currentUserId}
         currentUserEmail={currentUserEmail}

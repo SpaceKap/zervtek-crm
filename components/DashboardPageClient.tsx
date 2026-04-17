@@ -13,6 +13,7 @@ interface DashboardPageClientProps {
   isManager: boolean;
   isAdmin: boolean;
   canAssign: boolean;
+  canAssignOnCreate: boolean;
   users: User[];
   currentUserId: string;
   currentUserEmail: string;
@@ -23,6 +24,7 @@ export function DashboardPageClient({
   isManager,
   isAdmin,
   canAssign,
+  canAssignOnCreate,
   users,
   currentUserId,
   currentUserEmail,
@@ -52,6 +54,7 @@ export function DashboardPageClient({
         <div className="flex shrink-0 flex-wrap items-center gap-2">
           <DashboardControls
             isManager={isManager}
+            canAssignOnCreate={canAssignOnCreate}
             users={users}
             filterUserId={filterUserId}
             filterSource={filterSource}

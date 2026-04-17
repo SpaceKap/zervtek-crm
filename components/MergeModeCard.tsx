@@ -36,6 +36,7 @@ interface MergeModeCardProps {
   currentUserEmail?: string;
   isManager?: boolean;
   isAdmin?: boolean;
+  canAssignLeads?: boolean;
 }
 
 function MergeModeCardComponent({
@@ -50,6 +51,7 @@ function MergeModeCardComponent({
   currentUserEmail,
   isManager = false,
   isAdmin = false,
+  canAssignLeads = false,
 }: MergeModeCardProps) {
   const isPwa = useStandalonePwa();
   const {
@@ -93,7 +95,7 @@ function MergeModeCardComponent({
           showReleaseButton={true}
           showNotesButton={true}
           showCopyFieldIcons={!isPwa}
-          showAssignToButton={true}
+          showAssignToButton={canAssignLeads}
           showDeleteButton={true}
           currentUserId={currentUserId}
           currentUserEmail={currentUserEmail}

@@ -47,6 +47,7 @@ interface KanbanColumnProps {
   currentUserEmail?: string;
   isManager?: boolean;
   isAdmin?: boolean;
+  canAssignLeads?: boolean;
   mergeTargetId?: string | null;
   mergeHoldProgress?: number;
   mergeMode?: boolean;
@@ -70,6 +71,7 @@ export const KanbanColumn = memo(function KanbanColumn({
   currentUserEmail,
   isManager = false,
   isAdmin = false,
+  canAssignLeads = false,
   mergeTargetId = null,
   mergeHoldProgress = 0,
   mergeMode = false,
@@ -195,6 +197,7 @@ export const KanbanColumn = memo(function KanbanColumn({
                     currentUserEmail={currentUserEmail}
                     isManager={isManager}
                     isAdmin={isAdmin}
+                    canAssignLeads={canAssignLeads}
                   />
                 ) : (
                   <SortableInquiryCard
@@ -210,6 +213,7 @@ export const KanbanColumn = memo(function KanbanColumn({
                     currentUserEmail={currentUserEmail}
                     isManager={isManager}
                     isAdmin={isAdmin}
+                    canAssignLeads={canAssignLeads}
                     isMergeTarget={mergeTargetId === inquiry.id}
                     mergeHoldProgress={mergeHoldProgress}
                     onEnterMergeMode={onEnterMergeMode}

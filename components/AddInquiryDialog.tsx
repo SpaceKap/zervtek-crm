@@ -62,7 +62,8 @@ interface AddInquiryDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
-  isManager: boolean;
+  /** Managers, admins, and back office can assign on create */
+  canAssignOnCreate: boolean;
   users?: User[];
   defaultStatus?: string;
 }
@@ -71,7 +72,7 @@ export function AddInquiryDialog({
   open,
   onOpenChange,
   onSuccess,
-  isManager,
+  canAssignOnCreate,
   users = [],
   defaultStatus,
 }: AddInquiryDialogProps) {
@@ -105,7 +106,7 @@ export function AddInquiryDialog({
               : undefined,
           message: data.message || undefined,
           lookingFor: data.lookingFor || undefined,
-          assignToId: isManager ? data.assignToId || undefined : undefined,
+          assignToId: canAssignOnCreate ? data.assignToId || undefined : undefined,
           ...(defaultStatus && { status: defaultStatus }),
         }),
       });
@@ -239,7 +240,7 @@ export function AddInquiryDialog({
             />
           </div>
 
-          {isManager && users.length > 0 && (
+          {canAssignOnCreate && users.length > 0 && (
             <div>
               <Label htmlFor="assignToId">Assign To (Optional)</Label>
               <select

@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { InquirySource, InquiryStatus, UserRole } from "@prisma/client"
-import { canViewAllInquiries } from "@/lib/permissions"
+import { canAssignInquiry, canViewAllInquiries } from "@/lib/permissions"
 import { getCached, invalidateCachePattern, cacheKeyFromSearchParams } from "@/lib/cache"
 
 const INQUIRIES_LIST_TTL = 60
@@ -219,24 +219,39 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Handle assignment logic
+    // Handle assignment: only managers, admins, and back office can assign (self or others).
+    // Sales-created inquiries stay unassigned unless a privileged user sets assignToId.
     let assignedToId: string | null = null
-    const isManager = session.user.role === UserRole.MANAGER || session.user.role === UserRole.ADMIN
+    const canRoute = canAssignInquiry(session.user.role)
 
     if (assignToId) {
-      if (assignToId === "me") {
-        // Assign to current user
-        assignedToId = session.user.id
-      } else if (isManager) {
-        // Manager can assign to anyone
-        assignedToId = assignToId
-      } else {
-        // Non-managers can only assign to themselves
-        assignedToId = session.user.id
+      if (!canRoute) {
+        return NextResponse.json(
+          { error: "Only managers, admins, and back office can assign inquiries" },
+          { status: 403 }
+        )
       }
-    } else if (!isManager) {
-      // Non-managers automatically assign to themselves
-      assignedToId = session.user.id
+      if (assignToId === "me") {
+        assignedToId = session.user.id
+      } else {
+        const targetUser = await prisma.user.findUnique({
+          where: { id: assignToId },
+          select: { id: true, role: true },
+        })
+        const assignableRoles: UserRole[] = [
+          UserRole.SALES,
+          UserRole.MANAGER,
+          UserRole.ADMIN,
+          UserRole.BACK_OFFICE_STAFF,
+        ]
+        if (!targetUser || !assignableRoles.includes(targetUser.role)) {
+          return NextResponse.json(
+            { error: "Invalid assignee" },
+            { status: 400 }
+          )
+        }
+        assignedToId = assignToId
+      }
     }
 
     let inquiry
