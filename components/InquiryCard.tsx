@@ -292,6 +292,12 @@ export function InquiryCard({
     }
   };
 
+  const buildWhatsAppUrl = (phone: string): string | null => {
+    const digitsOnly = phone.replace(/[^\d]/g, "");
+    if (!digitsOnly) return null;
+    return `https://wa.me/${digitsOnly}`;
+  };
+
   return (
     <div className="relative rounded-lg">
       {/* Merge target: progress ring and highlight */}
@@ -533,6 +539,28 @@ export function InquiryCard({
                         phone
                       </span>
                       <span className="flex-1">{inquiry.phone}</span>
+                      {buildWhatsAppUrl(inquiry.phone) && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const whatsappUrl = buildWhatsAppUrl(inquiry.phone!);
+                            if (whatsappUrl) window.open(whatsappUrl, "_blank", "noopener,noreferrer");
+                          }}
+                          className="inline-flex shrink-0 items-center justify-center p-0.5 rounded hover:bg-green-100 dark:hover:bg-green-900/30 transition-colors"
+                          title="Open WhatsApp chat"
+                          aria-label="Open WhatsApp chat"
+                        >
+                          <svg
+                            viewBox="0 0 24 24"
+                            aria-hidden="true"
+                            className="h-3.5 w-3.5 text-[#25D366]"
+                            fill="currentColor"
+                          >
+                            <path d="M12 2a10 10 0 0 0-8.73 14.88L2 22l5.25-1.23A10 10 0 1 0 12 2Zm5.67 14.39c-.24.68-1.42 1.3-1.95 1.38-.5.07-1.13.1-1.82-.12-.42-.13-.95-.31-1.65-.61-2.9-1.25-4.8-4.33-4.94-4.53-.14-.2-1.18-1.57-1.18-2.99 0-1.41.74-2.1 1-2.39.26-.28.57-.35.75-.35.19 0 .38 0 .54.01.17.01.4-.06.63.49.23.56.77 1.93.84 2.08.07.15.11.33.02.53-.09.2-.14.32-.28.49-.14.17-.29.38-.41.5-.14.14-.29.3-.12.6.17.29.78 1.29 1.67 2.09 1.15 1.03 2.12 1.35 2.42 1.5.3.15.47.12.65-.08.18-.2.75-.88.95-1.19.2-.31.4-.26.68-.15.28.1 1.78.84 2.08.99.31.15.52.22.6.34.08.12.08.69-.16 1.37Z" />
+                          </svg>
+                        </button>
+                      )}
                       <CopyIcon text={inquiry.phone} fieldId="phone" />
                     </div>
                   )}
