@@ -31,9 +31,10 @@ export function canViewAllInquiries(userRole: UserRole): boolean {
   return userRole === UserRole.MANAGER || userRole === UserRole.ADMIN || userRole === UserRole.ACCOUNTANT
 }
 
-/** Claim / route leads (pool self-assign and assign to others). Sales cannot assign. */
+/** Claim / route leads (pool self-assign and assign to others for privileged roles). */
 export function canAssignInquiry(userRole: UserRole): boolean {
   return (
+    userRole === UserRole.SALES ||
     userRole === UserRole.MANAGER ||
     userRole === UserRole.ADMIN ||
     userRole === UserRole.BACK_OFFICE_STAFF

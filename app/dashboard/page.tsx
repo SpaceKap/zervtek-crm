@@ -16,6 +16,7 @@ export default async function DashboardPage() {
     session.user.role === UserRole.ADMIN;
   const isAdmin = session.user.role === UserRole.ADMIN;
   const canAssign =
+    session.user.role === UserRole.SALES ||
     session.user.role === UserRole.MANAGER ||
     session.user.role === UserRole.ADMIN ||
     session.user.role === UserRole.BACK_OFFICE_STAFF;
